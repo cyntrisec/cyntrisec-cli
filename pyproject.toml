@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cyntrisec"
-version = "0.1.0"
+dynamic = ["version"]
 description = "AWS capability graph analysis and attack path discovery CLI"
 readme = "README.md"
-license = "MIT"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 authors = [{ name = "CyntriSec" }]
 keywords = ["aws", "security", "attack-path", "cli", "cost-optimization"]
@@ -42,6 +42,18 @@ dev = [
 
 [project.scripts]
 cyntrisec = "cyntrisec.cli.main:app"
+
+[tool.hatch.version]
+path = "src/cyntrisec/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/cyntrisec",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cyntrisec"]

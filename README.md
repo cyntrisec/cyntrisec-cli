@@ -6,7 +6,7 @@ A read-only CLI tool that:
 - Scans AWS infrastructure via AssumeRole
 - Builds a capability graph (IAM, network, dependencies)
 - Discovers attack paths from internet to sensitive targets
-- Identifies cost-cut candidates (unused capabilities)
+- Identifies unused capabilities (blast radius reduction)
 - Outputs deterministic JSON with proof chains
 
 ## Installation
@@ -25,10 +25,6 @@ python -m cyntrisec --help
 
 # Option 2: Add to PATH for current session
 $env:PATH += ";$env:APPDATA\Python\Python311\Scripts"
-
-# Option 3: Create a batch file cyntrisec.cmd in a folder on PATH:
-# @echo off
-# python -m cyntrisec %*
 ```
 
 ## Quick Start
@@ -37,7 +33,7 @@ $env:PATH += ";$env:APPDATA\Python\Python311\Scripts"
 # 1. Create the read-only IAM role in your account
 cyntrisec setup iam 123456789012 --output role.tf
 
-# 2. Apply the Terraform (or use CloudFormation)
+# 2. Apply the Terraform
 cd your-infra && terraform apply
 
 # 3. Run a scan
@@ -46,8 +42,8 @@ cyntrisec scan --role-arn arn:aws:iam::123456789012:role/CyntrisecReadOnly
 # 4. View attack paths
 cyntrisec analyze paths --min-risk 0.5
 
-# 5. View cost-cut candidates
-cyntrisec analyze waste --min-savings 100
+# 5. Find minimal fixes
+cyntrisec cuts --format json
 
 # 6. Generate HTML report
 cyntrisec report --output report.html
@@ -55,15 +51,64 @@ cyntrisec report --output report.html
 
 ## Commands
 
+### Core Analysis
+
 | Command | Description |
 |---------|-------------|
-| `cyntrisec scan` | Run AWS scan |
-| `cyntrisec analyze paths` | Show attack paths |
-| `cyntrisec analyze waste` | Show cost-cut candidates |
-| `cyntrisec cuts` | Show minimal graph cuts |
-| `cyntrisec explain <id>` | Explain an asset's role |
-| `cyntrisec report` | Generate HTML report |
-| `cyntrisec setup iam` | Generate IAM policy/role |
+| `scan` | Scan AWS infrastructure |
+| `analyze paths` | View attack paths |
+| `analyze findings` | View security findings |
+| `analyze business` | Business entrypoint analysis |
+| `report` | Generate HTML/JSON report |
+
+### Remediation
+
+| Command | Description |
+|---------|-------------|
+| `cuts` | Find minimal fixes for attack paths |
+| `waste` | Find unused IAM permissions |
+| `remediate` | Generate Terraform remediation plan |
+
+### Policy Testing
+
+| Command | Description |
+|---------|-------------|
+| `can` | Test "can X access Y?" |
+| `diff` | Compare scan snapshots |
+| `comply` | Check CIS AWS / SOC2 compliance |
+
+### Agentic Interface
+
+| Command | Description |
+|---------|-------------|
+| `manifest` | Output machine-readable capabilities |
+| `explain` | Natural language explanations |
+| `ask` | Query scans in plain English |
+| `serve` | Run as MCP server for AI agents |
+
+## MCP Server Mode
+
+Run Cyntrisec as an MCP server for AI agent integration:
+
+```bash
+cyntrisec serve              # Start stdio server
+cyntrisec serve --list-tools # List available tools
+```
+
+**MCP Tools:** `get_scan_summary`, `get_attack_paths`, `get_remediations`, `check_access`, `get_unused_permissions`, `check_compliance`, `compare_scans`
+
+### Claude Desktop Config
+
+```json
+{
+  "mcpServers": {
+    "cyntrisec": {
+      "command": "python",
+      "args": ["-m", "cyntrisec", "serve"]
+    }
+  }
+}
+```
 
 ## Trust & Safety
 
@@ -86,52 +131,45 @@ All suggested actions are informational.
 
 Every AWS API call is logged in CloudTrail under session name `cyntrisec-cli`.
 
-### Required IAM Policy
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "CyntrisecReadOnly",
-    "Effect": "Allow",
-    "Action": [
-      "ec2:Describe*",
-      "iam:Get*",
-      "iam:List*",
-      "s3:GetBucketAcl",
-      "s3:GetBucketPolicy",
-      "s3:GetBucketPolicyStatus",
-      "s3:GetBucketPublicAccessBlock",
-      "s3:GetBucketLocation",
-      "s3:ListBucket",
-      "s3:ListAllMyBuckets",
-      "lambda:GetFunction",
-      "lambda:GetFunctionConfiguration",
-      "lambda:GetPolicy",
-      "lambda:ListFunctions",
-      "rds:Describe*",
-      "elasticloadbalancing:Describe*",
-      "sts:GetCallerIdentity"
-    ],
-    "Resource": "*"
-  }]
-}
-```
-
-Generate with: `cyntrisec setup iam YOUR_ACCOUNT_ID`
-
 ## Output Format
 
-Primary output is JSON to stdout, suitable for piping to `jq`:
+Primary output is JSON to stdout. When stdout is not a TTY, the CLI automatically switches to JSON:
 
 ```bash
 cyntrisec analyze paths --format json | jq '.paths[] | select(.risk_score > 0.7)'
 ```
 
-Human-readable table format:
+Agent-friendly output wraps results in a structured envelope:
 
 ```bash
-cyntrisec analyze paths --format table
+cyntrisec analyze paths --format agent
+```
+
+```json
+{
+  "schema_version": "1.0",
+  "status": "success",
+  "data": {...},
+  "artifact_paths": {...},
+  "suggested_actions": [...]
+}
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success / compliant |
+| 1 | Findings / regressions / denied |
+| 2 | Usage error |
+| 3 | Transient error (retry) |
+| 4 | Internal error |
+
+Use in CI/CD:
+
+```bash
+cyntrisec scan --role-arn $ROLE_ARN || exit 1
+cyntrisec diff || echo "Regressions detected"
 ```
 
 ## Storage
@@ -141,29 +179,19 @@ Scan results are stored locally:
 ```
 ~/.cyntrisec/
 ├── scans/
-│   ├── 2026-01-16_123456_123456789012/
+│   ├── 2026-01-17_123456_123456789012/
 │   │   ├── snapshot.json
 │   │   ├── assets.json
 │   │   ├── relationships.json
 │   │   ├── findings.json
 │   │   └── attack_paths.json
-│   └── latest -> 2026-01-16_123456_123456789012
+│   └── latest -> 2026-01-17_...
 └── config.yaml
 ```
 
-## Exit Codes
+## Versioning
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success, no high-risk paths |
-| 1 | High-risk attack paths found |
-| 2 | Error during execution |
-
-Use in CI/CD:
-
-```bash
-cyntrisec scan --role-arn $ROLE_ARN || exit 1
-```
+This project follows Semantic Versioning. See `CHANGELOG.md` for release notes.
 
 ## License
 
