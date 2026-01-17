@@ -10,6 +10,7 @@ class NetworkCollector:
     """Collect network resources."""
 
     def __init__(self, session: boto3.Session, region: str):
+        self._session = session
         self._ec2 = session.client("ec2", region_name=region)
         self._region = region
 
@@ -61,15 +62,7 @@ class NetworkCollector:
     def _collect_load_balancers(self) -> List[Dict]:
         """Collect ELBv2 load balancers."""
         try:
-            from boto3 import Session
-            elb = self._ec2._client_config._client_context_params.get("session", Session()).client(
-                "elbv2", region_name=self._region
-            )
-        except Exception:
-            # Fallback: create client directly
-            elb = boto3.client("elbv2", region_name=self._region)
-        
-        try:
+            elb = self._session.client("elbv2", region_name=self._region)
             response = elb.describe_load_balancers()
             return response.get("LoadBalancers", [])
         except Exception:

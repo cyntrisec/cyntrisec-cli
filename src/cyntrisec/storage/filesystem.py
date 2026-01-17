@@ -108,22 +108,30 @@ class FileSystemStorage(StorageBackend):
 
     def save_assets(self, assets: List[Asset]) -> None:
         scan_dir = self._get_scan_dir()
-        data = [a.model_dump(mode="json") for a in assets]
+        # Sort by id for deterministic output
+        sorted_assets = sorted(assets, key=lambda a: str(a.id))
+        data = [a.model_dump(mode="json") for a in sorted_assets]
         self._write_json(scan_dir / "assets.json", data)
 
     def save_relationships(self, relationships: List[Relationship]) -> None:
         scan_dir = self._get_scan_dir()
-        data = [r.model_dump(mode="json") for r in relationships]
+        # Sort by id for deterministic output
+        sorted_rels = sorted(relationships, key=lambda r: str(r.id))
+        data = [r.model_dump(mode="json") for r in sorted_rels]
         self._write_json(scan_dir / "relationships.json", data)
 
     def save_findings(self, findings: List[Finding]) -> None:
         scan_dir = self._get_scan_dir()
-        data = [f.model_dump(mode="json") for f in findings]
+        # Sort by id for deterministic output
+        sorted_findings = sorted(findings, key=lambda f: str(f.id))
+        data = [f.model_dump(mode="json") for f in sorted_findings]
         self._write_json(scan_dir / "findings.json", data)
 
     def save_attack_paths(self, paths: List[AttackPath]) -> None:
         scan_dir = self._get_scan_dir()
-        data = [p.model_dump(mode="json") for p in paths]
+        # Sort by risk_score (desc), then id for deterministic output
+        sorted_paths = sorted(paths, key=lambda p: (-float(p.risk_score), str(p.id)))
+        data = [p.model_dump(mode="json") for p in sorted_paths]
         self._write_json(scan_dir / "attack_paths.json", data)
 
     def get_snapshot(self, scan_id: Optional[str] = None) -> Optional[Snapshot]:

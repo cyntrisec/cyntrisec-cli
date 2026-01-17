@@ -1,0 +1,58 @@
+[
+  {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "snapshot_id": "00000000-0000-0000-0000-000000000000",
+    "asset_type": "ec2:elastic-ip",
+    "aws_region": "us-east-1",
+    "aws_resource_id": "eip-12345",
+    "arn": "arn:aws:ec2:us-east-1:123456789012:elastic-ip/eip-12345",
+    "name": "public-entry",
+    "properties": {"public_ip": "203.0.113.1"},
+    "tags": {},
+    "monthly_cost_usd": null,
+    "is_internet_facing": true,
+    "is_sensitive_target": false
+  },
+  {
+    "id": "22222222-2222-2222-2222-222222222222",
+    "snapshot_id": "00000000-0000-0000-0000-000000000000",
+    "asset_type": "ec2:instance",
+    "aws_region": "us-east-1",
+    "aws_resource_id": "i-abcdef123",
+    "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-abcdef123",
+    "name": "web-server",
+    "properties": {"instance_type": "t3.medium", "state": "running"},
+    "tags": {"Environment": "prod"},
+    "monthly_cost_usd": "50.00",
+    "is_internet_facing": false,
+    "is_sensitive_target": false
+  },
+  {
+    "id": "33333333-3333-3333-3333-333333333333",
+    "snapshot_id": "00000000-0000-0000-0000-000000000000",
+    "asset_type": "lambda:function",
+    "aws_region": "us-east-1",
+    "aws_resource_id": "data-processor",
+    "arn": "arn:aws:lambda:us-east-1:123456789012:function:data-processor",
+    "name": "data-processor",
+    "properties": {"runtime": "python3.11"},
+    "tags": {},
+    "monthly_cost_usd": null,
+    "is_internet_facing": false,
+    "is_sensitive_target": false
+  },
+  {
+    "id": "44444444-4444-4444-4444-444444444444",
+    "snapshot_id": "00000000-0000-0000-0000-000000000000",
+    "asset_type": "rds:db-instance",
+    "aws_region": "us-east-1",
+    "aws_resource_id": "prod-database",
+    "arn": "arn:aws:rds:us-east-1:123456789012:db:prod-database",
+    "name": "prod-database",
+    "properties": {"engine": "postgres", "encrypted": true},
+    "tags": {"Classification": "confidential"},
+    "monthly_cost_usd": "200.00",
+    "is_internet_facing": false,
+    "is_sensitive_target": true
+  }
+]

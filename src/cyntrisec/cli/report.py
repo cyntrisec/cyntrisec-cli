@@ -89,26 +89,52 @@ def _generate_html(data: dict, title: str) -> str:
     sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
     findings.sort(key=lambda f: sev_order.get(f.get("severity", "info"), 5))
     
-    # Build paths rows
+    # Build paths table rows
     path_rows = []
     for p in paths[:25]:
-        path_rows.append(f'''<tr>
-            <td><strong>{float(p.get('risk_score', 0)):.3f}</strong></td>
-            <td>{p.get('attack_vector', 'unknown')}</td>
-            <td>{p.get('path_length', 0)}</td>
-            <td>{float(p.get('entry_confidence', 0)):.2f}</td>
-            <td>{float(p.get('impact_score', 0)):.2f}</td>
-        </tr>''')
+        risk = float(p.get('risk_score', 0))
+        vector = p.get('attack_vector', 'unknown')
+        length = p.get('path_length', 0)
+        entry = float(p.get('entry_confidence', 0))
+        impact = float(p.get('impact_score', 0))
+        path_rows.append(
+            f'<tr><td><strong>{risk:.3f}</strong></td>'
+            f'<td>{vector}</td><td>{length}</td>'
+            f'<td>{entry:.2f}</td><td>{impact:.2f}</td></tr>'
+        )
     
-    # Build findings rows
+    # Build attack paths section
+    if not paths:
+        paths_section = '<p style="color:#8b949e;">No attack paths discovered.</p>'
+    else:
+        paths_section = '''<table>
+            <thead><tr><th>Risk</th><th>Vector</th><th>Length</th><th>Entry</th><th>Impact</th></tr></thead>
+            <tbody>''' + ''.join(path_rows) + '''</tbody>
+        </table>'''
+    
+    # Build findings table rows
     finding_rows = []
     for f in findings[:50]:
         sev = f.get('severity', 'info')
-        finding_rows.append(f'''<tr>
-            <td><span class="pill pill-{sev}">{sev.upper()}</span></td>
-            <td>{f.get('finding_type', '')}</td>
-            <td>{f.get('title', '')}</td>
-        </tr>''')
+        ftype = f.get('finding_type', '')
+        ftitle = f.get('title', '')
+        finding_rows.append(
+            f'<tr><td><span class="pill pill-{sev}">{sev.upper()}</span></td>'
+            f'<td>{ftype}</td><td>{ftitle}</td></tr>'
+        )
+    
+    # Build findings section
+    if not findings:
+        findings_section = '<p style="color:#8b949e;">No findings discovered.</p>'
+    else:
+        findings_section = '''<table>
+            <thead><tr><th>Severity</th><th>Type</th><th>Title</th></tr></thead>
+            <tbody>''' + ''.join(finding_rows) + '''</tbody>
+        </table>'''
+    
+    regions = ', '.join(snapshot.get('regions', []))
+    account_id = snapshot.get('aws_account_id', 'N/A')
+    generated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
     
     return f'''<!DOCTYPE html>
 <html lang="en">
@@ -139,11 +165,7 @@ def _generate_html(data: dict, title: str) -> str:
         }}
         .container {{ max-width: 1200px; margin: 0 auto; }}
         h1, h2, h3 {{ color: #fff; margin-bottom: 1rem; }}
-        h1 {{ 
-            font-size: 1.75rem; 
-            border-bottom: 1px solid var(--border); 
-            padding-bottom: 0.5rem; 
-        }}
+        h1 {{ font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }}
         h2 {{ font-size: 1.25rem; margin-top: 2rem; color: var(--accent); }}
         .meta {{ color: #8b949e; margin-bottom: 2rem; font-size: 0.875rem; }}
         .card {{
@@ -153,133 +175,46 @@ def _generate_html(data: dict, title: str) -> str:
             padding: 1rem;
             margin-bottom: 1rem;
         }}
-        .stats {{ 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
-            gap: 1rem; 
-            margin-bottom: 2rem;
-        }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
         .stat {{ text-align: center; padding: 1rem; }}
         .stat-value {{ font-size: 2rem; font-weight: bold; color: var(--accent); }}
         .stat-label {{ color: #8b949e; font-size: 0.75rem; text-transform: uppercase; }}
         .stat-critical .stat-value {{ color: var(--critical); }}
         .stat-high .stat-value {{ color: var(--high); }}
-        table {{ 
-            width: 100%; 
-            border-collapse: collapse; 
-            font-size: 0.875rem;
-        }}
-        th, td {{ 
-            text-align: left; 
-            padding: 0.5rem 0.75rem; 
-            border-bottom: 1px solid var(--border); 
-        }}
-        th {{ 
-            color: #8b949e; 
-            font-weight: 500; 
-            text-transform: uppercase;
-            font-size: 0.75rem;
-        }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 0.875rem; }}
+        th, td {{ text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }}
+        th {{ color: #8b949e; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }}
         tr:hover {{ background: rgba(88, 166, 255, 0.05); }}
-        .pill {{
-            display: inline-block;
-            padding: 0.125rem 0.5rem;
-            border-radius: 9999px;
-            font-size: 0.625rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }}
+        .pill {{ display: inline-block; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.625rem; font-weight: 600; text-transform: uppercase; }}
         .pill-critical {{ background: rgba(248,81,73,0.2); color: var(--critical); }}
         .pill-high {{ background: rgba(219,109,40,0.2); color: var(--high); }}
         .pill-medium {{ background: rgba(210,153,34,0.2); color: var(--medium); }}
         .pill-low {{ background: rgba(63,185,80,0.2); color: var(--low); }}
         .pill-info {{ background: rgba(88,166,255,0.2); color: var(--info); }}
-        .footer {{
-            margin-top: 3rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
-            color: #8b949e;
-            font-size: 0.75rem;
-            text-align: center;
-        }}
-        @media print {{
-            body {{ background: #fff; color: #000; }}
-            .card {{ border: 1px solid #ccc; }}
-        }}
+        .footer {{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: #8b949e; font-size: 0.75rem; text-align: center; }}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>{title}</h1>
-        <p class="meta">
-            Account: {snapshot.get('aws_account_id', 'N/A')} &bull;
-            Regions: {', '.join(snapshot.get('regions', []))} &bull;
-            Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
-        </p>
+        <p class="meta">Account: {account_id} &bull; Regions: {regions} &bull; Generated: {generated_at}</p>
         
         <div class="stats">
-            <div class="card stat">
-                <div class="stat-value">{len(assets)}</div>
-                <div class="stat-label">Assets</div>
-            </div>
-            <div class="card stat">
-                <div class="stat-value">{len(findings)}</div>
-                <div class="stat-label">Findings</div>
-            </div>
-            <div class="card stat">
-                <div class="stat-value">{len(paths)}</div>
-                <div class="stat-label">Attack Paths</div>
-            </div>
-            <div class="card stat stat-critical">
-                <div class="stat-value">{sev_counts['critical']}</div>
-                <div class="stat-label">Critical</div>
-            </div>
-            <div class="card stat stat-high">
-                <div class="stat-value">{sev_counts['high']}</div>
-                <div class="stat-label">High</div>
-            </div>
+            <div class="card stat"><div class="stat-value">{len(assets)}</div><div class="stat-label">Assets</div></div>
+            <div class="card stat"><div class="stat-value">{len(findings)}</div><div class="stat-label">Findings</div></div>
+            <div class="card stat"><div class="stat-value">{len(paths)}</div><div class="stat-label">Attack Paths</div></div>
+            <div class="card stat stat-critical"><div class="stat-value">{sev_counts['critical']}</div><div class="stat-label">Critical</div></div>
+            <div class="card stat stat-high"><div class="stat-value">{sev_counts['high']}</div><div class="stat-label">High</div></div>
         </div>
         
         <h2>Attack Paths ({len(paths)})</h2>
-        <div class="card">
-            {f'<p style="color:#8b949e;">No attack paths discovered.</p>' if not paths else f'''
-            <table>
-                <thead>
-                    <tr>
-                        <th>Risk</th>
-                        <th>Vector</th>
-                        <th>Length</th>
-                        <th>Entry</th>
-                        <th>Impact</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {''.join(path_rows)}
-                </tbody>
-            </table>
-            '''}
-        </div>
+        <div class="card">{paths_section}</div>
         
         <h2>Security Findings ({len(findings)})</h2>
-        <div class="card">
-            {f'<p style="color:#8b949e;">No findings discovered.</p>' if not findings else f'''
-            <table>
-                <thead>
-                    <tr>
-                        <th>Severity</th>
-                        <th>Type</th>
-                        <th>Title</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {''.join(finding_rows)}
-                </tbody>
-            </table>
-            '''}
-        </div>
+        <div class="card">{findings_section}</div>
         
         <div class="footer">
-            Generated by Cyntrisec CLI &bull; Read-Only AWS Security Analysis &bull; 
+            Generated by Cyntrisec CLI &bull; Read-Only AWS Security Analysis &bull;
             <a href="https://github.com/cyntrisec/cyntrisec-cli" style="color:var(--accent);">GitHub</a>
         </div>
     </div>

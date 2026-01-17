@@ -21,20 +21,6 @@ app = typer.Typer(
 )
 
 
-# Import and add subcommands
-# We do this lazily to avoid import errors if boto3 isn't installed
-def _register_commands():
-    from cyntrisec.cli.scan import scan_cmd
-    from cyntrisec.cli.analyze import analyze_app
-    from cyntrisec.cli.report import report_cmd
-    from cyntrisec.cli.setup import setup_app
-    
-    app.command("scan")(scan_cmd)
-    app.add_typer(analyze_app, name="analyze", help="Analyze scan results")
-    app.command("report")(report_cmd)
-    app.add_typer(setup_app, name="setup", help="Setup commands")
-
-
 @app.callback()
 def main(
     verbose: bool = typer.Option(
@@ -76,9 +62,6 @@ def main(
         format="%(message)s" if not verbose else "%(asctime)s %(levelname)s %(name)s: %(message)s",
         stream=sys.stderr,
     )
-    
-    # Register commands after logging is configured
-    _register_commands()
 
 
 @app.command()
@@ -88,5 +71,25 @@ def version():
     typer.echo(f"cyntrisec {__version__}")
 
 
+# Register subcommands at module load time
+# Import inside try/except for graceful handling if deps missing
+try:
+    from cyntrisec.cli.scan import scan_cmd
+    from cyntrisec.cli.analyze import analyze_app
+    from cyntrisec.cli.report import report_cmd
+    from cyntrisec.cli.setup import setup_app
+    from cyntrisec.cli.validate import validate_role_cmd
+    
+    app.command("scan")(scan_cmd)
+    app.add_typer(analyze_app, name="analyze", help="Analyze scan results")
+    app.command("report")(report_cmd)
+    app.add_typer(setup_app, name="setup", help="Setup commands")
+    app.command("validate-role")(validate_role_cmd)
+except ImportError as e:
+    # Allow --version and --help to work even if deps missing
+    pass
+
+
 if __name__ == "__main__":
     app()
+

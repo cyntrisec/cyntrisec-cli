@@ -210,7 +210,14 @@ class AwsScanner:
             except Exception as e:
                 log.error("Error collecting RDS in %s: %s", region, e)
 
-        # 4. Save collected data
+        # 4. Build cross-service relationships
+        log.info("Building cross-service relationships...")
+        from cyntrisec.aws.relationship_builder import RelationshipBuilder
+        extra_rels = RelationshipBuilder(snapshot.id).build(all_assets)
+        all_relationships.extend(extra_rels)
+        log.info("  Added %d cross-service relationships", len(extra_rels))
+
+        # 5. Save collected data
         self._storage.save_assets(all_assets)
         self._storage.save_relationships(all_relationships)
         self._storage.save_findings(all_findings)
