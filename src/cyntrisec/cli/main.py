@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -79,13 +77,33 @@ try:
     from cyntrisec.cli.report import report_cmd
     from cyntrisec.cli.setup import setup_app
     from cyntrisec.cli.validate import validate_role_cmd
+    from cyntrisec.cli.cuts import cuts_cmd
+    from cyntrisec.cli.waste import waste_cmd
+    from cyntrisec.cli.can import can_cmd
+    from cyntrisec.cli.diff import diff_cmd
+    from cyntrisec.cli.comply import comply_cmd
+    from cyntrisec.cli.manifest import manifest_cmd
+    from cyntrisec.cli.explain import explain_cmd
+    from cyntrisec.cli.serve import serve_cmd
+    from cyntrisec.cli.remediate import remediate_cmd
+    from cyntrisec.cli.ask import ask_cmd
     
     app.command("scan")(scan_cmd)
     app.add_typer(analyze_app, name="analyze", help="Analyze scan results")
     app.command("report")(report_cmd)
     app.add_typer(setup_app, name="setup", help="Setup commands")
     app.command("validate-role")(validate_role_cmd)
-except ImportError as e:
+    app.command("cuts")(cuts_cmd)
+    app.command("waste")(waste_cmd)
+    app.command("can")(can_cmd)
+    app.command("diff")(diff_cmd)
+    app.command("comply")(comply_cmd)
+    app.command("manifest")(manifest_cmd)
+    app.command("explain")(explain_cmd)
+    app.command("serve")(serve_cmd)
+    app.command("remediate")(remediate_cmd)
+    app.command("ask")(ask_cmd)
+except ImportError:
     # Allow --version and --help to work even if deps missing
     pass
 

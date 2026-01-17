@@ -9,10 +9,15 @@ from typing import Optional
 
 import typer
 
+from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions
+from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.schemas import SetupIamResponse
+
 setup_app = typer.Typer(help="Setup commands")
 
 
 @setup_app.command("iam")
+@handle_errors
 def setup_iam(
     account_id: str = typer.Argument(
         ...,
@@ -42,6 +47,11 @@ def setup_iam(
         "-o",
         help="Output file (default: stdout)",
     ),
+    output_format: Optional[str] = typer.Option(
+        None,
+        "--output-format",
+        help="Render format: text, json, agent (defaults to json when piped)",
+    ),
 ):
     """
     Generate IAM role for AWS scanning.
@@ -58,8 +68,17 @@ def setup_iam(
     """
     # Validate
     if not account_id.isdigit() or len(account_id) != 12:
-        typer.echo("Error: Account ID must be exactly 12 digits", err=True)
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.INVALID_QUERY,
+            message="Account ID must be exactly 12 digits",
+            exit_code=EXIT_CODE_MAP["usage"],
+        )
+
+    resolved_output_format = resolve_format(
+        output_format,
+        default_tty="text",
+        allowed=["text", "json", "agent"],
+    )
     
     # Read-only policy
     policy = {
@@ -102,14 +121,38 @@ def setup_iam(
     elif format == "policy":
         result = json.dumps(policy, indent=2)
     else:
-        typer.echo(f"Unknown format: {format}", err=True)
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.INVALID_QUERY,
+            message=f"Unknown format: {format}",
+            exit_code=EXIT_CODE_MAP["usage"],
+        )
+    
+    payload = {
+        "account_id": account_id,
+        "role_name": role_name,
+        "external_id": external_id,
+        "template_format": format,
+        "template": result,
+    }
     
     if output:
         output.write_text(result)
+        payload["output_path"] = str(output)
         typer.echo(f"Written to {output}", err=True)
-    else:
+    elif resolved_output_format == "text":
         typer.echo(result)
+    
+    if resolved_output_format in {"json", "agent"}:
+        actions = suggested_actions([
+            (f"cyntrisec validate-role --role-arn arn:aws:iam::{account_id}:role/{role_name}", "Verify trust and permissions"),
+            ("cyntrisec scan --role-arn <role_arn>", "Kick off the first scan"),
+        ])
+        emit_agent_or_json(
+            resolved_output_format,
+            payload,
+            suggested=actions,
+            schema=SetupIamResponse,
+        )
 
 
 def _gen_terraform(account_id: str, role_name: str, external_id: Optional[str], policy: dict) -> str:

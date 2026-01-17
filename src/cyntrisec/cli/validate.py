@@ -3,12 +3,16 @@ Validate Role Command - Check AWS role trust without running a full scan.
 """
 from __future__ import annotations
 
-import json
 from typing import Optional
 
 import typer
 
+from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions
+from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.schemas import ValidateRoleResponse
 
+
+@handle_errors
 def validate_role_cmd(
     role_arn: str = typer.Option(
         ...,
@@ -33,6 +37,11 @@ def validate_role_cmd(
         "--json",
         help="Output as JSON",
     ),
+    format: Optional[str] = typer.Option(
+        None,
+        "--format", "-f",
+        help="Output format: text, json, agent (defaults to json when piped)",
+    ),
 ):
     """
     Validate that an IAM role can be assumed.
@@ -49,60 +58,42 @@ def validate_role_cmd(
     from cyntrisec.aws.credentials import CredentialProvider
     
     typer.echo(f"Validating role: {role_arn}", err=True)
+    resolved_format = resolve_format(
+        "json" if json_output and format is None else format,
+        default_tty="text",
+        allowed=["text", "json", "agent"],
+    )
     
+    creds = CredentialProvider(profile=profile)
     try:
-        creds = CredentialProvider(profile=profile)
         session = creds.assume_role(role_arn, external_id=external_id)
-        identity = session.client("sts").get_caller_identity()
-        
-        result = {
-            "success": True,
-            "role_arn": role_arn,
-            "account": identity["Account"],
-            "arn": identity["Arn"],
-            "user_id": identity["UserId"],
-        }
-        
-        if json_output:
-            typer.echo(json.dumps(result, indent=2))
-        else:
-            typer.echo("", err=True)
-            typer.echo("✓ Role validation successful!", err=True)
-            typer.echo(f"  Account: {identity['Account']}", err=True)
-            typer.echo(f"  ARN: {identity['Arn']}", err=True)
-            typer.echo(f"  UserId: {identity['UserId']}", err=True)
-        
-        raise typer.Exit(0)
-        
     except PermissionError as e:
-        result = {
-            "success": False,
-            "role_arn": role_arn,
-            "error": str(e),
-            "error_type": "AccessDenied",
-        }
-        
-        if json_output:
-            typer.echo(json.dumps(result, indent=2))
-        else:
-            typer.echo("", err=True)
-            typer.echo("✗ Role validation failed: Access Denied", err=True)
-            typer.echo(f"  {e}", err=True)
-        
-        raise typer.Exit(2)
-        
-    except Exception as e:
-        result = {
-            "success": False,
-            "role_arn": role_arn,
-            "error": str(e),
-            "error_type": type(e).__name__,
-        }
-        
-        if json_output:
-            typer.echo(json.dumps(result, indent=2))
-        else:
-            typer.echo("", err=True)
-            typer.echo(f"✗ Role validation failed: {e}", err=True)
-        
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.AWS_ACCESS_DENIED,
+            message=str(e),
+            exit_code=EXIT_CODE_MAP["usage"],
+        )
+    identity = session.client("sts").get_caller_identity()
+    
+    result = {
+        "success": True,
+        "role_arn": role_arn,
+        "account": identity.get("Account"),
+        "arn": identity.get("Arn"),
+        "user_id": identity.get("UserId"),
+    }
+    
+    if resolved_format in {"json", "agent"}:
+        actions = suggested_actions([
+            (f"cyntrisec scan --role-arn {role_arn}", "Start a scan with the validated role"),
+            ("cyntrisec report --format json", "Export results for audit"),
+        ])
+        emit_agent_or_json(resolved_format, result, suggested=actions, schema=ValidateRoleResponse)
+    else:
+        typer.echo("", err=True)
+        typer.echo("Role validation successful!", err=True)
+        typer.echo(f"  Account: {identity['Account']}", err=True)
+        typer.echo(f"  ARN: {identity['Arn']}", err=True)
+        typer.echo(f"  UserId: {identity['UserId']}", err=True)
+    
+    raise typer.Exit(0)

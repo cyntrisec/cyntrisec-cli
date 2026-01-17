@@ -4,16 +4,21 @@ Scan Command - Run AWS scans.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 import typer
+
+from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
+from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.schemas import ScanResponse
 
 log = logging.getLogger(__name__)
 
 
+@handle_errors
 def scan_cmd(
-    role_arn: str = typer.Option(
-        ...,
+    role_arn: Optional[str] = typer.Option(
+        None,
         "--role-arn",
         "-r",
         help="AWS IAM role ARN to assume (read-only access)",
@@ -34,6 +39,12 @@ def scan_cmd(
         "--profile",
         "-p",
         help="AWS CLI profile for base credentials",
+    ),
+    format: Optional[str] = typer.Option(
+        None,
+        "--format",
+        "-f",
+        help="Output format: text, json, agent (defaults to json when piped)",
     ),
 ):
     """
@@ -60,9 +71,14 @@ def scan_cmd(
 
     # Parse regions
     region_list = [r.strip() for r in regions.split(",")]
+    output_format = resolve_format(
+        format,
+        default_tty="text",
+        allowed=["text", "json", "agent"],
+    )
     
     typer.echo(f"Starting AWS scan...", err=True)
-    typer.echo(f"  Role: {role_arn}", err=True)
+    typer.echo(f"  Role: {role_arn or 'default credentials'}", err=True)
     typer.echo(f"  Regions: {', '.join(region_list)}", err=True)
     
     # Create storage and scanner
@@ -71,18 +87,24 @@ def scan_cmd(
     
     try:
         snapshot = scanner.scan(
-            role_arn=role_arn,
             regions=region_list,
+            role_arn=role_arn,
             external_id=external_id,
             profile=profile,
         )
     except PermissionError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.AWS_ACCESS_DENIED,
+            message=str(e),
+            exit_code=EXIT_CODE_MAP["usage"],
+        )
     except Exception as e:
         log.exception("Scan failed")
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.INTERNAL_ERROR,
+            message=str(e),
+            exit_code=EXIT_CODE_MAP["internal"],
+        )
     
     # Print summary
     typer.echo("", err=True)
@@ -94,6 +116,31 @@ def scan_cmd(
     typer.echo("", err=True)
     typer.echo("Run 'cyntrisec analyze paths' to view attack paths", err=True)
     typer.echo("Run 'cyntrisec report' to generate HTML report", err=True)
+
+    artifact_paths = build_artifact_paths(storage, snapshot.id)
+    summary = {
+        "snapshot_id": str(snapshot.id),
+        "account_id": snapshot.aws_account_id,
+        "regions": snapshot.regions,
+        "asset_count": snapshot.asset_count,
+        "relationship_count": snapshot.relationship_count,
+        "finding_count": snapshot.finding_count,
+        "attack_path_count": snapshot.path_count,
+    }
+    followups = suggested_actions([
+        (f"cyntrisec analyze paths --scan {snapshot.id}", "Review discovered attack paths"),
+        (f"cyntrisec cuts --snapshot {snapshot.id}", "Prioritize fixes that block paths"),
+        (f"cyntrisec report --scan {snapshot.id} --output cyntrisec-report.html", "Generate a full report"),
+    ])
+
+    if output_format in {"json", "agent"}:
+        emit_agent_or_json(
+            output_format,
+            summary,
+            suggested=followups,
+            artifact_paths=artifact_paths,
+            schema=ScanResponse,
+        )
     
     # Exit code based on paths found
     if snapshot.path_count > 0:

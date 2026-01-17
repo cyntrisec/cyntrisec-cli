@@ -39,7 +39,8 @@ class FileSystemStorage(StorageBackend):
     """
 
     def __init__(self, base_dir: Optional[Path] = None):
-        self._base = base_dir or Path.home() / ".cyntrisec" / "scans"
+        home_dir = Path(os.environ.get("HOME") or os.environ.get("USERPROFILE") or Path.home())
+        self._base = base_dir or home_dir / ".cyntrisec" / "scans"
         self._base.mkdir(parents=True, exist_ok=True)
         self._current_dir: Optional[Path] = None
         self._current_id: Optional[str] = None
@@ -196,3 +197,18 @@ class FileSystemStorage(StorageBackend):
             if item.is_dir() and item.name != "latest":
                 scans.append(item.name)
         return sorted(scans, reverse=True)  # Most recent first
+
+    def list_snapshots(self) -> List[Snapshot]:
+        """List all available snapshots, sorted by date (most recent first)."""
+        snapshots = []
+        for scan_id in self.list_scans():
+            snapshot = self.get_snapshot(scan_id)
+            if snapshot:
+                snapshots.append(snapshot)
+        # Sort by started_at descending
+        return sorted(snapshots, key=lambda s: s.started_at, reverse=True)
+
+    def get_scan_path(self, scan_id: Optional[str] = None) -> Path:
+        """Get the filesystem path for a scan directory."""
+        return self._get_scan_dir(scan_id)
+

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Dict, List, Optional
-import uuid
 
 from cyntrisec.core.schema import (
     Asset,

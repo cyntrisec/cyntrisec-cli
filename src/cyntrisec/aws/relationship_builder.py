@@ -2,10 +2,12 @@
 Relationship Builder - Create relationships between assets from different normalizers.
 
 This module runs after all normalizers have completed to wire up cross-service connections:
-- Security Group → EC2 Instance (PROTECTS)
+- Security Group → EC2 Instance (ALLOWS_TRAFFIC_TO)
 - Subnet → EC2 Instance (CONTAINS)
-- IAM Role → EC2 Instance (ATTACHED_TO via instance profile)
-- Security Group (open to world) → EC2 Instance = Internet entry path
+- IAM Role → EC2 Instance (CAN_ASSUME via instance profile)
+- Lambda → IAM Role (CAN_ASSUME via execution role)
+- Load Balancer → Security Group (USES)
+- IAM Role → Sensitive Target (MAY_ACCESS)
 """
 from __future__ import annotations
 
@@ -25,11 +27,12 @@ class RelationshipBuilder:
 
     def __init__(self, snapshot_id: uuid.UUID):
         self._snapshot_id = snapshot_id
+        # Indexes populated during build
+        self._by_type: Dict[str, List[Asset]] = {}
+        self._sg_by_id: Dict[str, Asset] = {}
+        self._subnet_by_id: Dict[str, Asset] = {}
 
-    def build(
-        self,
-        assets: List[Asset],
-    ) -> List[Relationship]:
+    def build(self, assets: List[Asset]) -> List[Relationship]:
         """
         Build all cross-service relationships.
         
@@ -39,141 +42,146 @@ class RelationshipBuilder:
         Returns:
             List of new relationships to add
         """
-        relationships: List[Relationship] = []
+        # Build indexes
+        self._index_assets(assets)
         
-        # Index assets by type and resource ID for fast lookup
-        by_type: Dict[str, List[Asset]] = {}
-        by_resource_id: Dict[str, Asset] = {}
-        sg_by_id: Dict[str, Asset] = {}
-        subnet_by_id: Dict[str, Asset] = {}
-        instance_by_profile_arn: Dict[str, Asset] = {}
+        # Build relationships by category
+        relationships: List[Relationship] = []
+        relationships.extend(self._build_ec2_relationships())
+        relationships.extend(self._build_lambda_relationships())
+        relationships.extend(self._build_loadbalancer_relationships())
+        relationships.extend(self._build_iam_access_relationships(assets))
+        
+        return relationships
+
+    def _index_assets(self, assets: List[Asset]) -> None:
+        """Build lookup indexes for fast asset access."""
+        self._by_type = {}
+        self._sg_by_id = {}
+        self._subnet_by_id = {}
         
         for asset in assets:
-            by_type.setdefault(asset.asset_type, []).append(asset)
-            by_resource_id[asset.aws_resource_id] = asset
+            self._by_type.setdefault(asset.asset_type, []).append(asset)
             
             if asset.asset_type == "ec2:security-group":
-                sg_by_id[asset.aws_resource_id] = asset
+                self._sg_by_id[asset.aws_resource_id] = asset
             elif asset.asset_type == "ec2:subnet":
-                subnet_by_id[asset.aws_resource_id] = asset
+                self._subnet_by_id[asset.aws_resource_id] = asset
+
+    def _build_ec2_relationships(self) -> List[Relationship]:
+        """Build relationships for EC2 instances."""
+        relationships: List[Relationship] = []
         
-        # Process EC2 instances
-        for instance in by_type.get("ec2:instance", []):
+        for instance in self._by_type.get("ec2:instance", []):
             props = instance.properties
             
             # Security Group → Instance
-            for sg_id in props.get("security_groups", []):
-                if sg_id in sg_by_id:
-                    sg_asset = sg_by_id[sg_id]
-                    
-                    # Check if SG is open to world (entry point for attack path)
-                    is_open_to_world = self._is_sg_open_to_world(sg_asset)
-                    
-                    relationships.append(Relationship(
-                        snapshot_id=self._snapshot_id,
-                        source_asset_id=sg_asset.id,
-                        target_asset_id=instance.id,
-                        relationship_type="ALLOWS_TRAFFIC_TO",
-                        properties={
-                            "open_to_world": is_open_to_world,
-                        },
-                    ))
+            relationships.extend(self._sg_to_instance_rels(instance, props))
             
             # Subnet → Instance
-            subnet_id = props.get("subnet_id")
-            if subnet_id and subnet_id in subnet_by_id:
+            rel = self._subnet_to_instance_rel(instance, props)
+            if rel:
+                relationships.append(rel)
+            
+            # Instance → IAM Role (via instance profile)
+            relationships.extend(self._instance_to_role_rels(instance, props))
+        
+        return relationships
+
+    def _sg_to_instance_rels(self, instance: Asset, props: dict) -> List[Relationship]:
+        """Create Security Group → Instance relationships."""
+        relationships = []
+        for sg_id in props.get("security_groups", []):
+            if sg_id in self._sg_by_id:
+                sg_asset = self._sg_by_id[sg_id]
                 relationships.append(Relationship(
                     snapshot_id=self._snapshot_id,
-                    source_asset_id=subnet_by_id[subnet_id].id,
+                    source_asset_id=sg_asset.id,
                     target_asset_id=instance.id,
-                    relationship_type="CONTAINS",
+                    relationship_type="ALLOWS_TRAFFIC_TO",
+                    properties={"open_to_world": self._is_sg_open_to_world(sg_asset)},
                 ))
-            
-            # IAM Instance Profile → Instance
-            # Direction: Instance → Role (instance CAN_ASSUME the role)
-            profile_arn = props.get("iam_instance_profile")
-            if profile_arn:
-                # Instance profile ARN: arn:aws:iam::ACCOUNT:instance-profile/NAME
-                profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
-                for role in by_type.get("iam:role", []):
-                    if profile_name and profile_name in role.name:
-                        # Instance CAN_ASSUME the role via instance profile
-                        relationships.append(Relationship(
-                            snapshot_id=self._snapshot_id,
-                            source_asset_id=instance.id,  # FROM instance
-                            target_asset_id=role.id,      # TO role
-                            relationship_type="CAN_ASSUME",
-                            properties={"via": "instance_profile"},
-                        ))
+        return relationships
+
+    def _subnet_to_instance_rel(self, instance: Asset, props: dict) -> Relationship | None:
+        """Create Subnet → Instance containment relationship."""
+        subnet_id = props.get("subnet_id")
+        if subnet_id and subnet_id in self._subnet_by_id:
+            return Relationship(
+                snapshot_id=self._snapshot_id,
+                source_asset_id=self._subnet_by_id[subnet_id].id,
+                target_asset_id=instance.id,
+                relationship_type="CONTAINS",
+            )
+        return None
+
+    def _instance_to_role_rels(self, instance: Asset, props: dict) -> List[Relationship]:
+        """Create Instance → IAM Role relationships via instance profile."""
+        relationships = []
+        profile_arn = props.get("iam_instance_profile")
+        if not profile_arn:
+            return relationships
         
-        # Process Lambda functions - they CAN_ASSUME their execution roles
-        for func in by_type.get("lambda:function", []):
+        profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
+        if not profile_name:
+            return relationships
+        
+        for role in self._by_type.get("iam:role", []):
+            if profile_name in role.name:
+                relationships.append(Relationship(
+                    snapshot_id=self._snapshot_id,
+                    source_asset_id=instance.id,
+                    target_asset_id=role.id,
+                    relationship_type="CAN_ASSUME",
+                    properties={"via": "instance_profile"},
+                ))
+        return relationships
+
+    def _build_lambda_relationships(self) -> List[Relationship]:
+        """Build Lambda → IAM Role relationships."""
+        relationships = []
+        for func in self._by_type.get("lambda:function", []):
             role_arn = func.properties.get("role")
-            if role_arn:
-                for role in by_type.get("iam:role", []):
-                    if role.arn == role_arn:
-                        # Lambda CAN_ASSUME its execution role
-                        relationships.append(Relationship(
-                            snapshot_id=self._snapshot_id,
-                            source_asset_id=func.id,  # FROM lambda
-                            target_asset_id=role.id,  # TO role
-                            relationship_type="CAN_ASSUME",
-                            properties={"via": "execution_role"},
-                        ))
-        
-        # Process Load Balancers
-        for lb in by_type.get("elbv2:load-balancer", []):
-            props = lb.properties
+            if not role_arn:
+                continue
             
-            # LB → Security Groups it uses
-            for sg_id in props.get("security_groups", []):
-                if sg_id in sg_by_id:
+            for role in self._by_type.get("iam:role", []):
+                if role.arn == role_arn:
+                    relationships.append(Relationship(
+                        snapshot_id=self._snapshot_id,
+                        source_asset_id=func.id,
+                        target_asset_id=role.id,
+                        relationship_type="CAN_ASSUME",
+                        properties={"via": "execution_role"},
+                    ))
+        return relationships
+
+    def _build_loadbalancer_relationships(self) -> List[Relationship]:
+        """Build Load Balancer → Security Group relationships."""
+        relationships = []
+        for lb in self._by_type.get("elbv2:load-balancer", []):
+            for sg_id in lb.properties.get("security_groups", []):
+                if sg_id in self._sg_by_id:
                     relationships.append(Relationship(
                         snapshot_id=self._snapshot_id,
                         source_asset_id=lb.id,
-                        target_asset_id=sg_by_id[sg_id].id,
+                        target_asset_id=self._sg_by_id[sg_id].id,
                         relationship_type="USES",
                     ))
+        return relationships
+
+    def _build_iam_access_relationships(self, assets: List[Asset]) -> List[Relationship]:
+        """Build IAM Role → Sensitive Target access relationships."""
+        relationships = []
         
-        # Create Internet → Entry Point relationships
-        # For assets that are marked as internet_facing
-        internet_entry_count = 0
-        for asset in assets:
-            if asset.is_internet_facing and asset.asset_type == "ec2:instance":
-                # If instance is internet facing, the SGs protecting it form the entry path
-                for sg_id in asset.properties.get("security_groups", []):
-                    if sg_id in sg_by_id:
-                        sg = sg_by_id[sg_id]
-                        if self._is_sg_open_to_world(sg):
-                            internet_entry_count += 1
+        # Collect roles used by compute resources
+        compute_roles = self._collect_compute_roles()
         
-        # Collect all IAM roles that are used by EC2 instances
-        instance_roles: Set[uuid.UUID] = set()
-        for instance in by_type.get("ec2:instance", []):
-            profile_arn = instance.properties.get("iam_instance_profile")
-            if profile_arn:
-                profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
-                for role in by_type.get("iam:role", []):
-                    if profile_name and profile_name in role.name:
-                        instance_roles.add(role.id)
-        
-        # Also add Lambda execution roles
-        for func in by_type.get("lambda:function", []):
-            role_arn = func.properties.get("role")
-            if role_arn:
-                for role in by_type.get("iam:role", []):
-                    if role.arn == role_arn:
-                        instance_roles.add(role.id)
-        
-        # Create relationships from instance/lambda roles to all sensitive targets
-        # This is an abstraction: "role CAN_ACCESS sensitive resource"
-        # In reality this requires policy analysis, but for MVP we assume
-        # any compute role COULD access sensitive S3 buckets
+        # Create MAY_ACCESS relationships to sensitive targets
         sensitive_targets = [a for a in assets if a.is_sensitive_target]
-        for role_id in instance_roles:
+        for role_id in compute_roles:
             for target in sensitive_targets:
-                # Don't create self-loops
-                if role_id != target.id:
+                if role_id != target.id:  # Avoid self-loops
                     relationships.append(Relationship(
                         snapshot_id=self._snapshot_id,
                         source_asset_id=role_id,
@@ -184,13 +192,36 @@ class RelationshipBuilder:
         
         return relationships
 
+    def _collect_compute_roles(self) -> Set[uuid.UUID]:
+        """Collect IAM roles used by EC2 instances and Lambda functions."""
+        roles: Set[uuid.UUID] = set()
+        
+        # EC2 instance roles
+        for instance in self._by_type.get("ec2:instance", []):
+            profile_arn = instance.properties.get("iam_instance_profile")
+            if profile_arn:
+                profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
+                if profile_name:
+                    for role in self._by_type.get("iam:role", []):
+                        if profile_name in role.name:
+                            roles.add(role.id)
+        
+        # Lambda execution roles
+        for func in self._by_type.get("lambda:function", []):
+            role_arn = func.properties.get("role")
+            if role_arn:
+                for role in self._by_type.get("iam:role", []):
+                    if role.arn == role_arn:
+                        roles.add(role.id)
+        
+        return roles
+
     def _is_sg_open_to_world(self, sg_asset: Asset) -> bool:
-        """Check if a security group has 0.0.0.0/0 ingress rules."""
+        """Check if a security group has 0.0.0.0/0 or ::/0 ingress rules."""
         for rule in sg_asset.properties.get("ingress_rules", []):
             for ip_range in rule.get("IpRanges", []):
                 if ip_range.get("CidrIp") == "0.0.0.0/0":
                     return True
-            # Also check IPv6
             for ip_range in rule.get("Ipv6Ranges", []):
                 if ip_range.get("CidrIpv6") == "::/0":
                     return True

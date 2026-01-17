@@ -10,9 +10,7 @@ import logging
 import time
 from datetime import datetime
 from typing import List, Optional, Sequence
-import uuid
 
-import boto3
 
 from cyntrisec.aws.credentials import CredentialProvider
 from cyntrisec.aws.collectors import (
@@ -33,7 +31,6 @@ from cyntrisec.aws.normalizers import (
 )
 from cyntrisec.core.schema import (
     Asset,
-    AttackPath,
     Finding,
     Relationship,
     Snapshot,
@@ -72,9 +69,9 @@ class AwsScanner:
 
     def scan(
         self,
-        role_arn: str,
         regions: Sequence[str],
         *,
+        role_arn: Optional[str] = None,
         external_id: Optional[str] = None,
         profile: Optional[str] = None,
     ) -> Snapshot:
@@ -82,21 +79,26 @@ class AwsScanner:
         Run a full AWS scan.
         
         Args:
-            role_arn: IAM role to assume
             regions: AWS regions to scan
+            role_arn: IAM role to assume (optional - uses default creds if not provided)
             external_id: External ID for role assumption
             profile: AWS CLI profile for base credentials
             
         Returns:
             Snapshot with scan results
         """
-        started_at = datetime.utcnow()
+        datetime.utcnow()
         start_time = time.monotonic()
 
-        # 1. Assume role
-        log.info("Assuming role: %s", role_arn)
-        creds = CredentialProvider(profile=profile, region=regions[0])
-        session = creds.assume_role(role_arn, external_id=external_id)
+        # 1. Get session - either via AssumeRole or default credentials
+        if role_arn:
+            log.info("Assuming role: %s", role_arn)
+            creds = CredentialProvider(profile=profile, region=regions[0])
+            session = creds.assume_role(role_arn, external_id=external_id)
+        else:
+            log.info("Using default AWS credentials")
+            import boto3
+            session = boto3.Session(profile_name=profile, region_name=regions[0])
         
         # Get account ID
         identity = session.client("sts").get_caller_identity()

@@ -10,7 +10,12 @@ from typing import Optional
 
 import typer
 
+from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
+from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.schemas import ReportResponse
 
+
+@handle_errors
 def report_cmd(
     scan_id: Optional[str] = typer.Option(
         None,
@@ -30,11 +35,11 @@ def report_cmd(
         "-t",
         help="Report title",
     ),
-    format: str = typer.Option(
-        "html",
+    format: Optional[str] = typer.Option(
+        None,
         "--format",
         "-f",
-        help="Output format: html, json",
+        help="Output format: html, json, agent (defaults to json when piped)",
     ),
 ):
     """
@@ -50,20 +55,51 @@ def report_cmd(
     
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
+    output_format = resolve_format(
+        format,
+        default_tty="html",
+        allowed=["html", "json", "agent"],
+    )
     
     if not snapshot:
-        typer.echo("No scan found.", err=True)
-        raise typer.Exit(2)
+        raise CyntriError(
+            error_code=ErrorCode.SNAPSHOT_NOT_FOUND,
+            message="No scan found.",
+            exit_code=EXIT_CODE_MAP["usage"],
+        )
     
     if not title:
         title = f"Cyntrisec Security Report - {snapshot.aws_account_id}"
+
+    # If caller didn't override output and we emit JSON/agent, use .json for clarity
+    if output_format in {"json", "agent"} and output.suffix.lower() == ".html":
+        output = output.with_suffix(".json")
     
-    if format == "json":
-        data = storage.export_all(scan_id)
+    data = storage.export_all(scan_id)
+    
+    artifact_paths = build_artifact_paths(storage, scan_id)
+
+    if output_format in {"json", "agent"}:
         output.write_text(json.dumps(data, indent=2, default=str))
-        typer.echo(f"JSON report written to {output}")
+        actions = suggested_actions([
+            ("cyntrisec analyze paths --format agent", "Inspect top attack paths"),
+            ("cyntrisec cuts --format agent", "Prioritize fixes to block paths"),
+        ])
+        emit_agent_or_json(
+            output_format,
+            {
+                "snapshot_id": str(snapshot.id),
+                "account_id": snapshot.aws_account_id,
+                "output_path": str(output),
+                "format": "json",
+                "findings": len(data.get("findings", [])),
+                "paths": len(data.get("attack_paths", [])),
+            },
+            suggested=actions,
+            artifact_paths=artifact_paths,
+            schema=ReportResponse,
+        )
     else:
-        data = storage.export_all(scan_id)
         html = _generate_html(data, title)
         output.write_text(html)
         typer.echo(f"HTML report written to {output}")

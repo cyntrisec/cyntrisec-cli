@@ -1,7 +1,6 @@
 """S3 Normalizer - Transform S3 data to canonical schema."""
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, List, Tuple
 import uuid
 
