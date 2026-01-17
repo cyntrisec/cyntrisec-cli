@@ -31,6 +31,11 @@ htmlcov/
 # Local data
 .cyntrisec/
 
+# Generated artifacts
+cyntrisec-report.html
+cyntrisec-remediation-plan.json
+cyntrisec-remediation-tf/
+
 # OS
 .DS_Store
 Thumbs.db

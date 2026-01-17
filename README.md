@@ -195,4 +195,4 @@ This project follows Semantic Versioning. See `CHANGELOG.md` for release notes.
 
 ## License
 
-MIT
+Apache-2.0
