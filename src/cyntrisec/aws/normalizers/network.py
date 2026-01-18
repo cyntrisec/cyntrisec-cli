@@ -1,8 +1,9 @@
 """Network Normalizer - Transform network data to canonical schema."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
 import uuid
+from typing import Any
 
 from cyntrisec.core.schema import Asset, Finding, FindingSeverity, Relationship
 
@@ -19,16 +20,16 @@ class NetworkNormalizer:
         self._snapshot_id = snapshot_id
         self._region = region
         self._account_id = account_id
-        self._asset_map: Dict[str, Asset] = {}
+        self._asset_map: dict[str, Asset] = {}
 
     def normalize(
         self,
-        data: Dict[str, Any],
-    ) -> Tuple[List[Asset], List[Relationship], List[Finding]]:
+        data: dict[str, Any],
+    ) -> tuple[list[Asset], list[Relationship], list[Finding]]:
         """Normalize network data."""
-        assets: List[Asset] = []
-        relationships: List[Relationship] = []
-        findings: List[Finding] = []
+        assets: list[Asset] = []
+        relationships: list[Relationship] = []
+        findings: list[Finding] = []
 
         # VPCs
         for vpc in data.get("vpcs", []):
@@ -41,16 +42,18 @@ class NetworkNormalizer:
             asset = self._normalize_subnet(subnet)
             assets.append(asset)
             self._asset_map[subnet["SubnetId"]] = asset
-            
+
             # Create VPC -> Subnet relationship
             vpc_id = subnet.get("VpcId")
             if vpc_id and vpc_id in self._asset_map:
-                relationships.append(Relationship(
-                    snapshot_id=self._snapshot_id,
-                    source_asset_id=self._asset_map[vpc_id].id,
-                    target_asset_id=asset.id,
-                    relationship_type="CONTAINS",
-                ))
+                relationships.append(
+                    Relationship(
+                        snapshot_id=self._snapshot_id,
+                        source_asset_id=self._asset_map[vpc_id].id,
+                        target_asset_id=asset.id,
+                        relationship_type="CONTAINS",
+                    )
+                )
 
         # Security Groups
         for sg in data.get("security_groups", []):
@@ -66,10 +69,10 @@ class NetworkNormalizer:
 
         return assets, relationships, findings
 
-    def _normalize_vpc(self, vpc: Dict[str, Any]) -> Asset:
+    def _normalize_vpc(self, vpc: dict[str, Any]) -> Asset:
         """Normalize a VPC."""
         vpc_id = vpc["VpcId"]
-        
+
         name = vpc_id
         for tag in vpc.get("Tags", []):
             if tag["Key"] == "Name":
@@ -90,10 +93,10 @@ class NetworkNormalizer:
             },
         )
 
-    def _normalize_subnet(self, subnet: Dict[str, Any]) -> Asset:
+    def _normalize_subnet(self, subnet: dict[str, Any]) -> Asset:
         """Normalize a subnet."""
         subnet_id = subnet["SubnetId"]
-        
+
         name = subnet_id
         for tag in subnet.get("Tags", []):
             if tag["Key"] == "Name":
@@ -121,8 +124,8 @@ class NetworkNormalizer:
 
     def _normalize_security_group(
         self,
-        sg: Dict[str, Any],
-    ) -> Tuple[Asset, List[Finding]]:
+        sg: dict[str, Any],
+    ) -> tuple[Asset, list[Finding]]:
         """Normalize a security group."""
         sg_id = sg["GroupId"]
         sg_name = sg.get("GroupName", sg_id)
@@ -142,7 +145,7 @@ class NetworkNormalizer:
             },
         )
 
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # Check for overly permissive ingress rules
         for rule in sg.get("IpPermissions", []):
@@ -152,7 +155,7 @@ class NetworkNormalizer:
                     from_port = rule.get("FromPort", "all")
                     to_port = rule.get("ToPort", "all")
                     protocol = rule.get("IpProtocol", "all")
-                    
+
                     # Determine severity based on port
                     if from_port in [22, 3389] or to_port in [22, 3389]:
                         severity = FindingSeverity.critical
@@ -161,20 +164,22 @@ class NetworkNormalizer:
                     else:
                         severity = FindingSeverity.high
 
-                    findings.append(Finding(
-                        snapshot_id=self._snapshot_id,
-                        asset_id=asset.id,
-                        finding_type="security-group-open-to-world",
-                        severity=severity,
-                        title=f"Security group {sg_name} allows inbound from 0.0.0.0/0",
-                        description=f"Ingress rule allows traffic from anywhere on port {from_port}-{to_port}",
-                        remediation="Restrict the source IP range to known addresses",
-                        evidence={"rule": rule, "cidr": cidr},
-                    ))
+                    findings.append(
+                        Finding(
+                            snapshot_id=self._snapshot_id,
+                            asset_id=asset.id,
+                            finding_type="security-group-open-to-world",
+                            severity=severity,
+                            title=f"Security group {sg_name} allows inbound from 0.0.0.0/0",
+                            description=f"Ingress rule allows traffic from anywhere on port {from_port}-{to_port}",
+                            remediation="Restrict the source IP range to known addresses",
+                            evidence={"rule": rule, "cidr": cidr},
+                        )
+                    )
 
         return asset, findings
 
-    def _normalize_load_balancer(self, lb: Dict[str, Any]) -> Asset:
+    def _normalize_load_balancer(self, lb: dict[str, Any]) -> Asset:
         """Normalize a load balancer."""
         lb_arn = lb["LoadBalancerArn"]
         lb_name = lb.get("LoadBalancerName", lb_arn.split("/")[-1])

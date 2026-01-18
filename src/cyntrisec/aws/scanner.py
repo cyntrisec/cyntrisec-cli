@@ -4,31 +4,33 @@ AWS Scanner - Orchestrate collection, normalization, and analysis.
 This is the main entry point for AWS scanning.
 No database or queue dependencies.
 """
+
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from datetime import datetime
-from typing import List, Optional, Sequence
 
-
-from cyntrisec.aws.credentials import CredentialProvider
 from cyntrisec.aws.collectors import (
     Ec2Collector,
     IamCollector,
-    S3Collector,
     LambdaCollector,
-    RdsCollector,
     NetworkCollector,
+    RdsCollector,
+    S3Collector,
 )
+from cyntrisec.aws.credentials import CredentialProvider
 from cyntrisec.aws.normalizers import (
     Ec2Normalizer,
     IamNormalizer,
-    S3Normalizer,
     LambdaNormalizer,
-    RdsNormalizer,
     NetworkNormalizer,
+    RdsNormalizer,
+    S3Normalizer,
 )
+from cyntrisec.core.graph import GraphBuilder
+from cyntrisec.core.paths import PathFinder
 from cyntrisec.core.schema import (
     Asset,
     Finding,
@@ -36,8 +38,6 @@ from cyntrisec.core.schema import (
     Snapshot,
     SnapshotStatus,
 )
-from cyntrisec.core.graph import GraphBuilder
-from cyntrisec.core.paths import PathFinder
 from cyntrisec.storage.protocol import StorageBackend
 
 log = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 class AwsScanner:
     """
     Orchestrate AWS scanning.
-    
+
     Coordinates:
     1. Credential acquisition (AssumeRole)
     2. Resource collection (EC2, IAM, S3, Lambda, RDS, Network)
@@ -54,7 +54,7 @@ class AwsScanner:
     4. Graph construction
     5. Attack path analysis
     6. Storage of results
-    
+
     Example:
         storage = FileSystemStorage()
         scanner = AwsScanner(storage)
@@ -71,19 +71,19 @@ class AwsScanner:
         self,
         regions: Sequence[str],
         *,
-        role_arn: Optional[str] = None,
-        external_id: Optional[str] = None,
-        profile: Optional[str] = None,
+        role_arn: str | None = None,
+        external_id: str | None = None,
+        profile: str | None = None,
     ) -> Snapshot:
         """
         Run a full AWS scan.
-        
+
         Args:
             regions: AWS regions to scan
             role_arn: IAM role to assume (optional - uses default creds if not provided)
             external_id: External ID for role assumption
             profile: AWS CLI profile for base credentials
-            
+
         Returns:
             Snapshot with scan results
         """
@@ -98,8 +98,9 @@ class AwsScanner:
         else:
             log.info("Using default AWS credentials")
             import boto3
+
             session = boto3.Session(profile_name=profile, region_name=regions[0])
-        
+
         # Get account ID
         identity = session.client("sts").get_caller_identity()
         account_id = identity["Account"]
@@ -118,17 +119,15 @@ class AwsScanner:
         self._storage.save_snapshot(snapshot)
 
         # 3. Collect and normalize
-        all_assets: List[Asset] = []
-        all_relationships: List[Relationship] = []
-        all_findings: List[Finding] = []
+        all_assets: list[Asset] = []
+        all_relationships: list[Relationship] = []
+        all_findings: list[Finding] = []
 
         # Collect global resources (IAM, S3)
         log.info("Collecting global resources (IAM, S3)...")
         try:
             iam_data = IamCollector(session).collect_all()
-            assets, rels, findings = IamNormalizer(
-                snapshot_id=snapshot.id
-            ).normalize(iam_data)
+            assets, rels, findings = IamNormalizer(snapshot_id=snapshot.id).normalize(iam_data)
             all_assets.extend(assets)
             all_relationships.extend(rels)
             all_findings.extend(findings)
@@ -138,9 +137,7 @@ class AwsScanner:
 
         try:
             s3_data = S3Collector(session).collect_all()
-            assets, rels, findings = S3Normalizer(
-                snapshot_id=snapshot.id
-            ).normalize(s3_data)
+            assets, rels, findings = S3Normalizer(snapshot_id=snapshot.id).normalize(s3_data)
             all_assets.extend(assets)
             all_relationships.extend(rels)
             all_findings.extend(findings)
@@ -151,7 +148,7 @@ class AwsScanner:
         # Collect regional resources
         for region in regions:
             log.info("Scanning region: %s", region)
-            
+
             # EC2
             try:
                 ec2_data = Ec2Collector(session, region).collect_all()
@@ -215,6 +212,7 @@ class AwsScanner:
         # 4. Build cross-service relationships
         log.info("Building cross-service relationships...")
         from cyntrisec.aws.relationship_builder import RelationshipBuilder
+
         extra_rels = RelationshipBuilder(snapshot.id).build(all_assets)
         all_relationships.extend(extra_rels)
         log.info("  Added %d cross-service relationships", len(extra_rels))

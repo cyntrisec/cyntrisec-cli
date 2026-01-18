@@ -1,7 +1,8 @@
 """EC2 Collector - Collect EC2 instances."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 
@@ -13,13 +14,13 @@ class Ec2Collector:
         self._ec2 = session.client("ec2", region_name=region)
         self._region = region
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all EC2 data."""
         return {
             "instances": self._collect_instances(),
         }
 
-    def _collect_instances(self) -> List[Dict]:
+    def _collect_instances(self) -> list[dict]:
         """Collect EC2 instances."""
         instances = []
         paginator = self._ec2.get_paginator("describe_instances")

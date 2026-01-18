@@ -5,11 +5,12 @@ The graph models AWS infrastructure as:
 - Nodes: Assets (resources, logical groupings)
 - Edges: Relationships (capabilities, permissions, connectivity)
 """
+
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
 
 from cyntrisec.core.schema import Asset, Relationship
 
@@ -18,44 +19,45 @@ from cyntrisec.core.schema import Asset, Relationship
 class AwsGraph:
     """
     In-memory capability graph for AWS infrastructure.
-    
+
     Provides efficient lookups for:
     - Asset by ID
     - Neighbors (outgoing edges)
     - Predecessors (incoming edges)
     - Assets by type
-    
+
     This is an immutable snapshot of the graph at scan time.
     """
-    assets_by_id: Dict[uuid.UUID, Asset]
-    outgoing: Dict[uuid.UUID, List[Relationship]]
-    incoming: Dict[uuid.UUID, List[Relationship]]
 
-    def asset(self, asset_id: uuid.UUID) -> Optional[Asset]:
+    assets_by_id: dict[uuid.UUID, Asset]
+    outgoing: dict[uuid.UUID, list[Relationship]]
+    incoming: dict[uuid.UUID, list[Relationship]]
+
+    def asset(self, asset_id: uuid.UUID) -> Asset | None:
         """Get an asset by ID."""
         return self.assets_by_id.get(asset_id)
 
-    def neighbors(self, asset_id: uuid.UUID) -> List[uuid.UUID]:
+    def neighbors(self, asset_id: uuid.UUID) -> list[uuid.UUID]:
         """Get IDs of all assets this asset can reach (outgoing edges)."""
         return [rel.target_asset_id for rel in self.outgoing.get(asset_id, [])]
 
-    def predecessors(self, asset_id: uuid.UUID) -> List[uuid.UUID]:
+    def predecessors(self, asset_id: uuid.UUID) -> list[uuid.UUID]:
         """Get IDs of all assets that can reach this asset (incoming edges)."""
         return [rel.source_asset_id for rel in self.incoming.get(asset_id, [])]
 
-    def edges_from(self, asset_id: uuid.UUID) -> List[Relationship]:
+    def edges_from(self, asset_id: uuid.UUID) -> list[Relationship]:
         """Get all outgoing relationships from an asset."""
         return list(self.outgoing.get(asset_id, []))
 
-    def edges_to(self, asset_id: uuid.UUID) -> List[Relationship]:
+    def edges_to(self, asset_id: uuid.UUID) -> list[Relationship]:
         """Get all incoming relationships to an asset."""
         return list(self.incoming.get(asset_id, []))
 
-    def all_assets(self) -> List[Asset]:
+    def all_assets(self) -> list[Asset]:
         """Get all assets in the graph."""
         return list(self.assets_by_id.values())
 
-    def all_relationships(self) -> List[Relationship]:
+    def all_relationships(self) -> list[Relationship]:
         """Get all relationships in the graph."""
         all_rels = []
         for rels in self.outgoing.values():
@@ -70,14 +72,14 @@ class AwsGraph:
         """Get the number of relationships."""
         return sum(len(rels) for rels in self.outgoing.values())
 
-    def assets_by_type(self, asset_type: str) -> List[Asset]:
+    def assets_by_type(self, asset_type: str) -> list[Asset]:
         """Get all assets of a specific type."""
         return [a for a in self.assets_by_id.values() if a.asset_type == asset_type]
 
-    def entry_points(self) -> List[Asset]:
+    def entry_points(self) -> list[Asset]:
         """
         Get all internet-facing entry points.
-        
+
         Entry points are assets marked as internet_facing or
         have specific types (public IPs, load balancers, etc.)
         """
@@ -98,10 +100,10 @@ class AwsGraph:
                     entries.append(asset)
         return entries
 
-    def sensitive_targets(self) -> List[Asset]:
+    def sensitive_targets(self) -> list[Asset]:
         """
         Get all sensitive target assets.
-        
+
         Targets are assets marked as sensitive or have specific types
         (databases, secrets, admin roles).
         """
@@ -130,7 +132,7 @@ class AwsGraph:
 class GraphBuilder:
     """
     Builds an AwsGraph from assets and relationships.
-    
+
     Example:
         builder = GraphBuilder()
         graph = builder.build(assets=assets, relationships=relationships)
@@ -144,13 +146,13 @@ class GraphBuilder:
     ) -> AwsGraph:
         """
         Build a graph from assets and relationships.
-        
+
         Only includes relationships where both endpoints exist
         in the provided asset list.
         """
-        assets_by_id: Dict[uuid.UUID, Asset] = {asset.id: asset for asset in assets}
-        outgoing: Dict[uuid.UUID, List[Relationship]] = {}
-        incoming: Dict[uuid.UUID, List[Relationship]] = {}
+        assets_by_id: dict[uuid.UUID, Asset] = {asset.id: asset for asset in assets}
+        outgoing: dict[uuid.UUID, list[Relationship]] = {}
+        incoming: dict[uuid.UUID, list[Relationship]] = {}
 
         for rel in relationships:
             # Skip relationships with missing endpoints
@@ -158,7 +160,7 @@ class GraphBuilder:
                 continue
             if rel.target_asset_id not in assets_by_id:
                 continue
-            
+
             outgoing.setdefault(rel.source_asset_id, []).append(rel)
             incoming.setdefault(rel.target_asset_id, []).append(rel)
 

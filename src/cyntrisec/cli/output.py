@@ -5,11 +5,12 @@ Provides:
 - Format detection that defaults to JSON when stdout is not a TTY
 - Agent format envelope with suggested actions
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
+from collections.abc import Iterable, Sequence
 
 import typer
 from pydantic import BaseModel
@@ -20,7 +21,7 @@ from cyntrisec.cli.schemas import (
     ArtifactPathsModel,
 )
 
-Action = Dict[str, str]
+Action = dict[str, str]
 SCHEMA_VERSION = "1.0"
 
 # Error taxonomy (keep small and stable)
@@ -34,7 +35,7 @@ INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
 def resolve_format(
-    format_option: Optional[str],
+    format_option: str | None,
     *,
     default_tty: str,
     allowed: Sequence[str],
@@ -50,25 +51,23 @@ def resolve_format(
     return chosen
 
 
-def suggested_actions(actions: Iterable[Tuple[str, str]]) -> List[Action]:
+def suggested_actions(actions: Iterable[tuple[str, str]]) -> list[Action]:
     """Normalize suggested actions to a list of dicts."""
     return [
-        {"command": command, "reason": reason}
-        for command, reason in actions
-        if command and reason
+        {"command": command, "reason": reason} for command, reason in actions if command and reason
     ]
 
 
 def emit_agent_or_json(
     format: str,
-    data: Dict[str, object],
+    data: dict[str, object],
     *,
-    suggested: Optional[Sequence[Action]] = None,
+    suggested: Sequence[Action] | None = None,
     status: str = "success",
-    artifact_paths: Optional[Dict[str, str]] = None,
-    error_code: Optional[str] = None,
-    message: Optional[str] = None,
-    schema: Optional[Type[BaseModel]] = None,
+    artifact_paths: dict[str, str] | None = None,
+    error_code: str | None = None,
+    message: str | None = None,
+    schema: type[BaseModel] | None = None,
 ) -> None:
     """
     Emit JSON or agent-formatted output to stdout.
@@ -77,10 +76,10 @@ def emit_agent_or_json(
     if schema:
         validated_data = schema.model_validate(data).model_dump(mode="json")
 
-    actions: Optional[List[ActionModel]] = (
+    actions: list[ActionModel] | None = (
         [ActionModel.model_validate(a) for a in suggested] if suggested else None
     )
-    artifacts_model: Optional[ArtifactPathsModel] = (
+    artifacts_model: ArtifactPathsModel | None = (
         ArtifactPathsModel.model_validate(artifact_paths) if artifact_paths else None
     )
 
@@ -96,7 +95,7 @@ def emit_agent_or_json(
     typer.echo(json.dumps(envelope.model_dump(mode="json"), indent=2, default=str))
 
 
-def build_artifact_paths(storage, snapshot_id: Optional[str]) -> Optional[Dict[str, str]]:
+def build_artifact_paths(storage, snapshot_id: str | None) -> dict[str, str] | None:
     """Return key artifact paths for a snapshot, if available."""
     try:
         scan_dir = storage.get_scan_path(snapshot_id)

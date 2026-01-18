@@ -6,9 +6,10 @@ outputs so agents can rely on a stable contract. Each command can
 reference a schema by name in emit_agent_or_json to validate data
 before it is printed.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,28 +26,28 @@ class ActionModel(BaseSchema):
 
 
 class ArtifactPathsModel(BaseSchema):
-    snapshot_dir: Optional[str] = None
-    snapshot: Optional[str] = None
-    assets: Optional[str] = None
-    relationships: Optional[str] = None
-    attack_paths: Optional[str] = None
-    findings: Optional[str] = None
+    snapshot_dir: str | None = None
+    snapshot: str | None = None
+    assets: str | None = None
+    relationships: str | None = None
+    attack_paths: str | None = None
+    findings: str | None = None
 
 
 class AgentEnvelope(BaseSchema):
     schema_version: str
     status: str
     data: Any
-    message: Optional[str] = None
-    error_code: Optional[str] = None
-    artifact_paths: Optional[ArtifactPathsModel] = None
-    suggested_actions: Optional[List[ActionModel]] = None
+    message: str | None = None
+    error_code: str | None = None
+    artifact_paths: ArtifactPathsModel | None = None
+    suggested_actions: list[ActionModel] | None = None
 
 
 class ScanResponse(BaseSchema):
     snapshot_id: str
-    account_id: Optional[str] = None
-    regions: List[str]
+    account_id: str | None = None
+    regions: list[str]
     asset_count: int
     relationship_count: int
     finding_count: int
@@ -55,44 +56,44 @@ class ScanResponse(BaseSchema):
 
 class AttackPathOut(BaseSchema):
     id: str
-    snapshot_id: Optional[str] = None
+    snapshot_id: str | None = None
     source_asset_id: str
     target_asset_id: str
-    path_asset_ids: List[str]
-    path_relationship_ids: List[str]
+    path_asset_ids: list[str]
+    path_relationship_ids: list[str]
     attack_vector: str
     path_length: int
     entry_confidence: float
     exploitability_score: float
     impact_score: float
     risk_score: float
-    proof: Dict[str, Any] = Field(default_factory=dict)
+    proof: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")
 
 
 class AnalyzePathsResponse(BaseSchema):
-    paths: List[AttackPathOut]
+    paths: list[AttackPathOut]
     returned: int
     total: int
 
 
 class FindingOut(BaseSchema):
-    id: Optional[str] = None
-    snapshot_id: Optional[str] = None
-    asset_id: Optional[str] = None
+    id: str | None = None
+    snapshot_id: str | None = None
+    asset_id: str | None = None
     finding_type: str
     severity: str
     title: str
-    description: Optional[str] = None
-    remediation: Optional[str] = None
-    evidence: Dict[str, Any] = Field(default_factory=dict)
+    description: str | None = None
+    remediation: str | None = None
+    evidence: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")
 
 
 class AnalyzeFindingsResponse(BaseSchema):
-    findings: List[FindingOut]
+    findings: list[FindingOut]
     total: int
     filter: str
 
@@ -101,102 +102,102 @@ class WasteCandidate(BaseSchema):
     name: str
     asset_type: str
     reason: str
-    asset_id: Optional[str] = None
-    monthly_cost_usd: Optional[float] = None
+    asset_id: str | None = None
+    monthly_cost_usd: float | None = None
 
 
 class BusinessAsset(BaseSchema):
     name: str
     asset_type: str
     reason: str
-    asset_id: Optional[str] = None
-    tags: Dict[str, str] = Field(default_factory=dict)
+    asset_id: str | None = None
+    tags: dict[str, str] = Field(default_factory=dict)
 
 
 class BusinessAnalysisResponse(BaseSchema):
-    entrypoints_requested: List[str]
-    entrypoints_found: List[str]
+    entrypoints_requested: list[str]
+    entrypoints_found: list[str]
     attackable_count: int
     business_required_count: int
     waste_candidate_count: int
-    waste_candidates: List[WasteCandidate]
-    business_assets: Optional[List[BusinessAsset]] = None
-    unknown_assets: Optional[List[BusinessAsset]] = None
+    waste_candidates: list[WasteCandidate]
+    business_assets: list[BusinessAsset] | None = None
+    unknown_assets: list[BusinessAsset] | None = None
 
 
 class CutRemediation(BaseSchema):
     priority: int
     action: str
     description: str
-    relationship_type: Optional[str] = None
-    source: Optional[str] = None
-    target: Optional[str] = None
+    relationship_type: str | None = None
+    source: str | None = None
+    target: str | None = None
     paths_blocked: int
-    path_ids: List[str] = Field(default_factory=list)
+    path_ids: list[str] = Field(default_factory=list)
 
 
 class CutsResponse(BaseSchema):
-    snapshot_id: Optional[str] = None
-    account_id: Optional[str] = None
+    snapshot_id: str | None = None
+    account_id: str | None = None
     total_paths: int
     paths_blocked: int
     coverage: float
-    remediations: List[CutRemediation]
+    remediations: list[CutRemediation]
 
 
 class WasteCapability(BaseSchema):
-    service: Optional[str] = None
-    service_name: Optional[str] = None
-    days_unused: Optional[int] = None
+    service: str | None = None
+    service_name: str | None = None
+    days_unused: int | None = None
     risk_level: str
     recommendation: str
     # Cost estimation fields
-    monthly_cost_usd_estimate: Optional[float] = None
-    cost_source: Optional[str] = None
-    confidence: Optional[str] = None
-    assumptions: Optional[List[str]] = None
+    monthly_cost_usd_estimate: float | None = None
+    cost_source: str | None = None
+    confidence: str | None = None
+    assumptions: list[str] | None = None
 
 
 class WasteRoleReport(BaseSchema):
-    role_arn: Optional[str] = None
+    role_arn: str | None = None
     role_name: str
     total_services: int
     unused_services: int
     reduction: float
-    unused_capabilities: List[WasteCapability]
+    unused_capabilities: list[WasteCapability]
 
 
 class WasteResponse(BaseSchema):
-    snapshot_id: Optional[str] = None
-    account_id: Optional[str] = None
+    snapshot_id: str | None = None
+    account_id: str | None = None
     days_threshold: int
     total_permissions: int
     total_unused: int
     blast_radius_reduction: float
-    roles: List[WasteRoleReport]
+    roles: list[WasteRoleReport]
 
 
 class CanSimulation(BaseSchema):
     action: str
-    resource: Optional[str] = None
+    resource: str | None = None
     decision: str
     matched_statements: int
 
 
 class CanResponse(BaseSchema):
-    snapshot_id: Optional[str] = None
+    snapshot_id: str | None = None
     principal: str
     resource: str
-    action: Optional[str] = None
+    action: str | None = None
     can_access: bool
-    simulations: List[CanSimulation]
-    proof: Dict[str, Any] = Field(default_factory=dict)
+    simulations: list[CanSimulation]
+    proof: dict[str, Any] = Field(default_factory=dict)
 
 
 class DiffChange(BaseSchema):
     change_type: str
-    path_id: Optional[str] = None
-    detail: Dict[str, Any] = Field(default_factory=dict)
+    path_id: str | None = None
+    detail: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")
 
@@ -204,14 +205,14 @@ class DiffChange(BaseSchema):
 class DiffResponse(BaseSchema):
     has_regressions: bool
     has_improvements: bool
-    summary: Dict[str, Any]
-    path_changes: List[DiffChange]
+    summary: dict[str, Any]
+    path_changes: list[DiffChange]
     # Optional extra fields
-    old_snapshot: Optional[Dict[str, Any]] = None
-    new_snapshot: Optional[Dict[str, Any]] = None
-    finding_changes: Optional[List[Dict[str, Any]]] = None
-    asset_changes: Optional[List[Dict[str, Any]]] = None
-    relationship_changes: Optional[List[Dict[str, Any]]] = None
+    old_snapshot: dict[str, Any] | None = None
+    new_snapshot: dict[str, Any] | None = None
+    finding_changes: list[dict[str, Any]] | None = None
+    asset_changes: list[dict[str, Any]] | None = None
+    relationship_changes: list[dict[str, Any]] | None = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -220,8 +221,8 @@ class ControlResult(BaseSchema):
     id: str
     title: str
     status: str
-    severity: Optional[str] = None
-    description: Optional[str] = None
+    severity: str | None = None
+    description: str | None = None
 
 
 class ComplyResponse(BaseSchema):
@@ -229,13 +230,13 @@ class ComplyResponse(BaseSchema):
     compliance_score: float
     passing: int
     failing: int
-    controls: List[ControlResult]
+    controls: list[ControlResult]
 
 
 class ReportResponse(BaseSchema):
     output_path: str
-    snapshot_id: Optional[str] = None
-    account_id: Optional[str] = None
+    snapshot_id: str | None = None
+    account_id: str | None = None
     findings: int
     paths: int
 
@@ -244,10 +245,10 @@ class ManifestResponse(BaseSchema):
     name: str
     version: str
     description: str
-    capabilities: List[Dict[str, Any]]
-    schemas: Dict[str, Any]
-    agentic_features: Dict[str, Any]
-    usage_pattern: List[str]
+    capabilities: list[dict[str, Any]]
+    schemas: dict[str, Any]
+    agentic_features: dict[str, Any]
+    usage_pattern: list[str]
 
     model_config = ConfigDict(extra="allow")
 
@@ -256,77 +257,77 @@ class RemediationItem(BaseSchema):
     priority: int
     action: str
     description: str
-    source: Optional[str] = None
-    target: Optional[str] = None
-    relationship_type: Optional[str] = None
+    source: str | None = None
+    target: str | None = None
+    relationship_type: str | None = None
     paths_blocked: int
-    terraform: Optional[str] = None
-    status: Optional[str] = None
-    terraform_path: Optional[str] = None
-    terraform_result: Optional[Dict[str, Any]] = None
+    terraform: str | None = None
+    status: str | None = None
+    terraform_path: str | None = None
+    terraform_result: dict[str, Any] | None = None
 
 
 class RemediateApplyResult(BaseSchema):
     mode: str
-    output_path: Optional[str] = None
-    terraform_path: Optional[str] = None
-    terraform_dir: Optional[str] = None
-    plan_exit_code: Optional[int] = None
-    plan_summary: Optional[str] = None
-    results: Optional[List[RemediationItem]] = None
+    output_path: str | None = None
+    terraform_path: str | None = None
+    terraform_dir: str | None = None
+    plan_exit_code: int | None = None
+    plan_summary: str | None = None
+    results: list[RemediationItem] | None = None
 
 
 class RemediateResponse(BaseSchema):
-    snapshot_id: Optional[str] = None
-    account_id: Optional[str] = None
+    snapshot_id: str | None = None
+    account_id: str | None = None
     total_paths: int
     paths_blocked: int
     coverage: float
-    plan: List[RemediationItem]
+    plan: list[RemediationItem]
     applied: bool
     mode: str
-    output_path: Optional[str] = None
-    terraform_path: Optional[str] = None
-    terraform_dir: Optional[str] = None
-    apply: Optional[RemediateApplyResult] = None
+    output_path: str | None = None
+    terraform_path: str | None = None
+    terraform_dir: str | None = None
+    apply: RemediateApplyResult | None = None
 
 
 class AskResponse(BaseSchema):
     query: str
     intent: str
-    results: Dict[str, Any]
-    snapshot_id: Optional[str] = None
-    entities: Dict[str, Any]
+    results: dict[str, Any]
+    snapshot_id: str | None = None
+    entities: dict[str, Any]
     resolved: str
 
 
 class ExplainResponse(BaseSchema):
     type: str
     id: str
-    explanation: Dict[str, Any]
+    explanation: dict[str, Any]
 
 
 class SetupIamResponse(BaseSchema):
     account_id: str
     role_name: str
-    external_id: Optional[str] = None
+    external_id: str | None = None
     template_format: str
     template: str
-    output_path: Optional[str] = None
+    output_path: str | None = None
 
 
 class ValidateRoleResponse(BaseSchema):
     success: bool
     role_arn: str
-    account: Optional[str] = None
-    arn: Optional[str] = None
-    user_id: Optional[str] = None
-    error: Optional[str] = None
-    error_type: Optional[str] = None
+    account: str | None = None
+    arn: str | None = None
+    user_id: str | None = None
+    error: str | None = None
+    error_type: str | None = None
 
 
 class ServeToolsResponse(BaseSchema):
-    tools: List[Dict[str, Any]]
+    tools: list[dict[str, Any]]
 
 
 SCHEMA_REGISTRY = {
@@ -350,6 +351,6 @@ SCHEMA_REGISTRY = {
 }
 
 
-def schema_json() -> Dict[str, Any]:
+def schema_json() -> dict[str, Any]:
     """Return JSON schemas for manifest exposure."""
     return {name: model.model_json_schema() for name, model in SCHEMA_REGISTRY.items()}

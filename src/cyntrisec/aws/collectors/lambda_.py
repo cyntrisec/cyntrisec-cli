@@ -1,7 +1,8 @@
 """Lambda Collector - Collect Lambda functions."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
@@ -14,18 +15,18 @@ class LambdaCollector:
         self._lambda = session.client("lambda", region_name=region)
         self._region = region
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all Lambda data."""
         functions = self._collect_functions()
-        
+
         # Enrich with policies
         for func in functions:
             name = func["FunctionName"]
             func["Policy"] = self._get_function_policy(name)
-        
+
         return {"functions": functions}
 
-    def _collect_functions(self) -> List[Dict]:
+    def _collect_functions(self) -> list[dict]:
         """List all Lambda functions."""
         functions = []
         paginator = self._lambda.get_paginator("list_functions")
@@ -33,7 +34,7 @@ class LambdaCollector:
             functions.extend(page.get("Functions", []))
         return functions
 
-    def _get_function_policy(self, function_name: str) -> Dict | None:
+    def _get_function_policy(self, function_name: str) -> dict | None:
         """Get function resource policy."""
         try:
             response = self._lambda.get_policy(FunctionName=function_name)

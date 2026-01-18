@@ -4,26 +4,31 @@ remediate command - Generate remediation plans (plan/apply).
 Current implementation generates a remediation plan using existing scan data
 and minimal cut analysis. Apply is a stub that requires explicit enablement.
 """
+
 from __future__ import annotations
 
-from typing import Optional
+import shutil
+import subprocess
 from pathlib import Path
 
 import typer
-import shutil
-import subprocess
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
 from typer.models import OptionInfo
 
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
+from cyntrisec.cli.schemas import RemediateResponse
 from cyntrisec.core.cuts import MinCutFinder
 from cyntrisec.core.graph import GraphBuilder
 from cyntrisec.storage import FileSystemStorage
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
-from cyntrisec.cli.schemas import RemediateResponse
 
 console = Console()
 
@@ -45,12 +50,12 @@ def remediate_cmd(
         "--apply",
         help="Apply the remediation plan (writes plan + marks actions pending)",
     ),
-    terraform_output: Optional[str] = typer.Option(
+    terraform_output: str | None = typer.Option(
         None,
         "--terraform-output",
         help="Path to write Terraform hints (default: cyntrisec-remediation.tf when applying)",
     ),
-    terraform_dir: Optional[str] = typer.Option(
+    terraform_dir: str | None = typer.Option(
         None,
         "--terraform-dir",
         help="Directory to write Terraform module (default: cyntrisec-remediation-tf)",
@@ -80,18 +85,18 @@ def remediate_cmd(
         "--yes",
         help="Skip confirmation when using --apply",
     ),
-    output: Optional[str] = typer.Option(
+    output: str | None = typer.Option(
         None,
         "--output",
         "-o",
         help="Write plan/apply payload to a file (json)",
     ),
-    snapshot_id: Optional[str] = typer.Option(
+    snapshot_id: str | None = typer.Option(
         None,
         "--snapshot",
         help="Snapshot ID (default: latest)",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -100,7 +105,7 @@ def remediate_cmd(
 ):
     """
     Generate or apply remediation plans.
-    
+
     Use existing scan data and minimal-cut analysis to propose fixes that
     block attack paths. Apply/terraform are gated and disabled by default.
     """
@@ -137,7 +142,7 @@ def remediate_cmd(
     graph = GraphBuilder().build(assets=assets, relationships=relationships)
     result = MinCutFinder().find_cuts(graph, paths, max_cuts=max_cuts)
     plan = _build_plan(result)
-    
+
     apply_output = None
     mode = "plan"
 
@@ -172,10 +177,15 @@ def remediate_cmd(
             "terraform_dir": apply_output["terraform_dir"] if apply_output else None,
             "apply": apply_output,
         }
-        actions = suggested_actions([
-            ("cyntrisec can <principal> access <resource>", "Verify access is closed after remediation"),
-            ("cyntrisec diff --format agent", "Detect regressions after applying fixes"),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    "cyntrisec can <principal> access <resource>",
+                    "Verify access is closed after remediation",
+                ),
+                ("cyntrisec diff --format agent", "Detect regressions after applying fixes"),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             payload,
@@ -202,17 +212,21 @@ def _build_plan(result):
     """Construct a remediation plan with human + IaC hints."""
     plan = []
     for i, rem in enumerate(result.remediations, 1):
-        terraform = _terraform_snippet(rem.action, rem.source_name, rem.target_name, rem.relationship_type)
-        plan.append({
-            "priority": i,
-            "action": rem.action,
-            "description": rem.description,
-            "source": rem.source_name,
-            "target": rem.target_name,
-            "relationship_type": rem.relationship_type,
-            "paths_blocked": len(rem.paths_blocked),
-            "terraform": terraform,
-        })
+        terraform = _terraform_snippet(
+            rem.action, rem.source_name, rem.target_name, rem.relationship_type
+        )
+        plan.append(
+            {
+                "priority": i,
+                "action": rem.action,
+                "description": rem.description,
+                "source": rem.source_name,
+                "target": rem.target_name,
+                "relationship_type": rem.relationship_type,
+                "paths_blocked": len(rem.paths_blocked),
+                "terraform": terraform,
+            }
+        )
     return plan
 
 
@@ -220,38 +234,38 @@ def _terraform_snippet(action: str, source: str, target: str, relationship_type:
     """Generate a minimal Terraform hint for the remediation."""
     if relationship_type == "ALLOWS_TRAFFIC_TO":
         return (
-            '# Restrict security group ingress\n'
+            "# Restrict security group ingress\n"
             'resource "aws_security_group_rule" "restrict_ingress" {\n'
             f'  description = "Restrict {source} -> {target}"\n'
             '  type        = "ingress"\n'
-            '  from_port   = 0\n'
-            '  to_port     = 0\n'
+            "  from_port   = 0\n"
+            "  to_port     = 0\n"
             '  protocol    = "tcp"\n'
             '  cidr_blocks = ["10.0.0.0/8"]\n'
-            '}\n'
+            "}\n"
         )
     if relationship_type == "MAY_ACCESS":
         return (
-            '# Tighten IAM policy\n'
+            "# Tighten IAM policy\n"
             'data "aws_iam_policy_document" "restricted" {\n'
-            '  statement {\n'
+            "  statement {\n"
             f'    sid    = "Limit{source}Access"\n'
             '    effect = "Allow"\n'
             f'    actions   = ["*"]\n'
             f'    resources = ["arn:aws:*:::{{resource_arn_for_{target}}}"]\n'
-            '  }\n'
-            '}\n'
+            "  }\n"
+            "}\n"
         )
     if relationship_type == "CAN_ASSUME":
         return (
-            '# Restrict role trust policy\n'
+            "# Restrict role trust policy\n"
             'data "aws_iam_policy_document" "assume_role" {\n'
-            '  statement {\n'
+            "  statement {\n"
             '    effect = "Allow"\n'
-            f'    principals {{ type = "AWS" identifiers = ["<trusted-account>"] }}\n'
+            '    principals { type = "AWS" identifiers = ["<trusted-account>"] }\n'
             '    actions = ["sts:AssumeRole"]\n'
-            '  }\n'
-            '}\n'
+            "  }\n"
+            "}\n"
         )
     return "# Review and update access between resources."
 
@@ -262,20 +276,22 @@ def _output_table(
     snapshot,
     *,
     applied: bool,
-    output_path: Optional[str],
-    terraform_path: Optional[str],
+    output_path: str | None,
+    terraform_path: str | None,
     mode: str,
 ):
     """Render a remediation plan as a table."""
     console.print()
-    console.print(Panel(
-        f"[bold]Remediation Plan[/bold]\n"
-        f"Account: {snapshot.aws_account_id if snapshot else 'unknown'}\n"
-        f"Attack Paths: {result.total_paths} -> {result.paths_blocked} blocked "
-        f"({result.coverage:.0%} coverage)",
-        title="cyntrisec remediate",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Remediation Plan[/bold]\n"
+            f"Account: {snapshot.aws_account_id if snapshot else 'unknown'}\n"
+            f"Attack Paths: {result.total_paths} -> {result.paths_blocked} blocked "
+            f"({result.coverage:.0%} coverage)",
+            title="cyntrisec remediate",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     if not plan:
@@ -304,8 +320,12 @@ def _output_table(
     console.print(table)
     console.print("[dim]Use --format json|agent for IaC snippets and automation.[/dim]")
     if applied:
-        console.print(f"[green]{mode.title()} written to {output_path or 'cyntrisec-remediation-plan.json'}[/green]")
-        console.print(f"[green]Terraform hints written to {terraform_path or 'cyntrisec-remediation.tf'}[/green]")
+        console.print(
+            f"[green]{mode.title()} written to {output_path or 'cyntrisec-remediation-plan.json'}[/green]"
+        )
+        console.print(
+            f"[green]Terraform hints written to {terraform_path or 'cyntrisec-remediation.tf'}[/green]"
+        )
 
 
 def _handle_apply_mode(
@@ -317,9 +337,9 @@ def _handle_apply_mode(
     terraform_plan: bool,
     enable_unsafe_write_mode: bool,
     yes: bool,
-    output: Optional[str],
-    terraform_output: Optional[str],
-    terraform_dir: Optional[str],
+    output: str | None,
+    terraform_output: str | None,
+    terraform_dir: str | None,
     terraform_cmd: str,
 ):
     """Handle apply, dry-run, and terraform execution logic."""
@@ -329,9 +349,9 @@ def _handle_apply_mode(
             message="Apply/terraform execution is disabled. Use --enable-unsafe-write-mode to proceed.",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-        
+
     mode = "apply" if apply else ("terraform-plan" if terraform_plan else "dry-run")
-    
+
     if not yes:
         confirm = typer.confirm(
             "This will write the remediation plan to disk and mark actions as pending. Proceed?",
@@ -339,7 +359,7 @@ def _handle_apply_mode(
         )
         if not confirm:
             raise typer.Exit(1)
-            
+
     if (execute_terraform or terraform_plan) and not yes:
         confirm_tf = typer.confirm(
             "You requested to run terraform locally. Continue?",
@@ -347,11 +367,11 @@ def _handle_apply_mode(
         )
         if not confirm_tf:
             raise typer.Exit(1)
-            
+
     plan_path = output or "cyntrisec-remediation-plan.json"
     tf_module_dir = terraform_dir or "cyntrisec-remediation-tf"
     tf_path = terraform_output or str(Path(tf_module_dir) / "main.tf")
-    
+
     apply_results, plan_result = _apply_plan(
         plan,
         snapshot,
@@ -363,7 +383,7 @@ def _handle_apply_mode(
         terraform_plan=terraform_plan,
         terraform_cmd=terraform_cmd,
     )
-    
+
     apply_output = {
         "mode": mode,
         "output_path": plan_path,
@@ -373,13 +393,14 @@ def _handle_apply_mode(
         "plan_exit_code": plan_result.get("exit_code") if plan_result else None,
         "plan_summary": plan_result.get("summary") if plan_result else None,
     }
-    
+
     return mode, apply_output
 
 
 def _write_plan_file(plan: list[dict], path: str, snapshot):
     """Write remediation plan to a JSON file."""
     import json
+
     payload = {
         "snapshot_id": str(getattr(snapshot, "id", None)) if snapshot else None,
         "account_id": getattr(snapshot, "aws_account_id", None) if snapshot else None,
@@ -400,10 +421,10 @@ def _apply_plan(
     execute_terraform: bool,
     terraform_plan: bool,
     terraform_cmd: str,
-) -> tuple[list[dict], Optional[dict]]:
+) -> tuple[list[dict], dict | None]:
     """
     Apply or simulate apply of the remediation plan.
-    
+
     Writes plan and Terraform hints to disk. Optionally runs terraform plan/apply.
     Returns (items, plan_result).
     """
@@ -457,7 +478,7 @@ def _write_terraform_files(plan: list[dict], dir_path: str, main_path: str) -> s
 def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
     """
     Run terraform apply -auto-approve against the generated hints.
-    
+
     Returns a dict with command and status. If terraform is missing, returns error.
     """
     if not shutil.which(terraform_cmd):
@@ -466,8 +487,8 @@ def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
     init_cmd = [terraform_cmd, "-chdir", tf_dir, "init", "-input=false"]
     apply_cmd = [terraform_cmd, "-chdir", tf_dir, "apply", "-auto-approve"]
     try:
-        init_result = subprocess.run(init_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        apply_result = subprocess.run(apply_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        init_result = subprocess.run(init_cmd, check=True, capture_output=True)
+        apply_result = subprocess.run(apply_cmd, check=True, capture_output=True)
         return {
             "ok": True,
             "command": " ".join(apply_cmd),
@@ -492,13 +513,17 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str) -> dict:
     Run terraform plan (no apply) to validate generated module.
     """
     if not shutil.which(terraform_cmd):
-        return {"ok": False, "error": f"terraform command '{terraform_cmd}' not found", "exit_code": None}
+        return {
+            "ok": False,
+            "error": f"terraform command '{terraform_cmd}' not found",
+            "exit_code": None,
+        }
 
     init_cmd = [terraform_cmd, "-chdir", tf_dir, "init", "-input=false"]
     plan_cmd = [terraform_cmd, "-chdir", tf_dir, "plan", "-input=false", "-no-color"]
     try:
-        init_result = subprocess.run(init_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        plan_result = subprocess.run(plan_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        init_result = subprocess.run(init_cmd, check=True, capture_output=True)
+        plan_result = subprocess.run(plan_cmd, check=True, capture_output=True)
         stdout_text = plan_result.stdout.decode()
         summary = None
         for line in reversed(stdout_text.splitlines()):

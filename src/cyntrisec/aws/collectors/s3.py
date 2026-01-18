@@ -1,7 +1,8 @@
 """S3 Collector - Collect S3 buckets and policies."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
@@ -13,10 +14,10 @@ class S3Collector:
     def __init__(self, session: boto3.Session):
         self._s3 = session.client("s3")
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all S3 data."""
         buckets = self._collect_buckets()
-        
+
         # Enrich with policies and ACLs
         for bucket in buckets:
             name = bucket["Name"]
@@ -24,15 +25,15 @@ class S3Collector:
             bucket["Acl"] = self._get_bucket_acl(name)
             bucket["PublicAccessBlock"] = self._get_public_access_block(name)
             bucket["Location"] = self._get_bucket_location(name)
-        
+
         return {"buckets": buckets}
 
-    def _collect_buckets(self) -> List[Dict]:
+    def _collect_buckets(self) -> list[dict]:
         """List all buckets."""
         response = self._s3.list_buckets()
         return response.get("Buckets", [])
 
-    def _get_bucket_policy(self, bucket_name: str) -> Dict | None:
+    def _get_bucket_policy(self, bucket_name: str) -> dict | None:
         """Get bucket policy."""
         try:
             response = self._s3.get_bucket_policy(Bucket=bucket_name)
@@ -42,14 +43,14 @@ class S3Collector:
                 return None
             return {"Error": str(e)}
 
-    def _get_bucket_acl(self, bucket_name: str) -> Dict | None:
+    def _get_bucket_acl(self, bucket_name: str) -> dict | None:
         """Get bucket ACL."""
         try:
             return self._s3.get_bucket_acl(Bucket=bucket_name)
         except ClientError:
             return None
 
-    def _get_public_access_block(self, bucket_name: str) -> Dict | None:
+    def _get_public_access_block(self, bucket_name: str) -> dict | None:
         """Get public access block configuration."""
         try:
             response = self._s3.get_public_access_block(Bucket=bucket_name)

@@ -3,29 +3,33 @@ cuts command - Find minimal remediations that block attack paths.
 
 Usage:
     cyntrisec cuts [OPTIONS]
-    
+
 Examples:
     cyntrisec cuts                    # Show top 5 remediations
     cyntrisec cuts --max-cuts 10      # Show top 10
     cyntrisec cuts --format json      # Machine-readable output
 """
+
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
-from cyntrisec.storage import FileSystemStorage
-from cyntrisec.core.graph import GraphBuilder
-from cyntrisec.core.cuts import MinCutFinder
-from cyntrisec.core.cost_estimator import CostEstimator
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import CutsResponse
+from cyntrisec.core.cost_estimator import CostEstimator
+from cyntrisec.core.cuts import MinCutFinder
+from cyntrisec.core.graph import GraphBuilder
+from cyntrisec.storage import FileSystemStorage
 
 console = Console()
 
@@ -34,17 +38,20 @@ console = Console()
 def cuts_cmd(
     max_cuts: int = typer.Option(
         5,
-        "--max-cuts", "-n",
+        "--max-cuts",
+        "-n",
         help="Maximum number of remediations to return",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
-        "--format", "-f",
+        "--format",
+        "-f",
         help="Output format: table, json, agent (defaults to json when piped)",
     ),
-    snapshot_id: Optional[str] = typer.Option(
+    snapshot_id: str | None = typer.Option(
         None,
-        "--snapshot", "-s",
+        "--snapshot",
+        "-s",
         help="Specific snapshot ID (default: latest)",
     ),
     cost_source: str = typer.Option(
@@ -55,10 +62,10 @@ def cuts_cmd(
 ):
     """
     Find minimal remediations that block the most attack paths.
-    
+
     Uses a greedy set-cover algorithm to identify the smallest set of
     changes that would disconnect entry points from sensitive targets.
-    
+
     Exit codes:
         0 - No attack paths (nothing to cut)
         0 - Remediations found
@@ -98,17 +105,20 @@ def cuts_cmd(
         cost_estimator = CostEstimator(source=cost_source)
         payload = _build_payload(result, snapshot, graph, cost_estimator)
         top_rem = result.remediations[0] if result.remediations else None
-        followups = suggested_actions([
-            (
-                f"cyntrisec can {top_rem.source_name} access {top_rem.target_name}"
-                if top_rem else "",
-                "Verify the highest-priority remediation closes access" if top_rem else "",
-            ),
-            (
-                f"cyntrisec report --scan {snapshot.id}" if snapshot else "",
-                "Export a full report for stakeholders" if snapshot else "",
-            ),
-        ])
+        followups = suggested_actions(
+            [
+                (
+                    f"cyntrisec can {top_rem.source_name} access {top_rem.target_name}"
+                    if top_rem
+                    else "",
+                    "Verify the highest-priority remediation closes access" if top_rem else "",
+                ),
+                (
+                    f"cyntrisec report --scan {snapshot.id}" if snapshot else "",
+                    "Export a full report for stakeholders" if snapshot else "",
+                ),
+            ]
+        )
         artifact_paths = build_artifact_paths(storage, snapshot_id)
         emit_agent_or_json(
             output_format,
@@ -125,15 +135,17 @@ def _output_table(result, snapshot):
     """Display results as a rich table."""
     # Header panel
     console.print()
-    console.print(Panel(
-        f"[bold]Minimal Cut Analysis[/bold]\n"
-        f"Account: {snapshot.aws_account_id if snapshot else 'unknown'}\n"
-        f"Attack Paths: {result.total_paths} -> "
-        f"[green]{result.paths_blocked} blocked[/green] "
-        f"({result.coverage:.0%} coverage)",
-        title="cyntrisec cuts",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Minimal Cut Analysis[/bold]\n"
+            f"Account: {snapshot.aws_account_id if snapshot else 'unknown'}\n"
+            f"Attack Paths: {result.total_paths} -> "
+            f"[green]{result.paths_blocked} blocked[/green] "
+            f"({result.coverage:.0%} coverage)",
+            title="cyntrisec cuts",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     if not result.remediations:
@@ -180,7 +192,7 @@ def _output_table(result, snapshot):
 def _build_payload(result, snapshot, graph=None, cost_estimator=None):
     """Build structured output for JSON/agent modes."""
     remediations = []
-    
+
     for i, rem in enumerate(result.remediations):
         rem_dict = {
             "priority": i + 1,
@@ -192,20 +204,22 @@ def _build_payload(result, snapshot, graph=None, cost_estimator=None):
             "paths_blocked": len(rem.paths_blocked),
             "path_ids": [str(p) for p in rem.paths_blocked],
         }
-        
+
         # Add cost estimate for target asset if available
         if cost_estimator and graph:
             target_asset = graph.asset(rem.relationship.target_asset_id)
             if target_asset:
                 estimate = cost_estimator.estimate(target_asset)
                 if estimate:
-                    rem_dict["estimated_monthly_savings"] = float(estimate.monthly_cost_usd_estimate)
+                    rem_dict["estimated_monthly_savings"] = float(
+                        estimate.monthly_cost_usd_estimate
+                    )
                     rem_dict["cost_source"] = estimate.cost_source
                     rem_dict["cost_confidence"] = estimate.confidence
                     rem_dict["cost_assumptions"] = estimate.assumptions
-        
+
         remediations.append(rem_dict)
-    
+
     return {
         "snapshot_id": str(snapshot.id) if snapshot else None,
         "account_id": snapshot.aws_account_id if snapshot else None,

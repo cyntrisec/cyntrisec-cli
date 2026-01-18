@@ -1,15 +1,20 @@
 """
 Scan Command - Run AWS scans.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
 
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import ScanResponse
 
 log = logging.getLogger(__name__)
@@ -17,7 +22,7 @@ log = logging.getLogger(__name__)
 
 @handle_errors
 def scan_cmd(
-    role_arn: Optional[str] = typer.Option(
+    role_arn: str | None = typer.Option(
         None,
         "--role-arn",
         "-r",
@@ -28,19 +33,19 @@ def scan_cmd(
         "--regions",
         help="Comma-separated list of AWS regions to scan",
     ),
-    external_id: Optional[str] = typer.Option(
+    external_id: str | None = typer.Option(
         None,
         "--external-id",
         "-e",
         help="External ID for role assumption",
     ),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None,
         "--profile",
         "-p",
         help="AWS CLI profile for base credentials",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -49,25 +54,25 @@ def scan_cmd(
 ):
     """
     Run AWS security scan.
-    
+
     Scans an AWS account using read-only API calls to discover:
-    
+
     - Infrastructure resources (EC2, IAM, S3, Lambda, RDS, etc.)
-    
+
     - Network connectivity and security groups
-    
+
     - Attack paths through the infrastructure
-    
+
     - Security misconfigurations
-    
+
     Examples:
-    
+
         cyntrisec scan --role-arn arn:aws:iam::123456789012:role/ReadOnly
-        
+
         cyntrisec scan -r arn:aws:iam::123456789012:role/ReadOnly --regions us-east-1,eu-west-1
     """
-    from cyntrisec.storage import FileSystemStorage
     from cyntrisec.aws import AwsScanner
+    from cyntrisec.storage import FileSystemStorage
 
     # Parse regions
     region_list = [r.strip() for r in regions.split(",")]
@@ -76,15 +81,15 @@ def scan_cmd(
         default_tty="text",
         allowed=["text", "json", "agent"],
     )
-    
-    typer.echo(f"Starting AWS scan...", err=True)
+
+    typer.echo("Starting AWS scan...", err=True)
     typer.echo(f"  Role: {role_arn or 'default credentials'}", err=True)
     typer.echo(f"  Regions: {', '.join(region_list)}", err=True)
-    
+
     # Create storage and scanner
     storage = FileSystemStorage()
     scanner = AwsScanner(storage)
-    
+
     try:
         snapshot = scanner.scan(
             regions=region_list,
@@ -105,7 +110,7 @@ def scan_cmd(
             message=str(e),
             exit_code=EXIT_CODE_MAP["internal"],
         )
-    
+
     # Print summary
     typer.echo("", err=True)
     typer.echo("Scan complete!", err=True)
@@ -127,11 +132,16 @@ def scan_cmd(
         "finding_count": snapshot.finding_count,
         "attack_path_count": snapshot.path_count,
     }
-    followups = suggested_actions([
-        (f"cyntrisec analyze paths --scan {snapshot.id}", "Review discovered attack paths"),
-        (f"cyntrisec cuts --snapshot {snapshot.id}", "Prioritize fixes that block paths"),
-        (f"cyntrisec report --scan {snapshot.id} --output cyntrisec-report.html", "Generate a full report"),
-    ])
+    followups = suggested_actions(
+        [
+            (f"cyntrisec analyze paths --scan {snapshot.id}", "Review discovered attack paths"),
+            (f"cyntrisec cuts --snapshot {snapshot.id}", "Prioritize fixes that block paths"),
+            (
+                f"cyntrisec report --scan {snapshot.id} --output cyntrisec-report.html",
+                "Generate a full report",
+            ),
+        ]
+    )
 
     if output_format in {"json", "agent"}:
         emit_agent_or_json(
@@ -141,7 +151,7 @@ def scan_cmd(
             artifact_paths=artifact_paths,
             schema=ScanResponse,
         )
-    
+
     # Exit code based on paths found
     if snapshot.path_count > 0:
         raise typer.Exit(1)  # Paths found

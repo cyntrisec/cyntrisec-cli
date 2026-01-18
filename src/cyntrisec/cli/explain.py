@@ -3,18 +3,18 @@ explain command - Natural language explanations of findings and attack paths.
 
 Provides agent-friendly explanations for findings, attack vectors, and compliance controls.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
 from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
 from cyntrisec.cli.schemas import ExplainResponse
 from cyntrisec.core.compliance import CIS_CONTROLS, SOC2_CONTROLS
 
@@ -96,15 +96,16 @@ def explain_cmd(
         ...,
         help="Identifier of the item to explain",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
-        "--format", "-f",
+        "--format",
+        "-f",
         help="Output format: text, json, markdown, agent (defaults to json when piped)",
     ),
 ):
     """
     Get natural language explanations of security findings, attack paths, or compliance controls.
-    
+
     Examples:
         cyntrisec explain finding security_group_open_to_world
         cyntrisec explain path instance-compromise
@@ -133,21 +134,21 @@ def explain_cmd(
 def _explain_finding(finding_type: str, format: str):
     """Explain a finding type."""
     explanation = FINDING_EXPLANATIONS.get(finding_type)
-    
+
     if not explanation:
         # Try to find partial match
         for key, exp in FINDING_EXPLANATIONS.items():
             if finding_type in key:
                 explanation = exp
                 break
-    
+
     if not explanation:
         raise CyntriError(
             error_code=ErrorCode.INVALID_QUERY,
             message=f"No explanation found for finding type '{finding_type}'",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-    
+
     if format in {"json", "agent"}:
         next_cmd = explanation.get("next_command")
         actions = suggested_actions([(next_cmd, "Suggested next step")] if next_cmd else [])
@@ -158,7 +159,7 @@ def _explain_finding(finding_type: str, format: str):
             schema=ExplainResponse,
         )
         return
-    
+
     if format == "markdown":
         md = (
             f"# {explanation['title']}\n\n"
@@ -176,37 +177,39 @@ def _explain_finding(finding_type: str, format: str):
 def _explain_path(attack_vector: str, format: str):
     """Explain an attack path/vector."""
     explanation = ATTACK_VECTOR_EXPLANATIONS.get(attack_vector)
-    
+
     if not explanation:
         for key, exp in ATTACK_VECTOR_EXPLANATIONS.items():
             if attack_vector in key:
                 explanation = exp
                 break
-    
+
     if not explanation:
         raise CyntriError(
             error_code=ErrorCode.INVALID_QUERY,
             message=f"No explanation found for attack vector '{attack_vector}'",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-    
+
     if format in {"json", "agent"}:
         emit_agent_or_json(
             format,
             {"type": "path", "id": attack_vector, "explanation": explanation},
-            suggested=suggested_actions([
-                ("cyntrisec analyze paths --format agent", "List concrete paths of this type"),
-            ]),
+            suggested=suggested_actions(
+                [
+                    ("cyntrisec analyze paths --format agent", "List concrete paths of this type"),
+                ]
+            ),
             schema=ExplainResponse,
         )
         return
-    
+
     if format == "markdown":
         md = (
             f"# {explanation['title']}\n\n"
             f"{explanation['description']}\n\n"
             f"## Attack Stages\n" + "\n".join(explanation["stages"]) + "\n\n"
-            f"## Mitigations\n" + "\n".join(f"- {m}" for m in explanation["mitigations"])
+            "## Mitigations\n" + "\n".join(f"- {m}" for m in explanation["mitigations"])
         )
         console.print(Markdown(md))
         return
@@ -217,20 +220,20 @@ def _explain_path(attack_vector: str, format: str):
 def _explain_control(control_id: str, format: str):
     """Explain a compliance control."""
     all_controls = CIS_CONTROLS + SOC2_CONTROLS
-    
+
     control = None
     for c in all_controls:
         if c.id == control_id or c.full_id == control_id:
             control = c
             break
-    
+
     if not control:
         raise CyntriError(
             error_code=ErrorCode.INVALID_QUERY,
             message=f"No control found for '{control_id}'",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-    
+
     explanation = {
         "id": control.full_id,
         "title": control.title,
@@ -238,14 +241,16 @@ def _explain_control(control_id: str, format: str):
         "severity": control.severity,
         "framework": control.framework.value,
     }
-    
+
     if format in {"json", "agent"}:
         emit_agent_or_json(
             format,
             {"type": "control", "id": control.full_id, "explanation": explanation},
-            suggested=suggested_actions([
-                ("cyntrisec comply --format agent", "Run a full compliance check"),
-            ]),
+            suggested=suggested_actions(
+                [
+                    ("cyntrisec comply --format agent", "Run a full compliance check"),
+                ]
+            ),
             schema=ExplainResponse,
         )
     elif format == "markdown":
@@ -257,47 +262,53 @@ def _explain_control(control_id: str, format: str):
         console.print(Markdown(md))
     else:
         console.print()
-        console.print(Panel(
-            f"{control.title}\n\n"
-            f"{control.description}\n\n"
-            f"Severity: {control.severity.upper()}",
-            title=f"Control {control.full_id}",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                f"{control.title}\n\n{control.description}\n\nSeverity: {control.severity.upper()}",
+                title=f"Control {control.full_id}",
+                border_style="cyan",
+            )
+        )
 
 
 def _render_finding_explanation(exp: dict):
     """Render a finding explanation as rich text."""
     console.print()
-    
-    sev_color = {"CRITICAL": "red", "HIGH": "red", "MEDIUM": "yellow", "LOW": "dim"}.get(exp['severity'], "white")
-    
-    console.print(Panel(
-        f"{exp['title']}\n\n"
-        f"Severity: {exp['severity']}\n\n"
-        f"What is it?\n{exp['what']}\n\n"
-        f"Why does it matter?\n{exp['why']}\n\n"
-        f"How to fix it?\n{exp['fix']}",
-        title="Finding Explanation",
-        border_style=sev_color,
-    ))
-    
-    if exp.get('next_command'):
+
+    sev_color = {"CRITICAL": "red", "HIGH": "red", "MEDIUM": "yellow", "LOW": "dim"}.get(
+        exp["severity"], "white"
+    )
+
+    console.print(
+        Panel(
+            f"{exp['title']}\n\n"
+            f"Severity: {exp['severity']}\n\n"
+            f"What is it?\n{exp['what']}\n\n"
+            f"Why does it matter?\n{exp['why']}\n\n"
+            f"How to fix it?\n{exp['fix']}",
+            title="Finding Explanation",
+            border_style=sev_color,
+        )
+    )
+
+    if exp.get("next_command"):
         console.print(f"\n[cyan]Suggested next command:[/cyan] `{exp['next_command']}`")
 
 
 def _render_path_explanation(exp: dict):
     """Render an attack path explanation as rich text."""
     console.print()
-    
-    stages = "\n".join(exp['stages'])
-    mitigations = "\n".join(f"- {m}" for m in exp['mitigations'])
-    
-    console.print(Panel(
-        f"**{exp['title']}**\n\n"
-        f"{exp['description']}\n\n"
-        f"**Attack Stages:**\n{stages}\n\n"
-        f"**Mitigations:**\n{mitigations}",
-        title="Attack Path Explanation",
-        border_style="red",
-    ))
+
+    stages = "\n".join(exp["stages"])
+    mitigations = "\n".join(f"- {m}" for m in exp["mitigations"])
+
+    console.print(
+        Panel(
+            f"**{exp['title']}**\n\n"
+            f"{exp['description']}\n\n"
+            f"**Attack Stages:**\n{stages}\n\n"
+            f"**Mitigations:**\n{mitigations}",
+            title="Attack Path Explanation",
+            border_style="red",
+        )
+    )

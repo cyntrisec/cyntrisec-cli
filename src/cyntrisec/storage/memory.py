@@ -3,10 +3,10 @@ In-Memory Storage - Keep scan results in memory.
 
 Useful for testing and single-run analysis without persistence.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from cyntrisec.core.schema import (
     Asset,
@@ -21,14 +21,14 @@ from cyntrisec.storage.protocol import StorageBackend
 class InMemoryStorage(StorageBackend):
     """
     Keep scan results in memory.
-    
+
     Data is lost when the process exits.
     Useful for testing and ephemeral analysis.
     """
 
     def __init__(self):
-        self._scans: Dict[str, Dict] = {}
-        self._current_id: Optional[str] = None
+        self._scans: dict[str, dict] = {}
+        self._current_id: str | None = None
 
     def new_scan(self, account_id: str) -> str:
         timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H%M%S")
@@ -43,7 +43,7 @@ class InMemoryStorage(StorageBackend):
         }
         return scan_id
 
-    def _get_scan(self, scan_id: Optional[str] = None) -> Dict:
+    def _get_scan(self, scan_id: str | None = None) -> dict:
         sid = scan_id or self._current_id
         if not sid or sid not in self._scans:
             raise ValueError(f"Scan not found: {sid}")
@@ -52,49 +52,49 @@ class InMemoryStorage(StorageBackend):
     def save_snapshot(self, snapshot: Snapshot) -> None:
         self._get_scan()["snapshot"] = snapshot
 
-    def save_assets(self, assets: List[Asset]) -> None:
+    def save_assets(self, assets: list[Asset]) -> None:
         self._get_scan()["assets"] = assets
 
-    def save_relationships(self, relationships: List[Relationship]) -> None:
+    def save_relationships(self, relationships: list[Relationship]) -> None:
         self._get_scan()["relationships"] = relationships
 
-    def save_findings(self, findings: List[Finding]) -> None:
+    def save_findings(self, findings: list[Finding]) -> None:
         self._get_scan()["findings"] = findings
 
-    def save_attack_paths(self, paths: List[AttackPath]) -> None:
+    def save_attack_paths(self, paths: list[AttackPath]) -> None:
         self._get_scan()["attack_paths"] = paths
 
-    def get_snapshot(self, scan_id: Optional[str] = None) -> Optional[Snapshot]:
+    def get_snapshot(self, scan_id: str | None = None) -> Snapshot | None:
         try:
             return self._get_scan(scan_id)["snapshot"]
         except ValueError:
             return None
 
-    def get_assets(self, scan_id: Optional[str] = None) -> List[Asset]:
+    def get_assets(self, scan_id: str | None = None) -> list[Asset]:
         try:
             return self._get_scan(scan_id)["assets"]
         except ValueError:
             return []
 
-    def get_relationships(self, scan_id: Optional[str] = None) -> List[Relationship]:
+    def get_relationships(self, scan_id: str | None = None) -> list[Relationship]:
         try:
             return self._get_scan(scan_id)["relationships"]
         except ValueError:
             return []
 
-    def get_findings(self, scan_id: Optional[str] = None) -> List[Finding]:
+    def get_findings(self, scan_id: str | None = None) -> list[Finding]:
         try:
             return self._get_scan(scan_id)["findings"]
         except ValueError:
             return []
 
-    def get_attack_paths(self, scan_id: Optional[str] = None) -> List[AttackPath]:
+    def get_attack_paths(self, scan_id: str | None = None) -> list[AttackPath]:
         try:
             return self._get_scan(scan_id)["attack_paths"]
         except ValueError:
             return []
 
-    def export_all(self, scan_id: Optional[str] = None) -> Dict:
+    def export_all(self, scan_id: str | None = None) -> dict:
         scan = self._get_scan(scan_id)
         snapshot = scan["snapshot"]
         return {
@@ -109,5 +109,5 @@ class InMemoryStorage(StorageBackend):
             },
         }
 
-    def list_scans(self) -> List[str]:
+    def list_scans(self) -> list[str]:
         return sorted(self._scans.keys(), reverse=True)

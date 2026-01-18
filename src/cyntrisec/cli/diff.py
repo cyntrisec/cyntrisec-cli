@@ -1,22 +1,27 @@
 """
 diff command - Compare two scan snapshots to detect changes.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
-from cyntrisec.storage import FileSystemStorage
-from cyntrisec.core.diff import SnapshotDiff, ChangeType
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import DiffResponse
+from cyntrisec.core.diff import ChangeType, SnapshotDiff
+from cyntrisec.storage import FileSystemStorage
 
 console = Console()
 log = logging.getLogger(__name__)
@@ -34,24 +39,28 @@ def _find_scan_id(scan_ids: list[str], partial: str) -> str:
 
 @handle_errors
 def diff_cmd(
-    old_snapshot: Optional[str] = typer.Option(
+    old_snapshot: str | None = typer.Option(
         None,
-        "--old", "-o",
+        "--old",
+        "-o",
         help="Old snapshot ID (default: second most recent)",
     ),
-    new_snapshot: Optional[str] = typer.Option(
+    new_snapshot: str | None = typer.Option(
         None,
-        "--new", "-n",
+        "--new",
+        "-n",
         help="New snapshot ID (default: most recent)",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
-        "--format", "-f",
+        "--format",
+        "-f",
         help="Output format: table, json, agent (defaults to json when piped)",
     ),
     show_all: bool = typer.Option(
         False,
-        "--all", "-a",
+        "--all",
+        "-a",
         help="Show all changes including assets and relationships",
     ),
 ):
@@ -111,16 +120,18 @@ def diff_cmd(
 
     if output_format in {"json", "agent"}:
         payload = _build_payload(result, old_snap, new_snap)
-        actions = suggested_actions([
-            (
-                f"cyntrisec analyze paths --scan {new_snapshot or 'latest'}",
-                "Review new attack paths",
-            ),
-            (
-                f"cyntrisec cuts --snapshot {new_snapshot or 'latest'}",
-                "Find fixes for new regressions",
-            ),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    f"cyntrisec analyze paths --scan {new_snapshot or 'latest'}",
+                    "Review new attack paths",
+                ),
+                (
+                    f"cyntrisec cuts --snapshot {new_snapshot or 'latest'}",
+                    "Find fixes for new regressions",
+                ),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             payload,
@@ -156,14 +167,16 @@ def _output_table(result, old_snap, new_snap, show_all: bool):
         status_color = "cyan"
         status_text = "NO SECURITY CHANGES"
 
-    console.print(Panel(
-        f"[bold {status_color}]{status_icon} {status_text}[/bold {status_color}]\n\n"
-        f"Comparing:\n"
-        f"  Old: {old_snap.aws_account_id} @ {old_snap.started_at:%Y-%m-%d %H:%M}\n"
-        f"  New: {new_snap.aws_account_id} @ {new_snap.started_at:%Y-%m-%d %H:%M}",
-        title="cyntrisec diff",
-        border_style=status_color,
-    ))
+    console.print(
+        Panel(
+            f"[bold {status_color}]{status_icon} {status_text}[/bold {status_color}]\n\n"
+            f"Comparing:\n"
+            f"  Old: {old_snap.aws_account_id} @ {old_snap.started_at:%Y-%m-%d %H:%M}\n"
+            f"  New: {new_snap.aws_account_id} @ {new_snap.started_at:%Y-%m-%d %H:%M}",
+            title="cyntrisec diff",
+            border_style=status_color,
+        )
+    )
     console.print()
 
     summary_table = Table(box=box.ROUNDED, show_header=True, header_style="bold")
@@ -172,22 +185,41 @@ def _output_table(result, old_snap, new_snap, show_all: bool):
     summary_table.add_column("Removed", justify="right", style="red")
 
     summary_table.add_row("Assets", f"+{summary['assets_added']}", f"-{summary['assets_removed']}")
-    summary_table.add_row("Relationships", f"+{summary['relationships_added']}", f"-{summary['relationships_removed']}")
-    summary_table.add_row("Attack Paths", f"+{summary['paths_added']}", f"-{summary['paths_removed']}")
-    summary_table.add_row("Findings", f"+{summary['findings_new']}", f"-{summary['findings_resolved']}")
+    summary_table.add_row(
+        "Relationships",
+        f"+{summary['relationships_added']}",
+        f"-{summary['relationships_removed']}",
+    )
+    summary_table.add_row(
+        "Attack Paths", f"+{summary['paths_added']}", f"-{summary['paths_removed']}"
+    )
+    summary_table.add_row(
+        "Findings", f"+{summary['findings_new']}", f"-{summary['findings_resolved']}"
+    )
 
     console.print(summary_table)
     console.print()
 
     if result.path_changes:
-        path_table = Table(title="Attack Path Changes", box=box.ROUNDED, show_header=True, header_style="bold yellow")
+        path_table = Table(
+            title="Attack Path Changes",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold yellow",
+        )
         path_table.add_column("Status", width=12)
         path_table.add_column("Vector", width=20)
         path_table.add_column("Risk", justify="right", width=8)
 
         for change in result.path_changes:
-            status = "[red]+ NEW (regression)[/red]" if change.change_type == ChangeType.added else "[green]- FIXED[/green]"
-            path_table.add_row(status, change.path.attack_vector, f"{float(change.path.risk_score):.2f}")
+            status = (
+                "[red]+ NEW (regression)[/red]"
+                if change.change_type == ChangeType.added
+                else "[green]- FIXED[/green]"
+            )
+            path_table.add_row(
+                status, change.path.attack_vector, f"{float(change.path.risk_score):.2f}"
+            )
 
         console.print(path_table)
         console.print()
@@ -199,14 +231,22 @@ def _output_table(result, old_snap, new_snap, show_all: bool):
         finding_table.add_column("Finding", min_width=30)
 
         for change in result.finding_changes:
-            status = "[red]+ NEW[/red]" if change.change_type == ChangeType.added else "[green]- FIXED[/green]"
+            status = (
+                "[red]+ NEW[/red]"
+                if change.change_type == ChangeType.added
+                else "[green]- FIXED[/green]"
+            )
             sev_style = {
                 "critical": "red bold",
                 "high": "red",
                 "medium": "yellow",
                 "low": "dim",
             }.get(change.finding.severity, "white")
-            finding_table.add_row(status, f"[{sev_style}]{change.finding.severity.upper()}[/]", change.finding.title[:50])
+            finding_table.add_row(
+                status,
+                f"[{sev_style}]{change.finding.severity.upper()}[/]",
+                change.finding.title[:50],
+            )
 
         console.print(finding_table)
         console.print()
@@ -218,7 +258,9 @@ def _output_table(result, old_snap, new_snap, show_all: bool):
         asset_table.add_column("Name", min_width=30)
 
         for change in result.asset_changes[:20]:
-            status = "[green]+[/green]" if change.change_type == ChangeType.added else "[red]-[/red]"
+            status = (
+                "[green]+[/green]" if change.change_type == ChangeType.added else "[red]-[/red]"
+            )
             asset_table.add_row(status, change.asset.asset_type, change.asset.name[:40])
 
         if len(result.asset_changes) > 20:

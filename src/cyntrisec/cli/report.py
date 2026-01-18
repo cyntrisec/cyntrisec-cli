@@ -1,23 +1,28 @@
 """
 Report Command - Generate reports from scan results.
 """
+
 from __future__ import annotations
 
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import ReportResponse
 
 
 @handle_errors
 def report_cmd(
-    scan_id: Optional[str] = typer.Option(
+    scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
@@ -29,13 +34,13 @@ def report_cmd(
         "-o",
         help="Output file path",
     ),
-    title: Optional[str] = typer.Option(
+    title: str | None = typer.Option(
         None,
         "--title",
         "-t",
         help="Report title",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -44,15 +49,15 @@ def report_cmd(
 ):
     """
     Generate report from scan results.
-    
+
     Examples:
-    
+
         cyntrisec report --output report.html
-        
+
         cyntrisec report --format json --output report.json
     """
     from cyntrisec.storage import FileSystemStorage
-    
+
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
     output_format = resolve_format(
@@ -60,31 +65,33 @@ def report_cmd(
         default_tty="html",
         allowed=["html", "json", "agent"],
     )
-    
+
     if not snapshot:
         raise CyntriError(
             error_code=ErrorCode.SNAPSHOT_NOT_FOUND,
             message="No scan found.",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-    
+
     if not title:
         title = f"Cyntrisec Security Report - {snapshot.aws_account_id}"
 
     # If caller didn't override output and we emit JSON/agent, use .json for clarity
     if output_format in {"json", "agent"} and output.suffix.lower() == ".html":
         output = output.with_suffix(".json")
-    
+
     data = storage.export_all(scan_id)
-    
+
     artifact_paths = build_artifact_paths(storage, scan_id)
 
     if output_format in {"json", "agent"}:
         output.write_text(json.dumps(data, indent=2, default=str))
-        actions = suggested_actions([
-            ("cyntrisec analyze paths --format agent", "Inspect top attack paths"),
-            ("cyntrisec cuts --format agent", "Prioritize fixes to block paths"),
-        ])
+        actions = suggested_actions(
+            [
+                ("cyntrisec analyze paths --format agent", "Inspect top attack paths"),
+                ("cyntrisec cuts --format agent", "Prioritize fixes to block paths"),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             {
@@ -111,68 +118,76 @@ def _generate_html(data: dict, title: str) -> str:
     assets = data.get("assets", [])
     findings = data.get("findings", [])
     paths = data.get("attack_paths", [])
-    
+
     # Count findings by severity
     sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     for f in findings:
         sev = f.get("severity", "info")
         sev_counts[sev] = sev_counts.get(sev, 0) + 1
-    
+
     # Sort paths by risk
     paths.sort(key=lambda p: float(p.get("risk_score", 0)), reverse=True)
-    
+
     # Sort findings by severity
     sev_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
     findings.sort(key=lambda f: sev_order.get(f.get("severity", "info"), 5))
-    
+
     # Build paths table rows
     path_rows = []
     for p in paths[:25]:
-        risk = float(p.get('risk_score', 0))
-        vector = p.get('attack_vector', 'unknown')
-        length = p.get('path_length', 0)
-        entry = float(p.get('entry_confidence', 0))
-        impact = float(p.get('impact_score', 0))
+        risk = float(p.get("risk_score", 0))
+        vector = p.get("attack_vector", "unknown")
+        length = p.get("path_length", 0)
+        entry = float(p.get("entry_confidence", 0))
+        impact = float(p.get("impact_score", 0))
         path_rows.append(
-            f'<tr><td><strong>{risk:.3f}</strong></td>'
-            f'<td>{vector}</td><td>{length}</td>'
-            f'<td>{entry:.2f}</td><td>{impact:.2f}</td></tr>'
+            f"<tr><td><strong>{risk:.3f}</strong></td>"
+            f"<td>{vector}</td><td>{length}</td>"
+            f"<td>{entry:.2f}</td><td>{impact:.2f}</td></tr>"
         )
-    
+
     # Build attack paths section
     if not paths:
         paths_section = '<p style="color:#8b949e;">No attack paths discovered.</p>'
     else:
-        paths_section = '''<table>
+        paths_section = (
+            """<table>
             <thead><tr><th>Risk</th><th>Vector</th><th>Length</th><th>Entry</th><th>Impact</th></tr></thead>
-            <tbody>''' + ''.join(path_rows) + '''</tbody>
-        </table>'''
-    
+            <tbody>"""
+            + "".join(path_rows)
+            + """</tbody>
+        </table>"""
+        )
+
     # Build findings table rows
     finding_rows = []
     for f in findings[:50]:
-        sev = f.get('severity', 'info')
-        ftype = f.get('finding_type', '')
-        ftitle = f.get('title', '')
+        sev = f.get("severity", "info")
+        ftype = f.get("finding_type", "")
+        ftitle = f.get("title", "")
         finding_rows.append(
             f'<tr><td><span class="pill pill-{sev}">{sev.upper()}</span></td>'
-            f'<td>{ftype}</td><td>{ftitle}</td></tr>'
+            f"<td>{ftype}</td><td>{ftitle}</td></tr>"
         )
-    
+
     # Build findings section
     if not findings:
         findings_section = '<p style="color:#8b949e;">No findings discovered.</p>'
     else:
-        findings_section = '''<table>
+        findings_section = (
+            """<table>
             <thead><tr><th>Severity</th><th>Type</th><th>Title</th></tr></thead>
-            <tbody>''' + ''.join(finding_rows) + '''</tbody>
-        </table>'''
-    
-    regions = ', '.join(snapshot.get('regions', []))
-    account_id = snapshot.get('aws_account_id', 'N/A')
-    generated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
-    
-    return f'''<!DOCTYPE html>
+            <tbody>"""
+            + "".join(finding_rows)
+            + """</tbody>
+        </table>"""
+        )
+
+    regions = ", ".join(snapshot.get("regions", []))
+    account_id = snapshot.get("aws_account_id", "N/A")
+    generated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -234,25 +249,25 @@ def _generate_html(data: dict, title: str) -> str:
     <div class="container">
         <h1>{title}</h1>
         <p class="meta">Account: {account_id} &bull; Regions: {regions} &bull; Generated: {generated_at}</p>
-        
+
         <div class="stats">
             <div class="card stat"><div class="stat-value">{len(assets)}</div><div class="stat-label">Assets</div></div>
             <div class="card stat"><div class="stat-value">{len(findings)}</div><div class="stat-label">Findings</div></div>
             <div class="card stat"><div class="stat-value">{len(paths)}</div><div class="stat-label">Attack Paths</div></div>
-            <div class="card stat stat-critical"><div class="stat-value">{sev_counts['critical']}</div><div class="stat-label">Critical</div></div>
-            <div class="card stat stat-high"><div class="stat-value">{sev_counts['high']}</div><div class="stat-label">High</div></div>
+            <div class="card stat stat-critical"><div class="stat-value">{sev_counts["critical"]}</div><div class="stat-label">Critical</div></div>
+            <div class="card stat stat-high"><div class="stat-value">{sev_counts["high"]}</div><div class="stat-label">High</div></div>
         </div>
-        
+
         <h2>Attack Paths ({len(paths)})</h2>
         <div class="card">{paths_section}</div>
-        
+
         <h2>Security Findings ({len(findings)})</h2>
         <div class="card">{findings_section}</div>
-        
+
         <div class="footer">
             Generated by Cyntrisec CLI &bull; Read-Only AWS Security Analysis &bull;
             <a href="https://github.com/cyntrisec/cyntrisec-cli" style="color:var(--accent);">GitHub</a>
         </div>
     </div>
 </body>
-</html>'''
+</html>"""

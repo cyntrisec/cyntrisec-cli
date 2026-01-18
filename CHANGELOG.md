@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
-## [Unreleased]
-### Added
-- NOTICE file for Apache-2.0 distributions.
+## [0.1.1] - 2026-01-18
+### Fixed
+- MCP SDK 1.25.0 compatibility: removed unsupported `version` argument from FastMCP
+- MCP SDK compatibility: fixed `Console.print(file=...)` argument error in serve.py
+- Updated MCP version constraint from `>=0.1.0` to `>=1.0.0`
+
 ### Changed
-- License updated to Apache-2.0.
+- Modernized type annotations (`List` → `list`, `Dict` → `dict`, `Optional[X]` → `X | None`)
+- Formatted all code with `ruff format`
+
+### Documentation
+- Added MCP installation instructions (`pip install "cyntrisec[mcp]"`) to README
+- Removed unimplemented `--http` option from MCP server docstring
 
 ## [0.1.0] - 2026-01-17
 ### Added

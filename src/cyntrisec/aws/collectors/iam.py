@@ -1,7 +1,8 @@
 """IAM Collector - Collect IAM users, roles, policies."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 
@@ -12,7 +13,7 @@ class IamCollector:
     def __init__(self, session: boto3.Session):
         self._iam = session.client("iam")
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all IAM data."""
         return {
             "users": self._collect_users(),
@@ -20,7 +21,7 @@ class IamCollector:
             "policies": self._collect_policies(),
         }
 
-    def _collect_users(self) -> List[Dict]:
+    def _collect_users(self) -> list[dict]:
         """Collect IAM users."""
         users = []
         paginator = self._iam.get_paginator("list_users")
@@ -28,7 +29,7 @@ class IamCollector:
             users.extend(page.get("Users", []))
         return users
 
-    def _collect_roles(self) -> List[Dict]:
+    def _collect_roles(self) -> list[dict]:
         """Collect IAM roles with trust policies."""
         roles = []
         paginator = self._iam.get_paginator("list_roles")
@@ -38,7 +39,7 @@ class IamCollector:
                 roles.append(role)
         return roles
 
-    def _collect_policies(self) -> List[Dict]:
+    def _collect_policies(self) -> list[dict]:
         """Collect customer-managed policies."""
         policies = []
         paginator = self._iam.get_paginator("list_policies")

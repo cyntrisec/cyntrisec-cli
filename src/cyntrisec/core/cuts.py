@@ -10,13 +10,13 @@ The algorithm works by:
 2. Finding edges that appear on multiple attack paths
 3. Selecting edges that block the most paths with fewest changes
 """
+
 from __future__ import annotations
 
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Dict, List, Optional, Set, Tuple
 
 from cyntrisec.core.graph import AwsGraph
 from cyntrisec.core.schema import AttackPath, CostCutCandidate, Relationship
@@ -26,7 +26,7 @@ from cyntrisec.core.schema import AttackPath, CostCutCandidate, Relationship
 class Remediation:
     """
     A proposed remediation action that blocks attack paths.
-    
+
     Attributes:
         relationship: The edge to remove/modify
         action: Type of remediation (remove, restrict, isolate)
@@ -34,30 +34,32 @@ class Remediation:
         paths_blocked: List of attack path IDs this blocks
         priority: Higher = blocks more paths with less effort
     """
+
     relationship: Relationship
     action: str
     description: str
-    paths_blocked: List[uuid.UUID] = field(default_factory=list)
+    paths_blocked: list[uuid.UUID] = field(default_factory=list)
     priority: float = 0.0
-    
+
     # Metadata for display
     source_name: str = ""
     target_name: str = ""
     relationship_type: str = ""
 
 
-@dataclass 
+@dataclass
 class CutResult:
     """
     Result of the minimal cut analysis.
-    
+
     Attributes:
         remediations: Ordered list of recommended fixes (highest impact first)
         total_paths: Total attack paths in the graph
         paths_blocked: Number of paths blocked by all remediations
         coverage: Percentage of paths blocked (0-1)
     """
-    remediations: List[Remediation]
+
+    remediations: list[Remediation]
     total_paths: int
     paths_blocked: int
     coverage: float
@@ -66,13 +68,13 @@ class CutResult:
 class MinCutFinder:
     """
     Finds minimal set of edge removals to block all attack paths.
-    
+
     Uses a greedy set-cover approximation:
     1. Count how many attack paths each edge appears on
     2. Select edge that appears on most paths
     3. Remove those paths from consideration
     4. Repeat until all paths covered or budget exhausted
-    
+
     This is O(E * P) where E = edges, P = paths. The greedy approach
     gives a ln(n) approximation to the optimal min-cut.
     """
@@ -80,20 +82,20 @@ class MinCutFinder:
     def find_cuts(
         self,
         graph: AwsGraph,
-        paths: List[AttackPath],
+        paths: list[AttackPath],
         *,
         max_cuts: int = 10,
-        relationship_types: Optional[Set[str]] = None,
+        relationship_types: set[str] | None = None,
     ) -> CutResult:
         """
         Find minimal set of edges to remove that blocks all attack paths.
-        
+
         Args:
             graph: The capability graph
             paths: Attack paths discovered by PathFinder
             max_cuts: Maximum number of remediations to return
             relationship_types: If provided, only consider these edge types
-            
+
         Returns:
             CutResult with ordered list of remediations
         """
@@ -109,14 +111,13 @@ class MinCutFinder:
         edge_to_paths, relationship_lookup = self._build_indexes(graph, paths)
 
         # Greedy set cover
-        remediations: List[Remediation] = []
-        remaining_paths: Set[uuid.UUID] = {p.id for p in paths}
-        used_edges: Set[uuid.UUID] = set()
+        remediations: list[Remediation] = []
+        remaining_paths: set[uuid.UUID] = {p.id for p in paths}
+        used_edges: set[uuid.UUID] = set()
 
         while remaining_paths and len(remediations) < max_cuts:
             best_edge_id, best_coverage = self._find_best_edge(
-                edge_to_paths, relationship_lookup, used_edges, 
-                remaining_paths, relationship_types
+                edge_to_paths, relationship_lookup, used_edges, remaining_paths, relationship_types
             )
 
             if not best_edge_id or not best_coverage:
@@ -125,7 +126,7 @@ class MinCutFinder:
             # Add remediation
             used_edges.add(best_edge_id)
             remaining_paths -= best_coverage
-            
+
             remediation = self._create_remediation(
                 graph, relationship_lookup[best_edge_id], best_coverage
             )
@@ -142,39 +143,39 @@ class MinCutFinder:
         )
 
     def _build_indexes(
-        self, graph: AwsGraph, paths: List[AttackPath]
-    ) -> Tuple[Dict[uuid.UUID, Set[uuid.UUID]], Dict[uuid.UUID, Relationship]]:
+        self, graph: AwsGraph, paths: list[AttackPath]
+    ) -> tuple[dict[uuid.UUID, set[uuid.UUID]], dict[uuid.UUID, Relationship]]:
         """Build lookup indexes for edges and relationships."""
-        edge_to_paths: Dict[uuid.UUID, Set[uuid.UUID]] = defaultdict(set)
-        relationship_lookup: Dict[uuid.UUID, Relationship] = {}
-        
+        edge_to_paths: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+        relationship_lookup: dict[uuid.UUID, Relationship] = {}
+
         for path in paths:
             for rel_id in path.path_relationship_ids:
                 edge_to_paths[rel_id].add(path.id)
-                
+
         for rel in graph.all_relationships():
             relationship_lookup[rel.id] = rel
-            
+
         return edge_to_paths, relationship_lookup
 
     def _find_best_edge(
         self,
-        edge_to_paths: Dict[uuid.UUID, Set[uuid.UUID]],
-        relationship_lookup: Dict[uuid.UUID, Relationship],
-        used_edges: Set[uuid.UUID],
-        remaining_paths: Set[uuid.UUID],
-        relationship_types: Optional[Set[str]],
-    ) -> Tuple[Optional[uuid.UUID], Set[uuid.UUID]]:
+        edge_to_paths: dict[uuid.UUID, set[uuid.UUID]],
+        relationship_lookup: dict[uuid.UUID, Relationship],
+        used_edges: set[uuid.UUID],
+        remaining_paths: set[uuid.UUID],
+        relationship_types: set[str] | None,
+    ) -> tuple[uuid.UUID | None, set[uuid.UUID]]:
         """Find the edge that covers the most remaining paths."""
-        best_edge_id: Optional[uuid.UUID] = None
-        best_coverage: Set[uuid.UUID] = set()
+        best_edge_id: uuid.UUID | None = None
+        best_coverage: set[uuid.UUID] = set()
 
         for edge_id, covered_paths in edge_to_paths.items():
             if edge_id in used_edges or edge_id not in relationship_lookup:
                 continue
-                
+
             rel = relationship_lookup[edge_id]
-            
+
             if relationship_types and rel.relationship_type not in relationship_types:
                 continue
 
@@ -186,12 +187,12 @@ class MinCutFinder:
         return best_edge_id, best_coverage
 
     def _create_remediation(
-        self, graph: AwsGraph, rel: Relationship, paths_blocked: Set[uuid.UUID]
+        self, graph: AwsGraph, rel: Relationship, paths_blocked: set[uuid.UUID]
     ) -> Remediation:
         """Create a Remediation object from a relationship."""
         source = graph.asset(rel.source_asset_id)
         target = graph.asset(rel.target_asset_id)
-        
+
         return Remediation(
             relationship=rel,
             action=self._determine_action(rel),
@@ -217,32 +218,32 @@ class MinCutFinder:
     def _build_description(
         self,
         rel: Relationship,
-        source: Optional[object],
-        target: Optional[object],
+        source: object | None,
+        target: object | None,
     ) -> str:
         """Build human-readable remediation description."""
-        source_name = getattr(source, 'name', 'unknown') if source else 'unknown'
-        target_name = getattr(target, 'name', 'unknown') if target else 'unknown'
-        getattr(source, 'asset_type', 'unknown') if source else 'unknown'
-        
+        source_name = getattr(source, "name", "unknown") if source else "unknown"
+        target_name = getattr(target, "name", "unknown") if target else "unknown"
+        getattr(source, "asset_type", "unknown") if source else "unknown"
+
         if rel.relationship_type == "ALLOWS_TRAFFIC_TO":
             # Check if it's 0.0.0.0/0
             if rel.properties.get("open_to_world"):
                 return f"Remove 0.0.0.0/0 ingress from {source_name}"
             return f"Restrict traffic from {source_name} to {target_name}"
-            
+
         elif rel.relationship_type == "MAY_ACCESS":
             return f"Restrict {source_name} access to {target_name}"
-            
+
         elif rel.relationship_type == "CAN_ASSUME":
             via = rel.properties.get("via", "")
             if via == "instance_profile":
                 return f"Remove instance profile from {source_name} or restrict role {target_name}"
             return f"Remove trust relationship: {source_name} → {target_name}"
-            
+
         elif rel.relationship_type == "CONTAINS":
             return f"Isolate {target_name} from {source_name}"
-            
+
         else:
             return f"Review {rel.relationship_type}: {source_name} → {target_name}"
 
@@ -251,22 +252,24 @@ class MinCutFinder:
         cut_result: CutResult,
         snapshot_id: uuid.UUID,
         graph: AwsGraph,
-    ) -> List[CostCutCandidate]:
+    ) -> list[CostCutCandidate]:
         """
         Convert CutResult to CostCutCandidate models for storage.
         """
-        candidates: List[CostCutCandidate] = []
-        
+        candidates: list[CostCutCandidate] = []
+
         for rem in cut_result.remediations:
             # Get the target asset for the candidate
             target_asset = graph.asset(rem.relationship.target_asset_id)
             if not target_asset:
                 continue
-                
+
             # Calculate risk reduction based on paths blocked
-            risk_reduction = Decimal(str(
-                len(rem.paths_blocked) / cut_result.total_paths
-            )) if cut_result.total_paths > 0 else Decimal("0")
+            risk_reduction = (
+                Decimal(str(len(rem.paths_blocked) / cut_result.total_paths))
+                if cut_result.total_paths > 0
+                else Decimal("0")
+            )
 
             candidate = CostCutCandidate(
                 snapshot_id=snapshot_id,

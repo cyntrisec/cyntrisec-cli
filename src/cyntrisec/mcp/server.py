@@ -6,29 +6,30 @@ Exposes Cyntrisec capabilities as MCP tools that AI agents can invoke directly.
 Usage:
     cyntrisec serve            # Start MCP server (stdio transport)
 """
+
 from __future__ import annotations
 
-import sys
 import logging
+import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 # MCP support - optional dependency
 try:
     from mcp.server.fastmcp import FastMCP
+
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False
     FastMCP = None
 
-from cyntrisec import __version__
-from cyntrisec.storage import FileSystemStorage
-from cyntrisec.core.graph import GraphBuilder
-from cyntrisec.core.cuts import MinCutFinder
-from cyntrisec.core.waste import WasteAnalyzer
-from cyntrisec.core.simulator import OfflineSimulator
-from cyntrisec.core.diff import SnapshotDiff
 from cyntrisec.core.compliance import ComplianceChecker, Framework
+from cyntrisec.core.cuts import MinCutFinder
+from cyntrisec.core.diff import SnapshotDiff
+from cyntrisec.core.graph import GraphBuilder
+from cyntrisec.core.simulator import OfflineSimulator
+from cyntrisec.core.waste import WasteAnalyzer
+from cyntrisec.storage import FileSystemStorage
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ MCP_ERROR_SNAPSHOT_NOT_FOUND = "SNAPSHOT_NOT_FOUND"
 MCP_ERROR_INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 
-def mcp_error(error_code: str, message: str) -> Dict[str, Any]:
+def mcp_error(error_code: str, message: str) -> dict[str, Any]:
     """Return a consistent error envelope for MCP tool responses."""
     return {
         "status": "error",
@@ -52,15 +53,16 @@ def mcp_error(error_code: str, message: str) -> Dict[str, Any]:
 class SessionState:
     """
     Lightweight session cache for MCP server calls.
-    
+
     Caches scan data for the current snapshot to avoid repeated disk reads
     and keeps track of the active snapshot id for successive tool calls.
     """
-    storage: FileSystemStorage = field(default_factory=FileSystemStorage)
-    snapshot_id: Optional[str] = None
-    _cache: Dict[Tuple[str, Optional[str]], object] = field(default_factory=dict)
 
-    def set_snapshot(self, snapshot_id: Optional[str]) -> Optional[str]:
+    storage: FileSystemStorage = field(default_factory=FileSystemStorage)
+    snapshot_id: str | None = None
+    _cache: dict[tuple[str, str | None], object] = field(default_factory=dict)
+
+    def set_snapshot(self, snapshot_id: str | None) -> str | None:
         """Set or update the active snapshot id and clear cache if changed."""
         if snapshot_id and snapshot_id != self.snapshot_id:
             self._cache.clear()
@@ -72,34 +74,34 @@ class SessionState:
                 self.snapshot_id = str(snap.id)
         return self.snapshot_id
 
-    def _key(self, kind: str, snapshot_id: Optional[str]) -> Tuple[str, Optional[str]]:
+    def _key(self, kind: str, snapshot_id: str | None) -> tuple[str, str | None]:
         return (kind, snapshot_id or self.snapshot_id)
 
-    def get_snapshot(self, snapshot_id: Optional[str] = None):
+    def get_snapshot(self, snapshot_id: str | None = None):
         snap = self.storage.get_snapshot(snapshot_id or self.snapshot_id)
         if snap and not self.snapshot_id:
             self.snapshot_id = snapshot_id or str(snap.id)
         return snap
 
-    def get_assets(self, snapshot_id: Optional[str] = None):
+    def get_assets(self, snapshot_id: str | None = None):
         key = self._key("assets", snapshot_id)
         if key not in self._cache:
             self._cache[key] = self.storage.get_assets(snapshot_id or self.snapshot_id)
         return self._cache[key]
 
-    def get_relationships(self, snapshot_id: Optional[str] = None):
+    def get_relationships(self, snapshot_id: str | None = None):
         key = self._key("relationships", snapshot_id)
         if key not in self._cache:
             self._cache[key] = self.storage.get_relationships(snapshot_id or self.snapshot_id)
         return self._cache[key]
 
-    def get_paths(self, snapshot_id: Optional[str] = None):
+    def get_paths(self, snapshot_id: str | None = None):
         key = self._key("paths", snapshot_id)
         if key not in self._cache:
             self._cache[key] = self.storage.get_attack_paths(snapshot_id or self.snapshot_id)
         return self._cache[key]
 
-    def get_findings(self, snapshot_id: Optional[str] = None):
+    def get_findings(self, snapshot_id: str | None = None):
         key = self._key("findings", snapshot_id)
         if key not in self._cache:
             self._cache[key] = self.storage.get_findings(snapshot_id or self.snapshot_id)
@@ -109,45 +111,46 @@ class SessionState:
         self._cache.clear()
 
 
-def create_mcp_server() -> "FastMCP":
+def create_mcp_server() -> FastMCP:
     """
     Create and configure the MCP server with all tools.
-    
+
     Returns:
         Configured FastMCP instance
     """
     if not HAS_MCP:
         raise ImportError("MCP SDK not installed. Run: pip install mcp")
-    
+
     mcp = FastMCP(
-        name="cyntrisec",
-        instructions="AWS capability graph analysis and attack path discovery"
+        name="cyntrisec", instructions="AWS capability graph analysis and attack path discovery"
     )
     session = SessionState()
 
     _register_session_tools(mcp, session)
     _register_graph_tools(mcp, session)
     _register_insight_tools(mcp, session)
-    
+
     return mcp
 
 
 def _register_session_tools(mcp, session):
     """Register session and summary tools."""
-    
+
     @mcp.tool()
-    def get_scan_summary(snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_scan_summary(snapshot_id: str | None = None) -> dict[str, Any]:
         """
         Get summary of the latest AWS scan.
-        
+
         Returns asset counts, finding counts, and attack path counts.
         """
         snapshot = session.get_snapshot(snapshot_id)
         session.set_snapshot(snapshot_id or (snapshot and str(snapshot.id)))
-        
+
         if not snapshot:
-            return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first.")
-        
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
         return {
             "snapshot_id": str(snapshot.id),
             "account_id": snapshot.aws_account_id,
@@ -161,10 +164,10 @@ def _register_session_tools(mcp, session):
         }
 
     @mcp.tool()
-    def set_session_snapshot(snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def set_session_snapshot(snapshot_id: str | None = None) -> dict[str, Any]:
         """
         Set or retrieve the active snapshot id used for subsequent calls.
-        
+
         Args:
             snapshot_id: Optional scan id/directory name. If omitted, returns current/ latest.
         """
@@ -177,10 +180,10 @@ def _register_session_tools(mcp, session):
         }
 
     @mcp.tool()
-    def list_tools() -> Dict[str, Any]:
+    def list_tools() -> dict[str, Any]:
         """
         List all available Cyntrisec tools.
-        
+
         Returns:
             List of tools with descriptions.
         """
@@ -201,19 +204,19 @@ def _register_graph_tools(mcp, session):
     """Register graph analysis tools."""
 
     @mcp.tool()
-    def get_attack_paths(max_paths: int = 10, snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_attack_paths(max_paths: int = 10, snapshot_id: str | None = None) -> dict[str, Any]:
         """
         Get discovered attack paths from the latest scan.
-        
+
         Args:
             max_paths: Maximum number of paths to return (default: 10)
-            
+
         Returns:
             List of attack paths with risk scores and vectors.
         """
         paths = session.get_paths(snapshot_id)
         session.set_snapshot(snapshot_id)
-        
+
         return {
             "total": len(paths),
             "paths": [
@@ -225,18 +228,20 @@ def _register_graph_tools(mcp, session):
                     "target": p.target_asset_id and str(p.target_asset_id),
                 }
                 for p in paths[:max_paths]
-            ]
+            ],
         }
 
     @mcp.tool()
-    def check_access(principal: str, resource: str, snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def check_access(
+        principal: str, resource: str, snapshot_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Test if a principal can access a resource.
-        
+
         Args:
             principal: IAM role or user name (e.g., "ECforS")
             resource: Target resource (e.g., "s3://prod-bucket")
-            
+
         Returns:
             Whether access is allowed and via which relationship.
         """
@@ -244,14 +249,14 @@ def _register_graph_tools(mcp, session):
         assets = session.get_assets(snapshot_id)
         relationships = session.get_relationships(snapshot_id)
         session.set_snapshot(snapshot_id or (snapshot and str(snapshot.id)))
-        
+
         if not snapshot:
             return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found.")
-        
+
         graph = GraphBuilder().build(assets, relationships)
         simulator = OfflineSimulator(graph)
         result = simulator.simulate(principal, resource)
-        
+
         return {
             "principal": result.principal_arn,
             "resource": result.resource_arn,
@@ -264,16 +269,16 @@ def _register_insight_tools(mcp, session):
     """Register insight and remediation tools."""
 
     @mcp.tool()
-    def get_remediations(max_cuts: int = 5, snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_remediations(max_cuts: int = 5, snapshot_id: str | None = None) -> dict[str, Any]:
         """
         Find optimal remediations that block attack paths.
-        
+
         Uses min-cut algorithm to find smallest set of changes
         that block all attack paths.
-        
+
         Args:
             max_cuts: Maximum number of remediations (default: 5)
-            
+
         Returns:
             List of remediations with coverage percentages.
         """
@@ -281,14 +286,14 @@ def _register_insight_tools(mcp, session):
         relationships = session.get_relationships(snapshot_id)
         paths = session.get_paths(snapshot_id)
         session.set_snapshot(snapshot_id)
-        
+
         if not paths:
             return {"total_paths": 0, "remediations": []}
-        
+
         graph = GraphBuilder().build(assets, relationships)
         finder = MinCutFinder()
         result = finder.find_cuts(graph, paths, max_cuts=max_cuts)
-        
+
         return {
             "total_paths": result.total_paths,
             "paths_blocked": result.paths_blocked,
@@ -302,33 +307,34 @@ def _register_insight_tools(mcp, session):
                     "recommendation": r.recommendation,
                 }
                 for r in result.remediations
-            ]
+            ],
         }
 
     @mcp.tool()
-    def get_unused_permissions(days_threshold: int = 90, snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_unused_permissions(
+        days_threshold: int = 90, snapshot_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Find unused IAM permissions (blast radius reduction opportunities).
-        
+
         Args:
             days_threshold: Days of inactivity to consider unused
-            
+
         Returns:
             Unused permissions grouped by role with reduction percentages.
         """
         assets = session.get_assets(snapshot_id)
         relationships = session.get_relationships(snapshot_id)
         session.set_snapshot(snapshot_id)
-        
+
         graph = GraphBuilder().build(assets, relationships)
         analyzer = WasteAnalyzer(graph, days_threshold=days_threshold)
         results = analyzer.analyze_offline()
-        
+
         return {
             "total_unused": sum(r.unused_count for r in results),
             "total_reduction": (
-                sum(r.blast_radius_reduction for r in results) / len(results)
-                if results else 0
+                sum(r.blast_radius_reduction for r in results) / len(results) if results else 0
             ),
             "roles": [
                 {
@@ -337,29 +343,31 @@ def _register_insight_tools(mcp, session):
                     "blast_radius_reduction": float(r.blast_radius_reduction),
                 }
                 for r in results[:10]
-            ]
+            ],
         }
 
     @mcp.tool()
-    def check_compliance(framework: str = "cis-aws", snapshot_id: Optional[str] = None) -> Dict[str, Any]:
+    def check_compliance(
+        framework: str = "cis-aws", snapshot_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Check compliance against CIS AWS or SOC 2 framework.
-        
+
         Args:
             framework: "cis-aws" or "soc2"
-            
+
         Returns:
             Compliance score and failing controls.
         """
         findings = session.get_findings(snapshot_id)
         assets = session.get_assets(snapshot_id)
         session.set_snapshot(snapshot_id)
-        
+
         fw = Framework.CIS_AWS if "cis" in framework.lower() else Framework.SOC2
         checker = ComplianceChecker()
         report = checker.check(findings, assets, framework=fw)
         summary = checker.summary(report)
-        
+
         return {
             "framework": fw.value,
             "compliance_score": summary["compliance_score"],
@@ -367,25 +375,26 @@ def _register_insight_tools(mcp, session):
             "failing": summary["failing"],
             "failing_controls": [
                 {"id": r.control.id, "title": r.control.title}
-                for r in report.results if not r.is_passing
-            ]
+                for r in report.results
+                if not r.is_passing
+            ],
         }
 
     @mcp.tool()
-    def compare_scans() -> Dict[str, Any]:
+    def compare_scans() -> dict[str, Any]:
         """
         Compare latest scan to previous scan.
-        
+
         Returns:
             Changes in assets, relationships, and attack paths.
         """
         scan_ids = session.storage.list_scans()
-        
+
         if len(scan_ids) < 2:
             return mcp_error(MCP_ERROR_INSUFFICIENT_DATA, "Need at least 2 scans to compare.")
-        
+
         new_id, old_id = scan_ids[0], scan_ids[1]
-        
+
         differ = SnapshotDiff()
         result = differ.diff(
             old_assets=session.storage.get_assets(old_id),
@@ -399,7 +408,7 @@ def _register_insight_tools(mcp, session):
             old_snapshot_id=session.storage.get_snapshot(old_id).id,
             new_snapshot_id=session.storage.get_snapshot(new_id).id,
         )
-        
+
         return {
             "has_regressions": result.has_regressions,
             "has_improvements": result.has_improvements,
@@ -412,13 +421,11 @@ def run_mcp_server():
     if not HAS_MCP:
         print("Error: MCP SDK not installed. Run: pip install mcp", file=sys.stderr)
         sys.exit(1)
-    
+
     # Configure logging to stderr to avoid corrupting stdio
     logging.basicConfig(
-        level=logging.WARNING,
-        stream=sys.stderr,
-        format="%(levelname)s: %(message)s"
+        level=logging.WARNING, stream=sys.stderr, format="%(levelname)s: %(message)s"
     )
-    
+
     mcp = create_mcp_server()
     mcp.run(transport="stdio")

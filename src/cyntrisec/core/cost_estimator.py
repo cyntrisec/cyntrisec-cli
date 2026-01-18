@@ -9,14 +9,14 @@ Sources:
 - pricing-api: AWS Pricing API (future)
 - cost-explorer: Real billing data (future, opt-in)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cyntrisec.core.schema import Asset
-
 
 # Average hours per month
 HOURS_PER_MONTH = Decimal("730")
@@ -112,13 +112,13 @@ COST_PRIORITY = [
 @dataclass
 class CostEstimate:
     """Cost estimate with provenance metadata."""
-    
+
     monthly_cost_usd_estimate: Decimal
     cost_source: str  # "estimate", "pricing-api", "cost-explorer"
-    confidence: str   # "high", "medium", "low"
-    assumptions: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
+    confidence: str  # "high", "medium", "low"
+    assumptions: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "monthly_cost_usd_estimate": float(self.monthly_cost_usd_estimate),
             "cost_source": self.cost_source,
@@ -130,26 +130,26 @@ class CostEstimate:
 class CostEstimator:
     """
     Estimate monthly costs for AWS resources.
-    
+
     Default mode uses static pricing rules that require no extra permissions.
     Future modes can use AWS Pricing API or Cost Explorer for more accuracy.
     """
-    
+
     def __init__(self, source: str = "estimate"):
         """
         Initialize estimator.
-        
+
         Args:
             source: Cost data source - "estimate", "pricing-api", "cost-explorer"
         """
         self._source = source
         if source not in ("estimate", "pricing-api", "cost-explorer"):
             raise ValueError(f"Unknown cost source: {source}")
-    
-    def estimate(self, asset: Asset) -> Optional[CostEstimate]:
+
+    def estimate(self, asset: Asset) -> CostEstimate | None:
         """
         Estimate monthly cost for an asset.
-        
+
         Returns None if no estimate is available for this asset type.
         """
         if self._source == "estimate":
@@ -161,12 +161,12 @@ class CostEstimator:
             # Future: call Cost Explorer
             return None  # Requires opt-in
         return None
-    
-    def _static_estimate(self, asset: Asset) -> Optional[CostEstimate]:
+
+    def _static_estimate(self, asset: Asset) -> CostEstimate | None:
         """Generate estimate from static pricing rules."""
         asset_type = asset.asset_type
         props = asset.properties or {}
-        
+
         # NAT Gateway
         if asset_type == "ec2:nat-gateway":
             pricing = STATIC_PRICING["ec2:nat-gateway"]
@@ -176,7 +176,7 @@ class CostEstimator:
                 confidence=pricing["confidence"],
                 assumptions=pricing["assumptions"],
             )
-        
+
         # Elastic IP (only if unattached)
         if asset_type == "ec2:elastic-ip":
             # Check if attached to an instance
@@ -190,7 +190,7 @@ class CostEstimator:
                     assumptions=pricing["assumptions"],
                 )
             return None  # Attached EIPs are free
-        
+
         # Load Balancers
         if asset_type == "elbv2:load-balancer":
             lb_type = props.get("type", "application").lower()
@@ -203,13 +203,13 @@ class CostEstimator:
                     confidence=pricing["confidence"],
                     assumptions=pricing["assumptions"],
                 )
-        
+
         # EBS Volumes
         if asset_type == "ec2:ebs-volume":
             volume_type = props.get("volume_type", props.get("VolumeType", "gp2")).lower()
             size_gb = props.get("size", props.get("Size", 0))
             key = f"ec2:ebs-volume:{volume_type}"
-            
+
             if key in STATIC_PRICING and size_gb:
                 pricing = STATIC_PRICING[key]
                 monthly = pricing["per_gb_month"] * Decimal(str(size_gb))
@@ -219,12 +219,12 @@ class CostEstimator:
                     confidence=pricing["confidence"],
                     assumptions=pricing["assumptions"] + [f"{size_gb} GB volume"],
                 )
-        
+
         # RDS Instances
         if asset_type == "rds:db-instance":
             db_class = props.get("db_instance_class", props.get("DBInstanceClass", ""))
             key = f"rds:db-instance:{db_class}"
-            
+
             if key in STATIC_PRICING:
                 pricing = STATIC_PRICING[key]
                 return CostEstimate(
@@ -240,24 +240,24 @@ class CostEstimator:
                 confidence="low",
                 assumptions=["Unknown RDS class - cost not estimated"],
             )
-        
+
         return None
-    
+
     def get_priority(self, asset: Asset) -> int:
         """
         Get cost priority ranking for an asset.
-        
+
         Lower number = higher priority (more likely to be expensive waste).
         Returns 999 for unknown types.
         """
         asset_type = asset.asset_type
-        
+
         for i, prefix in enumerate(COST_PRIORITY):
             if asset_type.startswith(prefix):
                 return i
-        
+
         return 999  # Unknown type
-    
-    def sort_by_cost_priority(self, assets: List[Asset]) -> List[Asset]:
+
+    def sort_by_cost_priority(self, assets: list[Asset]) -> list[Asset]:
         """Sort assets by cost priority (highest cost first)."""
         return sorted(assets, key=lambda a: self.get_priority(a))

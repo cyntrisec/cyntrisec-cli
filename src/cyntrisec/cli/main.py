@@ -3,6 +3,7 @@ Cyntrisec CLI
 
 Main entry point for the CLI application.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,15 +37,15 @@ def main(
 ):
     """
     Cyntrisec - AWS Capability Graph Analysis
-    
+
     A read-only CLI tool for:
-    
+
     - AWS attack path discovery
-    
+
     - Security posture analysis
-    
+
     - Cost optimization opportunities
-    
+
     Run 'cyntrisec COMMAND --help' for command-specific help.
     """
     # Configure logging
@@ -54,7 +55,7 @@ def main(
         level = logging.DEBUG
     else:
         level = logging.INFO
-    
+
     logging.basicConfig(
         level=level,
         format="%(message)s" if not verbose else "%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -66,28 +67,29 @@ def main(
 def version():
     """Show version information."""
     from cyntrisec import __version__
+
     typer.echo(f"cyntrisec {__version__}")
 
 
 # Register subcommands at module load time
 # Import inside try/except for graceful handling if deps missing
 try:
-    from cyntrisec.cli.scan import scan_cmd
     from cyntrisec.cli.analyze import analyze_app
+    from cyntrisec.cli.ask import ask_cmd
+    from cyntrisec.cli.can import can_cmd
+    from cyntrisec.cli.comply import comply_cmd
+    from cyntrisec.cli.cuts import cuts_cmd
+    from cyntrisec.cli.diff import diff_cmd
+    from cyntrisec.cli.explain import explain_cmd
+    from cyntrisec.cli.manifest import manifest_cmd
+    from cyntrisec.cli.remediate import remediate_cmd
     from cyntrisec.cli.report import report_cmd
+    from cyntrisec.cli.scan import scan_cmd
+    from cyntrisec.cli.serve import serve_cmd
     from cyntrisec.cli.setup import setup_app
     from cyntrisec.cli.validate import validate_role_cmd
-    from cyntrisec.cli.cuts import cuts_cmd
     from cyntrisec.cli.waste import waste_cmd
-    from cyntrisec.cli.can import can_cmd
-    from cyntrisec.cli.diff import diff_cmd
-    from cyntrisec.cli.comply import comply_cmd
-    from cyntrisec.cli.manifest import manifest_cmd
-    from cyntrisec.cli.explain import explain_cmd
-    from cyntrisec.cli.serve import serve_cmd
-    from cyntrisec.cli.remediate import remediate_cmd
-    from cyntrisec.cli.ask import ask_cmd
-    
+
     app.command("scan")(scan_cmd)
     app.add_typer(analyze_app, name="analyze", help="Analyze scan results")
     app.command("report")(report_cmd)
@@ -110,4 +112,3 @@ except ImportError:
 
 if __name__ == "__main__":
     app()
-

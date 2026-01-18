@@ -1,7 +1,8 @@
 """RDS Collector - Collect RDS instances."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 
@@ -13,14 +14,14 @@ class RdsCollector:
         self._rds = session.client("rds", region_name=region)
         self._region = region
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all RDS data."""
         return {
             "instances": self._collect_instances(),
             "clusters": self._collect_clusters(),
         }
 
-    def _collect_instances(self) -> List[Dict]:
+    def _collect_instances(self) -> list[dict]:
         """Collect RDS DB instances."""
         instances = []
         paginator = self._rds.get_paginator("describe_db_instances")
@@ -28,7 +29,7 @@ class RdsCollector:
             instances.extend(page.get("DBInstances", []))
         return instances
 
-    def _collect_clusters(self) -> List[Dict]:
+    def _collect_clusters(self) -> list[dict]:
         """Collect RDS Aurora clusters."""
         clusters = []
         paginator = self._rds.get_paginator("describe_db_clusters")

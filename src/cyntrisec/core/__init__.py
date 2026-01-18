@@ -4,6 +4,8 @@ Core module - Pydantic models, graph, and path algorithms.
 No I/O dependencies. Pure data structures and algorithms.
 """
 
+from cyntrisec.core.graph import AwsGraph, GraphBuilder
+from cyntrisec.core.paths import PathFinder, PathFinderConfig
 from cyntrisec.core.schema import (
     Asset,
     AttackPath,
@@ -13,8 +15,6 @@ from cyntrisec.core.schema import (
     Snapshot,
     SnapshotStatus,
 )
-from cyntrisec.core.graph import AwsGraph, GraphBuilder
-from cyntrisec.core.paths import PathFinder, PathFinderConfig
 
 __all__ = [
     "Asset",

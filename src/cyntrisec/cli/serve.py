@@ -4,16 +4,16 @@ serve command - Run Cyntrisec as an MCP server for AI agents.
 Usage:
     cyntrisec serve            # Start MCP server (stdio)
 """
+
 from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional
 
 import typer
 from rich.console import Console
 
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
 from cyntrisec.cli.output import emit_agent_or_json, resolve_format
 from cyntrisec.cli.schemas import ServeToolsResponse
 
@@ -25,26 +25,29 @@ log = logging.getLogger(__name__)
 def serve_cmd(
     transport: str = typer.Option(
         "stdio",
-        "--transport", "-t",
+        "--transport",
+        "-t",
         help="Transport mode: stdio",
     ),
     list_tools: bool = typer.Option(
         False,
-        "--list-tools", "-l",
+        "--list-tools",
+        "-l",
         help="List available MCP tools and exit",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
-        "--format", "-f",
+        "--format",
+        "-f",
         help="Output format when listing tools: text, json, agent",
     ),
 ):
     """
     Run Cyntrisec as an MCP (Model Context Protocol) server.
-    
+
     This allows AI agents to invoke Cyntrisec tools directly
     for security analysis, attack path discovery, and remediation.
-    
+
     Tools exposed:
     - get_scan_summary: Get latest scan stats
     - get_attack_paths: List discovered attack paths
@@ -65,7 +68,7 @@ def serve_cmd(
         return
 
     try:
-        from cyntrisec.mcp.server import run_mcp_server, HAS_MCP
+        from cyntrisec.mcp.server import HAS_MCP, run_mcp_server
     except ImportError as e:
         raise CyntriError(
             error_code=ErrorCode.INTERNAL_ERROR,
@@ -105,37 +108,36 @@ def _list_tools_data():
         {
             "name": "get_attack_paths",
             "description": "Get discovered attack paths with risk scores",
-            "parameters": [
-                {"name": "max_paths", "type": "integer", "default": 10}
-            ],
+            "parameters": [{"name": "max_paths", "type": "integer", "default": 10}],
         },
         {
             "name": "get_remediations",
             "description": "Find minimal set of fixes to block attack paths",
-            "parameters": [
-                {"name": "max_cuts", "type": "integer", "default": 5}
-            ],
+            "parameters": [{"name": "max_cuts", "type": "integer", "default": 5}],
         },
         {
             "name": "check_access",
             "description": "Test if a principal can access a resource",
             "parameters": [
                 {"name": "principal", "type": "string", "required": True},
-                {"name": "resource", "type": "string", "required": True}
+                {"name": "resource", "type": "string", "required": True},
             ],
         },
         {
             "name": "get_unused_permissions",
             "description": "Find unused IAM permissions",
-            "parameters": [
-                {"name": "days_threshold", "type": "integer", "default": 90}
-            ],
+            "parameters": [{"name": "days_threshold", "type": "integer", "default": 90}],
         },
         {
             "name": "check_compliance",
             "description": "Check CIS AWS or SOC 2 compliance",
             "parameters": [
-                {"name": "framework", "type": "string", "enum": ["cis-aws", "soc2"], "default": "cis-aws"}
+                {
+                    "name": "framework",
+                    "type": "string",
+                    "enum": ["cis-aws", "soc2"],
+                    "default": "cis-aws",
+                }
             ],
         },
         {

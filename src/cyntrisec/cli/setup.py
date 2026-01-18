@@ -1,16 +1,16 @@
 """
 Setup Commands - Generate IAM roles and configuration.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
 from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
 from cyntrisec.cli.schemas import SetupIamResponse
 
 setup_app = typer.Typer(help="Setup commands")
@@ -29,7 +29,7 @@ def setup_iam(
         "-n",
         help="Name for the IAM role",
     ),
-    external_id: Optional[str] = typer.Option(
+    external_id: str | None = typer.Option(
         None,
         "--external-id",
         "-e",
@@ -41,13 +41,13 @@ def setup_iam(
         "-f",
         help="Output format: terraform, cloudformation, policy",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
         help="Output file (default: stdout)",
     ),
-    output_format: Optional[str] = typer.Option(
+    output_format: str | None = typer.Option(
         None,
         "--output-format",
         help="Render format: text, json, agent (defaults to json when piped)",
@@ -55,15 +55,15 @@ def setup_iam(
 ):
     """
     Generate IAM role for AWS scanning.
-    
+
     Creates a read-only IAM role that Cyntrisec can assume.
-    
+
     Examples:
-    
+
         cyntrisec setup iam 123456789012 --output role.tf
-        
+
         cyntrisec setup iam 123456789012 --format policy
-        
+
         cyntrisec setup iam 123456789012 --external-id my-id --format cloudformation
     """
     # Validate
@@ -79,41 +79,43 @@ def setup_iam(
         default_tty="text",
         allowed=["text", "json", "agent"],
     )
-    
+
     # Read-only policy
     policy = {
         "Version": "2012-10-17",
-        "Statement": [{
-            "Sid": "CyntrisecReadOnly",
-            "Effect": "Allow",
-            "Action": [
-                "ec2:Describe*",
-                "iam:Get*",
-                "iam:List*",
-                "s3:GetBucketAcl",
-                "s3:GetBucketPolicy",
-                "s3:GetBucketPolicyStatus",
-                "s3:GetBucketPublicAccessBlock",
-                "s3:GetBucketLocation",
-                "s3:ListBucket",
-                "s3:ListAllMyBuckets",
-                "lambda:GetFunction",
-                "lambda:GetFunctionConfiguration",
-                "lambda:GetPolicy",
-                "lambda:ListFunctions",
-                "rds:Describe*",
-                "elasticloadbalancing:Describe*",
-                "route53:List*",
-                "route53:Get*",
-                "cloudfront:Get*",
-                "cloudfront:List*",
-                "apigateway:GET",
-                "sts:GetCallerIdentity",
-            ],
-            "Resource": "*"
-        }]
+        "Statement": [
+            {
+                "Sid": "CyntrisecReadOnly",
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:Describe*",
+                    "iam:Get*",
+                    "iam:List*",
+                    "s3:GetBucketAcl",
+                    "s3:GetBucketPolicy",
+                    "s3:GetBucketPolicyStatus",
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket",
+                    "s3:ListAllMyBuckets",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionConfiguration",
+                    "lambda:GetPolicy",
+                    "lambda:ListFunctions",
+                    "rds:Describe*",
+                    "elasticloadbalancing:Describe*",
+                    "route53:List*",
+                    "route53:Get*",
+                    "cloudfront:Get*",
+                    "cloudfront:List*",
+                    "apigateway:GET",
+                    "sts:GetCallerIdentity",
+                ],
+                "Resource": "*",
+            }
+        ],
     }
-    
+
     if format == "terraform":
         result = _gen_terraform(account_id, role_name, external_id, policy)
     elif format == "cloudformation":
@@ -126,7 +128,7 @@ def setup_iam(
             message=f"Unknown format: {format}",
             exit_code=EXIT_CODE_MAP["usage"],
         )
-    
+
     payload = {
         "account_id": account_id,
         "role_name": role_name,
@@ -134,19 +136,24 @@ def setup_iam(
         "template_format": format,
         "template": result,
     }
-    
+
     if output:
         output.write_text(result)
         payload["output_path"] = str(output)
         typer.echo(f"Written to {output}", err=True)
     elif resolved_output_format == "text":
         typer.echo(result)
-    
+
     if resolved_output_format in {"json", "agent"}:
-        actions = suggested_actions([
-            (f"cyntrisec validate-role --role-arn arn:aws:iam::{account_id}:role/{role_name}", "Verify trust and permissions"),
-            ("cyntrisec scan --role-arn <role_arn>", "Kick off the first scan"),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    f"cyntrisec validate-role --role-arn arn:aws:iam::{account_id}:role/{role_name}",
+                    "Verify trust and permissions",
+                ),
+                ("cyntrisec scan --role-arn <role_arn>", "Kick off the first scan"),
+            ]
+        )
         emit_agent_or_json(
             resolved_output_format,
             payload,
@@ -155,10 +162,10 @@ def setup_iam(
         )
 
 
-def _gen_terraform(account_id: str, role_name: str, external_id: Optional[str], policy: dict) -> str:
+def _gen_terraform(account_id: str, role_name: str, external_id: str | None, policy: dict) -> str:
     """Generate Terraform configuration."""
     safe_name = role_name.lower().replace("-", "_")
-    
+
     ext_cond = ""
     if external_id:
         ext_cond = f'''
@@ -167,17 +174,17 @@ def _gen_terraform(account_id: str, role_name: str, external_id: Optional[str], 
       variable = "sts:ExternalId"
       values   = ["{external_id}"]
     }}'''
-    
+
     policy_json = json.dumps(policy, indent=4)
-    
+
     return f'''# Cyntrisec Read-Only IAM Role
-# Usage: cyntrisec scan --role-arn <output.role_arn>{f' --external-id {external_id}' if external_id else ''}
+# Usage: cyntrisec scan --role-arn <output.role_arn>{f" --external-id {external_id}" if external_id else ""}
 
 data "aws_caller_identity" "current" {{}}
 
 resource "aws_iam_role" "{safe_name}" {{
   name = "{role_name}"
-  
+
   assume_role_policy = jsonencode({{
     Version = "2012-10-17"
     Statement = [{{
@@ -186,7 +193,7 @@ resource "aws_iam_role" "{safe_name}" {{
       Action    = "sts:AssumeRole"{ext_cond}
     }}]
   }})
-  
+
   tags = {{
     Purpose   = "Cyntrisec"
     ManagedBy = "terraform"
@@ -206,7 +213,7 @@ output "role_arn" {{
 '''
 
 
-def _gen_cloudformation(role_name: str, external_id: Optional[str], policy: dict) -> str:
+def _gen_cloudformation(role_name: str, external_id: str | None, policy: dict) -> str:
     """Generate CloudFormation template."""
     cond = ""
     if external_id:
@@ -214,10 +221,10 @@ def _gen_cloudformation(role_name: str, external_id: Optional[str], policy: dict
             Condition:
               StringEquals:
                 sts:ExternalId: "{external_id}"'''
-    
+
     policy_yaml = json.dumps(policy, indent=8).replace("\n", "\n        ")
-    
-    return f'''AWSTemplateFormatVersion: "2010-09-09"
+
+    return f"""AWSTemplateFormatVersion: "2010-09-09"
 Description: Cyntrisec Read-Only IAM Role
 
 Resources:
@@ -250,4 +257,4 @@ Outputs:
     Value: !GetAtt CyntrisecRole.Arn
     Export:
       Name: CyntrisecRoleArn
-'''
+"""

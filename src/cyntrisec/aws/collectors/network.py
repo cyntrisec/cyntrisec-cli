@@ -1,7 +1,8 @@
 """Network Collector - Collect VPCs, subnets, security groups."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import boto3
 
@@ -14,7 +15,7 @@ class NetworkCollector:
         self._ec2 = session.client("ec2", region_name=region)
         self._region = region
 
-    def collect_all(self) -> Dict[str, Any]:
+    def collect_all(self) -> dict[str, Any]:
         """Collect all network data."""
         return {
             "vpcs": self._collect_vpcs(),
@@ -26,17 +27,17 @@ class NetworkCollector:
             "load_balancers": self._collect_load_balancers(),
         }
 
-    def _collect_vpcs(self) -> List[Dict]:
+    def _collect_vpcs(self) -> list[dict]:
         """Collect VPCs."""
         response = self._ec2.describe_vpcs()
         return response.get("Vpcs", [])
 
-    def _collect_subnets(self) -> List[Dict]:
+    def _collect_subnets(self) -> list[dict]:
         """Collect subnets."""
         response = self._ec2.describe_subnets()
         return response.get("Subnets", [])
 
-    def _collect_security_groups(self) -> List[Dict]:
+    def _collect_security_groups(self) -> list[dict]:
         """Collect security groups."""
         sgs = []
         paginator = self._ec2.get_paginator("describe_security_groups")
@@ -44,22 +45,22 @@ class NetworkCollector:
             sgs.extend(page.get("SecurityGroups", []))
         return sgs
 
-    def _collect_route_tables(self) -> List[Dict]:
+    def _collect_route_tables(self) -> list[dict]:
         """Collect route tables."""
         response = self._ec2.describe_route_tables()
         return response.get("RouteTables", [])
 
-    def _collect_internet_gateways(self) -> List[Dict]:
+    def _collect_internet_gateways(self) -> list[dict]:
         """Collect internet gateways."""
         response = self._ec2.describe_internet_gateways()
         return response.get("InternetGateways", [])
 
-    def _collect_nat_gateways(self) -> List[Dict]:
+    def _collect_nat_gateways(self) -> list[dict]:
         """Collect NAT gateways."""
         response = self._ec2.describe_nat_gateways()
         return response.get("NatGateways", [])
 
-    def _collect_load_balancers(self) -> List[Dict]:
+    def _collect_load_balancers(self) -> list[dict]:
         """Collect ELBv2 load balancers."""
         try:
             elb = self._session.client("elbv2", region_name=self._region)

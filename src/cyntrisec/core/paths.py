@@ -4,6 +4,7 @@ Attack Path Finder - BFS-based attack path discovery.
 Finds paths from internet-facing entry points to sensitive targets
 through the capability graph.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -11,7 +12,6 @@ import uuid
 from collections import deque
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, List, Optional, Set, Tuple
 
 from cyntrisec.core.graph import AwsGraph
 from cyntrisec.core.schema import Asset, AttackPath
@@ -20,6 +20,7 @@ from cyntrisec.core.schema import Asset, AttackPath
 @dataclass
 class PathFinderConfig:
     """Configuration for attack path discovery."""
+
     max_depth: int = 8
     max_paths: int = 200
     min_risk_score: float = 0.0
@@ -28,33 +29,33 @@ class PathFinderConfig:
 class PathFinder:
     """
     Discovers attack paths through the capability graph.
-    
+
     Uses BFS from entry points to find all paths to sensitive targets.
     Calculates risk scores based on:
     - Entry confidence: How accessible is the entry point
     - Exploitability: How easy is the path to traverse
     - Impact: How valuable is the target
-    
+
     Example:
         finder = PathFinder()
         paths = finder.find_paths(graph, snapshot_id)
     """
 
-    def __init__(self, config: Optional[PathFinderConfig] = None):
+    def __init__(self, config: PathFinderConfig | None = None):
         self._config = config or PathFinderConfig()
 
     def find_paths(
         self,
         graph: AwsGraph,
         snapshot_id: uuid.UUID,
-    ) -> List[AttackPath]:
+    ) -> list[AttackPath]:
         """
         Find all attack paths in the graph.
-        
+
         Args:
             graph: The capability graph to analyze
             snapshot_id: ID of the current scan snapshot
-            
+
         Returns:
             List of AttackPath objects sorted by risk score
         """
@@ -64,8 +65,8 @@ class PathFinder:
         if not entry_points or not targets:
             return []
 
-        all_paths: List[AttackPath] = []
-        visited_hashes: Set[str] = set()
+        all_paths: list[AttackPath] = []
+        visited_hashes: set[str] = set()
         remaining = self._config.max_paths
 
         for entry in entry_points:
@@ -88,12 +89,9 @@ class PathFinder:
 
         # Apply min risk filter
         if self._config.min_risk_score > 0:
-            all_paths = [
-                p for p in all_paths 
-                if float(p.risk_score) >= self._config.min_risk_score
-            ]
+            all_paths = [p for p in all_paths if float(p.risk_score) >= self._config.min_risk_score]
 
-        return all_paths[:self._config.max_paths]
+        return all_paths[: self._config.max_paths]
 
     def _bfs_from_entry(
         self,
@@ -101,15 +99,15 @@ class PathFinder:
         graph: AwsGraph,
         snapshot_id: uuid.UUID,
         entry: Asset,
-        targets: Set[uuid.UUID],
+        targets: set[uuid.UUID],
         max_paths: int,
-        visited_hashes: Set[str],
-    ) -> List[AttackPath]:
+        visited_hashes: set[str],
+    ) -> list[AttackPath]:
         """BFS from a single entry point to find paths to targets."""
-        paths: List[AttackPath] = []
+        paths: list[AttackPath] = []
 
         # Queue: (current_id, path_assets, path_rels)
-        queue: deque[Tuple[uuid.UUID, List[uuid.UUID], List[uuid.UUID]]] = deque()
+        queue: deque[tuple[uuid.UUID, list[uuid.UUID], list[uuid.UUID]]] = deque()
         queue.append((entry.id, [entry.id], []))
 
         while queue and len(paths) < max_paths:
@@ -154,7 +152,7 @@ class PathFinder:
 
         return paths
 
-    def _hash_path(self, path_assets: List[uuid.UUID]) -> str:
+    def _hash_path(self, path_assets: list[uuid.UUID]) -> str:
         """Create a unique hash for a path."""
         path_str = "|".join(str(a) for a in path_assets)
         return hashlib.sha256(path_str.encode()).hexdigest()
@@ -164,8 +162,8 @@ class PathFinder:
         *,
         graph: AwsGraph,
         snapshot_id: uuid.UUID,
-        path_assets: List[uuid.UUID],
-        path_rels: List[uuid.UUID],
+        path_assets: list[uuid.UUID],
+        path_rels: list[uuid.UUID],
     ) -> AttackPath:
         """Create an AttackPath from discovered path."""
         entry = graph.asset(path_assets[0])
@@ -198,7 +196,7 @@ class PathFinder:
             proof=proof,
         )
 
-    def _entry_confidence(self, asset: Optional[Asset]) -> float:
+    def _entry_confidence(self, asset: Asset | None) -> float:
         """Calculate entry point accessibility (0-1)."""
         if not asset:
             return 0.5
@@ -222,7 +220,7 @@ class PathFinder:
         # Longer paths are harder to exploit
         return max(0.1, 1.0 - (path_length * 0.1))
 
-    def _impact_score(self, asset: Optional[Asset]) -> float:
+    def _impact_score(self, asset: Asset | None) -> float:
         """Calculate impact score of reaching the target (0-1)."""
         if not asset:
             return 0.5
@@ -251,7 +249,7 @@ class PathFinder:
     def _attack_vector(
         self,
         graph: AwsGraph,
-        path_assets: List[uuid.UUID],
+        path_assets: list[uuid.UUID],
     ) -> str:
         """Determine attack vector classification."""
         if not path_assets:
@@ -280,9 +278,9 @@ class PathFinder:
     def _build_proof(
         self,
         graph: AwsGraph,
-        path_assets: List[uuid.UUID],
-        path_rels: List[uuid.UUID],
-    ) -> Dict:
+        path_assets: list[uuid.UUID],
+        path_rels: list[uuid.UUID],
+    ) -> dict:
         """Build proof chain showing why path exists."""
         steps = []
 

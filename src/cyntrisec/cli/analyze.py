@@ -1,18 +1,23 @@
 """
 Analyze Commands - Analyze scan results.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import (
-    AnalyzePathsResponse,
     AnalyzeFindingsResponse,
+    AnalyzePathsResponse,
     BusinessAnalysisResponse,
 )
 from cyntrisec.core.cost_estimator import CostEstimator
@@ -23,7 +28,7 @@ analyze_app = typer.Typer(help="Analyze scan results")
 @analyze_app.command("paths")
 @handle_errors
 def analyze_paths(
-    scan_id: Optional[str] = typer.Option(
+    scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
@@ -40,7 +45,7 @@ def analyze_paths(
         "-n",
         help="Maximum number of paths to show",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -49,18 +54,18 @@ def analyze_paths(
 ):
     """
     Show attack paths from scan results.
-    
+
     Attack paths are routes from internet-facing entry points
     to sensitive targets through the infrastructure.
-    
+
     Examples:
-    
+
         cyntrisec analyze paths --min-risk 0.5
-        
+
         cyntrisec analyze paths --format json | jq '.paths[:5]'
     """
     from cyntrisec.storage import FileSystemStorage
-    
+
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
     if not snapshot:
@@ -75,17 +80,17 @@ def analyze_paths(
         default_tty="table",
         allowed=["table", "json", "agent"],
     )
-    
+
     # Filter by risk
     if min_risk > 0:
         paths = [p for p in paths if float(p.risk_score) >= min_risk]
-    
+
     # Sort by risk
     paths.sort(key=lambda p: float(p.risk_score), reverse=True)
-    
+
     total_paths = len(paths)
     paths = paths[:limit]
-    
+
     if output_format in {"json", "agent"}:
         artifact_paths = build_artifact_paths(storage, scan_id)
         data = {
@@ -93,10 +98,18 @@ def analyze_paths(
             "returned": len(paths),
             "total": total_paths,
         }
-        actions = suggested_actions([
-            (f"cyntrisec cuts --snapshot {scan_id or 'latest'}", "Prioritize fixes that block these paths"),
-            ("cyntrisec explain path instance-compromise", "Get human-friendly context for a path"),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    f"cyntrisec cuts --snapshot {scan_id or 'latest'}",
+                    "Prioritize fixes that block these paths",
+                ),
+                (
+                    "cyntrisec explain path instance-compromise",
+                    "Get human-friendly context for a path",
+                ),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             data,
@@ -110,10 +123,10 @@ def analyze_paths(
     if not paths:
         typer.echo("No attack paths found.")
         return
-    
+
     typer.echo(f"{'Risk':<8} {'Vector':<25} {'Length':<8} {'Entry':<8} {'Impact':<8}")
     typer.echo("-" * 65)
-    
+
     for p in paths:
         risk = float(p.risk_score)
         vector = p.attack_vector[:24]
@@ -121,7 +134,7 @@ def analyze_paths(
         entry = float(p.entry_confidence)
         impact = float(p.impact_score)
         typer.echo(f"{risk:<8.3f} {vector:<25} {length:<8} {entry:<8.3f} {impact:<8.3f}")
-    
+
     typer.echo("")
     typer.echo(f"Total: {len(paths)} paths")
 
@@ -129,18 +142,18 @@ def analyze_paths(
 @analyze_app.command("findings")
 @handle_errors
 def analyze_findings(
-    scan_id: Optional[str] = typer.Option(
+    scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
         help="Scan ID (default: latest)",
     ),
-    severity: Optional[str] = typer.Option(
+    severity: str | None = typer.Option(
         None,
         "--severity",
         help="Filter by severity: critical, high, medium, low, info",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -151,7 +164,7 @@ def analyze_findings(
     Show security findings from scan results.
     """
     from cyntrisec.storage import FileSystemStorage
-    
+
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
     if not snapshot:
@@ -166,15 +179,15 @@ def analyze_findings(
         default_tty="table",
         allowed=["table", "json", "agent"],
     )
-    
+
     # Filter by severity
     if severity:
         findings = [f for f in findings if f.severity == severity]
-    
+
     # Sort by severity
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
     findings.sort(key=lambda f: severity_order.get(f.severity, 5))
-    
+
     if output_format in {"json", "agent"}:
         artifact_paths = build_artifact_paths(storage, scan_id)
         data = {
@@ -182,13 +195,15 @@ def analyze_findings(
             "total": len(findings),
             "filter": severity or "any",
         }
-        actions = suggested_actions([
-            (
-                f"cyntrisec explain finding {findings[0].finding_type}" if findings else "",
-                "See remediation context for the most common finding" if findings else "",
-            ),
-            ("cyntrisec comply --format agent", "Map findings to compliance controls"),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    f"cyntrisec explain finding {findings[0].finding_type}" if findings else "",
+                    "See remediation context for the most common finding" if findings else "",
+                ),
+                ("cyntrisec comply --format agent", "Map findings to compliance controls"),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             data,
@@ -201,23 +216,23 @@ def analyze_findings(
     if not findings:
         typer.echo("No findings found.")
         return
-    
+
     typer.echo(f"{'Severity':<10} {'Type':<35} {'Title':<50}")
     typer.echo("-" * 95)
-    
+
     for f in findings:
         sev = f.severity.upper()[:9]
         ftype = f.finding_type[:34]
         title = f.title[:49]
         typer.echo(f"{sev:<10} {ftype:<35} {title:<50}")
-    
+
     typer.echo("")
     typer.echo(f"Total: {len(findings)} findings")
 
 
 @analyze_app.command("stats")
 def analyze_stats(
-    scan_id: Optional[str] = typer.Option(
+    scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
@@ -228,18 +243,18 @@ def analyze_stats(
     Show summary statistics for a scan.
     """
     from cyntrisec.storage import FileSystemStorage
-    
+
     storage = FileSystemStorage()
-    
+
     snapshot = storage.get_snapshot(scan_id)
     if not snapshot:
         typer.echo("No scan found.", err=True)
         raise typer.Exit(2)
-    
+
     assets = storage.get_assets(scan_id)
     findings = storage.get_findings(scan_id)
     paths = storage.get_attack_paths(scan_id)
-    
+
     typer.echo("=== Scan Statistics ===")
     typer.echo("")
     typer.echo(f"Account: {snapshot.aws_account_id}")
@@ -248,64 +263,64 @@ def analyze_stats(
     typer.echo(f"Started: {snapshot.started_at}")
     typer.echo(f"Completed: {snapshot.completed_at}")
     typer.echo("")
-    
+
     typer.echo("--- Counts ---")
     typer.echo(f"Assets: {len(assets)}")
     typer.echo(f"Findings: {len(findings)}")
     typer.echo(f"Attack paths: {len(paths)}")
     typer.echo("")
-    
+
     # Asset types
     asset_types = {}
     for a in assets:
         asset_types[a.asset_type] = asset_types.get(a.asset_type, 0) + 1
-    
+
     typer.echo("--- Assets by Type ---")
     for t, count in sorted(asset_types.items(), key=lambda x: -x[1])[:10]:
         typer.echo(f"  {t}: {count}")
-    
+
     # Finding severities
     severities = {}
     for f in findings:
         severities[f.severity] = severities.get(f.severity, 0) + 1
-    
+
     if severities:
         typer.echo("")
         typer.echo("--- Findings by Severity ---")
         for sev in ["critical", "high", "medium", "low", "info"]:
             if sev in severities:
                 typer.echo(f"  {sev}: {severities[sev]}")
-    
+
     # Attack path stats
     if paths:
         risks = [float(p.risk_score) for p in paths]
         typer.echo("")
         typer.echo("--- Attack Paths ---")
         typer.echo(f"  Highest risk: {max(risks):.3f}")
-        typer.echo(f"  Average risk: {sum(risks)/len(risks):.3f}")
+        typer.echo(f"  Average risk: {sum(risks) / len(risks):.3f}")
 
 
 @analyze_app.command("business")
 @handle_errors
 def analyze_business(
-    entrypoints: Optional[str] = typer.Option(
+    entrypoints: str | None = typer.Option(
         None,
         "--entrypoints",
         "-e",
         help="Comma-separated business entrypoint names/arns",
     ),
-    business_entrypoint: Optional[list[str]] = typer.Option(
+    business_entrypoint: list[str] | None = typer.Option(
         None,
         "--business-entrypoint",
         "-b",
         help="Repeatable business entrypoint (name or ARN)",
     ),
-    business_tags: Optional[list[str]] = typer.Option(
+    business_tags: list[str] | None = typer.Option(
         None,
         "--business-tag",
         help="Tag filters marking business assets (repeatable, key=value or comma-separated)",
     ),
-    business_config: Optional[str] = typer.Option(
+    business_config: str | None = typer.Option(
         None,
         "--business-config",
         help="Path to business config (JSON or YAML) with entrypoints/tags",
@@ -315,13 +330,13 @@ def analyze_business(
         "--report",
         help="Output coverage report for business-required assets",
     ),
-    scan_id: Optional[str] = typer.Option(
+    scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
         help="Scan ID (default: latest)",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -335,7 +350,7 @@ def analyze_business(
 ):
     """
     Analyze business-required entrypoints vs attack-reachable assets.
-    
+
     Waste ~= attackable assets minus business-required set.
     """
     from cyntrisec.storage import FileSystemStorage
@@ -345,12 +360,12 @@ def analyze_business(
         default_tty="table",
         allowed=["table", "json", "agent"],
     )
-    
+
     cost_estimator = CostEstimator(source=cost_source)
     storage = FileSystemStorage()
     assets = storage.get_assets(scan_id)
     snapshot = storage.get_snapshot(scan_id)
-    
+
     if not assets or not snapshot:
         raise CyntriError(
             error_code=ErrorCode.SNAPSHOT_NOT_FOUND,
@@ -362,14 +377,14 @@ def analyze_business(
     config = _parse_business_config(
         entrypoints, business_entrypoint, business_tags, business_config
     )
-    
+
     # Classify assets
     path_assets = {aid for p in storage.get_attack_paths(scan_id) for aid in p.path_asset_ids}
     analysis = _classify_assets(assets, config, path_assets)
-    
+
     # Sort waste by cost priority
     sorted_waste = cost_estimator.sort_by_cost_priority(analysis["waste_candidates"])
-    
+
     # Build result
     result = _build_business_result(
         config, analysis, sorted_waste, path_assets, cost_estimator, report
@@ -379,11 +394,19 @@ def analyze_business(
         emit_agent_or_json(
             output_format,
             result,
-            suggested=suggested_actions([
-                ("cyntrisec waste --format agent", "Review unused permissions/waste"),
-                ("cyntrisec cuts --format agent", "Prioritize fixes to reduce attackable surface"),
-                ("cyntrisec analyze business --report --format agent", "Show full business coverage report"),
-            ]),
+            suggested=suggested_actions(
+                [
+                    ("cyntrisec waste --format agent", "Review unused permissions/waste"),
+                    (
+                        "cyntrisec cuts --format agent",
+                        "Prioritize fixes to reduce attackable surface",
+                    ),
+                    (
+                        "cyntrisec analyze business --report --format agent",
+                        "Show full business coverage report",
+                    ),
+                ]
+            ),
             artifact_paths=build_artifact_paths(storage, scan_id),
             schema=BusinessAnalysisResponse,
         )
@@ -393,10 +416,10 @@ def analyze_business(
 
 
 def _parse_business_config(
-    entrypoints: Optional[str],
-    business_entrypoint: Optional[list[str]],
-    business_tags: Optional[list[str]],
-    business_config: Optional[str],
+    entrypoints: str | None,
+    business_entrypoint: list[str] | None,
+    business_tags: list[str] | None,
+    business_config: str | None,
 ) -> dict:
     """Parse business configuration from all input sources."""
     entry_list = [e.strip() for e in (entrypoints.split(",") if entrypoints else []) if e.strip()]
@@ -428,12 +451,12 @@ def _parse_business_config(
     }
 
 
-def _parse_tag_filters(business_tags: Optional[list[str]]) -> dict:
+def _parse_tag_filters(business_tags: list[str] | None) -> dict:
     """Parse tag filters from CLI option."""
     tag_filters: dict[str, str] = {}
     if not business_tags:
         return tag_filters
-    
+
     for raw in business_tags:
         for pair in raw.split(","):
             if not pair:
@@ -446,7 +469,7 @@ def _parse_tag_filters(business_tags: Optional[list[str]]) -> dict:
                 )
             key, value = pair.split("=", 1)
             tag_filters[key.strip()] = value.strip()
-    
+
     return tag_filters
 
 
@@ -455,11 +478,13 @@ def _load_config_file(cfg_path: Path) -> dict:
     text = cfg_path.read_text(encoding="utf-8")
     try:
         import yaml  # type: ignore
+
         return yaml.safe_load(text) or {}
     except Exception:
         pass
     try:
         import json
+
         return json.loads(text)
     except Exception:
         raise CyntriError(
@@ -474,26 +499,30 @@ def _classify_assets(assets, config: dict, path_assets: set) -> dict:
     entry_list = config["entry_list"]
     tag_filters = config["tag_filters"]
     critical_assets = config["critical_assets"]
-    
+
     business_assets = []
     attackable = []
     waste_candidates = []
 
     for asset in assets:
-        attackable_flag = asset.is_internet_facing or asset.is_sensitive_target or asset.id in path_assets
+        attackable_flag = (
+            asset.is_internet_facing or asset.is_sensitive_target or asset.id in path_assets
+        )
         if attackable_flag:
             attackable.append(asset)
 
         reasons = _get_business_reasons(asset, entry_list, tag_filters, critical_assets)
 
         if reasons:
-            business_assets.append({
-                "name": asset.name,
-                "asset_type": asset.asset_type,
-                "asset_id": str(asset.id),
-                "reason": ",".join(reasons),
-                "tags": asset.tags,
-            })
+            business_assets.append(
+                {
+                    "name": asset.name,
+                    "asset_type": asset.asset_type,
+                    "asset_id": str(asset.id),
+                    "reason": ",".join(reasons),
+                    "tags": asset.tags,
+                }
+            )
         elif attackable_flag:
             waste_candidates.append(asset)
 
@@ -516,7 +545,9 @@ def _get_business_reasons(asset, entry_list, tag_filters, critical_assets) -> li
     return reasons
 
 
-def _build_business_result(config, analysis, sorted_waste, path_assets, cost_estimator, report) -> dict:
+def _build_business_result(
+    config, analysis, sorted_waste, path_assets, cost_estimator, report
+) -> dict:
     """Build the result dictionary for business analysis."""
     return {
         "entrypoints_requested": config["entry_list"],
@@ -524,8 +555,7 @@ def _build_business_result(config, analysis, sorted_waste, path_assets, cost_est
         "attackable_count": len(analysis["attackable"]),
         "business_required_count": len(analysis["business_assets"]),
         "waste_candidates": [
-            _build_waste_candidate_dict(a, path_assets, cost_estimator)
-            for a in sorted_waste[:20]
+            _build_waste_candidate_dict(a, path_assets, cost_estimator) for a in sorted_waste[:20]
         ],
         "waste_candidate_count": len(analysis["waste_candidates"]),
         "business_assets": analysis["business_assets"] if report else None,
@@ -538,7 +568,9 @@ def _build_business_result(config, analysis, sorted_waste, path_assets, cost_est
                 "tags": a.tags,
             }
             for a in analysis["waste_candidates"][:20]
-        ] if report else None,
+        ]
+        if report
+        else None,
     }
 
 
@@ -561,9 +593,11 @@ def _build_waste_candidate_dict(asset, path_assets, cost_estimator):
         "asset_type": asset.asset_type,
         "asset_id": str(asset.id),
         "reason": "in attack paths" if asset.id in path_assets else "internet-facing/sensitive",
-        "monthly_cost_usd": float(asset.monthly_cost_usd) if getattr(asset, "monthly_cost_usd", None) else None,
+        "monthly_cost_usd": float(asset.monthly_cost_usd)
+        if getattr(asset, "monthly_cost_usd", None)
+        else None,
     }
-    
+
     if cost_estimator:
         estimate = cost_estimator.estimate(asset)
         if estimate:
@@ -571,6 +605,5 @@ def _build_waste_candidate_dict(asset, path_assets, cost_estimator):
             result["cost_source"] = estimate.cost_source
             result["confidence"] = estimate.confidence
             result["assumptions"] = estimate.assumptions
-    
-    return result
 
+    return result

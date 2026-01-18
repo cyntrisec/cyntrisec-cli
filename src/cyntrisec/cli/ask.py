@@ -4,17 +4,22 @@ ask command - Natural language queries over scan results.
 Maps simple natural language questions to existing commands/results and
 returns agent-friendly structured output.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import AskResponse
 
 console = Console()
@@ -23,13 +28,13 @@ console = Console()
 @handle_errors
 def ask_cmd(
     query: str = typer.Argument(..., help="Natural language question"),
-    snapshot_id: Optional[str] = typer.Option(
+    snapshot_id: str | None = typer.Option(
         None,
         "--snapshot",
         "-s",
         help="Snapshot ID (default: latest)",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
         "--format",
         "-f",
@@ -38,7 +43,7 @@ def ask_cmd(
 ):
     """
     Ask natural language questions about the security graph.
-    
+
     Examples:
         cyntrisec ask "what can reach the production database?"
         cyntrisec ask "show me public s3 buckets"
@@ -139,7 +144,7 @@ def _extract_entities(query: str) -> dict:
     }
 
 
-def _execute_intent(classification: dict, query: str, storage, snapshot_id: Optional[str]):
+def _execute_intent(classification: dict, query: str, storage, snapshot_id: str | None):
     """Execute intent using existing data; returns results and suggested actions."""
     intent = classification["intent"]
     entities = classification["entities"]
@@ -169,7 +174,8 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
         public_buckets = [
             {"name": a.name, "arn": a.arn or a.aws_resource_id}
             for a in assets
-            if "s3" in a.asset_type.lower() and ("public" in a.name.lower() or a.properties.get("public"))
+            if "s3" in a.asset_type.lower()
+            and ("public" in a.name.lower() or a.properties.get("public"))
         ]
         if not public_buckets and entities.get("buckets"):
             public_buckets = [{"name": b, "arn": ""} for b in entities["buckets"]]
@@ -178,7 +184,10 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
             "resolved_query": "list_public_buckets",
             "suggested_actions": [
                 ("cyntrisec explain finding s3_public_bucket", "See why public buckets are risky"),
-                ("cyntrisec can <principal> access s3://bucket --format agent", "Verify specific access"),
+                (
+                    "cyntrisec can <principal> access s3://bucket --format agent",
+                    "Verify specific access",
+                ),
             ],
         }
 
@@ -195,14 +204,21 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
             "results": {"admin_like_roles": roles, "count": len(roles)},
             "resolved_query": "list_admin_like_roles",
             "suggested_actions": [
-                ("cyntrisec can <role> access <resource> --format agent", "Validate least privilege"),
+                (
+                    "cyntrisec can <role> access <resource> --format agent",
+                    "Validate least privilege",
+                ),
                 ("cyntrisec waste --format agent", "Find unused permissions"),
             ],
         }
 
     if intent == "access_check":
         principal = entities["roles"][0] if entities.get("roles") else "<principal>"
-        resource = entities["arns"][0] if entities.get("arns") else (entities["buckets"][0] if entities.get("buckets") else "<resource>")
+        resource = (
+            entities["arns"][0]
+            if entities.get("arns")
+            else (entities["buckets"][0] if entities.get("buckets") else "<resource>")
+        )
         return {
             "results": {
                 "message": "Use 'cyntrisec can' for precise access simulation.",
@@ -211,7 +227,10 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
             },
             "resolved_query": "simulate_access",
             "suggested_actions": [
-                (f"cyntrisec can {principal} access {resource} --format agent", "Run access simulation"),
+                (
+                    f"cyntrisec can {principal} access {resource} --format agent",
+                    "Run access simulation",
+                ),
             ],
         }
 
@@ -230,12 +249,17 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
             "resolved_query": "compliance_check",
             "suggested_actions": [
                 ("cyntrisec comply --format agent", "Check CIS/SOC2 compliance"),
-                ("cyntrisec explain control CIS-AWS:1.1 --format agent", "Explain specific controls"),
+                (
+                    "cyntrisec explain control CIS-AWS:1.1 --format agent",
+                    "Explain specific controls",
+                ),
             ],
         }
 
     return {
-        "results": {"message": "Query understood. Use analyze paths/findings, cuts, can, or comply for details."},
+        "results": {
+            "message": "Query understood. Use analyze paths/findings, cuts, can, or comply for details."
+        },
         "resolved_query": "general_help",
         "suggested_actions": [
             ("cyntrisec analyze paths --format agent", "View attack paths"),
@@ -247,13 +271,15 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: Opti
 def _print_text_response(query: str, intent: str, response: dict, snapshot):
     """Render a simple text response."""
     console.print()
-    console.print(Panel(
-        f"Query: {query}\n"
-        f"Intent: {intent}\n"
-        f"Snapshot: {snapshot.aws_account_id if snapshot else 'unknown'}",
-        title="cyntrisec ask",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            f"Query: {query}\n"
+            f"Intent: {intent}\n"
+            f"Snapshot: {snapshot.aws_account_id if snapshot else 'unknown'}",
+            title="cyntrisec ask",
+            border_style="cyan",
+        )
+    )
 
     results = response.get("results", {})
     if intent == "attack_paths":

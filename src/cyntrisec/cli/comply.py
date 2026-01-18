@@ -1,23 +1,28 @@
 """
 comply command - Check compliance against security frameworks.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, BarColumn, TextColumn
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, TextColumn
+from rich.table import Table
 
-from cyntrisec.storage import FileSystemStorage
-from cyntrisec.core.compliance import ComplianceChecker, Framework
-from cyntrisec.cli.output import emit_agent_or_json, resolve_format, suggested_actions, build_artifact_paths
-from cyntrisec.cli.errors import handle_errors, CyntriError, ErrorCode, EXIT_CODE_MAP
+from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
+from cyntrisec.cli.output import (
+    build_artifact_paths,
+    emit_agent_or_json,
+    resolve_format,
+    suggested_actions,
+)
 from cyntrisec.cli.schemas import ComplyResponse
+from cyntrisec.core.compliance import ComplianceChecker, Framework
+from cyntrisec.storage import FileSystemStorage
 
 console = Console()
 log = logging.getLogger(__name__)
@@ -27,22 +32,26 @@ log = logging.getLogger(__name__)
 def comply_cmd(
     framework: str = typer.Option(
         "cis-aws",
-        "--framework", "-fw",
+        "--framework",
+        "-fw",
         help="Compliance framework: cis-aws, soc2",
     ),
-    format: Optional[str] = typer.Option(
+    format: str | None = typer.Option(
         None,
-        "--format", "-f",
+        "--format",
+        "-f",
         help="Output format: table, json, agent (defaults to json when piped)",
     ),
     show_passing: bool = typer.Option(
         False,
-        "--show-passing", "-p",
+        "--show-passing",
+        "-p",
         help="Show passing controls (default: only failing)",
     ),
-    snapshot_id: Optional[str] = typer.Option(
+    snapshot_id: str | None = typer.Option(
         None,
-        "--snapshot", "-s",
+        "--snapshot",
+        "-s",
         help="Specific snapshot ID (default: latest)",
     ),
 ):
@@ -88,16 +97,20 @@ def comply_cmd(
 
     if output_format in {"json", "agent"}:
         payload = _build_payload(results, fw, snapshot, show_passing)
-        actions = suggested_actions([
-            (
-                f"cyntrisec explain control {results.results[0].control.id}" if results.results else "",
-                "Explain top failing control" if results.results else "",
-            ),
-            (
-                f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
-                "Map compliance fixes to attack path cuts" if snapshot else "",
-            ),
-        ])
+        actions = suggested_actions(
+            [
+                (
+                    f"cyntrisec explain control {results.results[0].control.id}"
+                    if results.results
+                    else "",
+                    "Explain top failing control" if results.results else "",
+                ),
+                (
+                    f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
+                    "Map compliance fixes to attack path cuts" if snapshot else "",
+                ),
+            ]
+        )
         emit_agent_or_json(
             output_format,
             payload,
@@ -121,13 +134,15 @@ def _output_table(results, framework: Framework, show_passing: bool):
     score = results.compliance_score * 100
 
     console.print()
-    console.print(Panel(
-        f"[bold]Compliance Report[/bold]\n"
-        f"Framework: {framework.value}\n"
-        f"Score: {score:.0f}% ({passing}/{total})",
-        title="cyntrisec comply",
-        border_style="green" if failing == 0 else "red",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Compliance Report[/bold]\n"
+            f"Framework: {framework.value}\n"
+            f"Score: {score:.0f}% ({passing}/{total})",
+            title="cyntrisec comply",
+            border_style="green" if failing == 0 else "red",
+        )
+    )
     console.print()
     with Progress(
         TextColumn("[progress.description]{task.description}"),

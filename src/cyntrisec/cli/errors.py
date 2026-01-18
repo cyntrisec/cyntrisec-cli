@@ -4,11 +4,13 @@ Central error handling and envelope utilities.
 Defines a small error taxonomy and helpers to wrap CLI commands so that
 all failures return a consistent agent-friendly envelope.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable, Optional
 import functools
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 import typer
 from pydantic import ValidationError
@@ -39,8 +41,8 @@ EXIT_CODE_MAP = {
 class CyntriError(Exception):
     error_code: str
     message: str
-    details: Optional[Any] = None
-    hint: Optional[str] = None
+    details: Any | None = None
+    hint: str | None = None
     retryable: bool = False
     status: str = "error"
     exit_code: int = EXIT_CODE_MAP["internal"]

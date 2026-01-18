@@ -1,8 +1,9 @@
 """Lambda Normalizer - Transform Lambda data to canonical schema."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
 import uuid
+from typing import Any
 
 from cyntrisec.core.schema import Asset, Finding, FindingSeverity, Relationship
 
@@ -22,11 +23,11 @@ class LambdaNormalizer:
 
     def normalize(
         self,
-        data: Dict[str, Any],
-    ) -> Tuple[List[Asset], List[Relationship], List[Finding]]:
+        data: dict[str, Any],
+    ) -> tuple[list[Asset], list[Relationship], list[Finding]]:
         """Normalize Lambda data."""
-        assets: List[Asset] = []
-        findings: List[Finding] = []
+        assets: list[Asset] = []
+        findings: list[Finding] = []
 
         for func in data.get("functions", []):
             asset, func_findings = self._normalize_function(func)
@@ -37,8 +38,8 @@ class LambdaNormalizer:
 
     def _normalize_function(
         self,
-        func: Dict[str, Any],
-    ) -> Tuple[Asset, List[Finding]]:
+        func: dict[str, Any],
+    ) -> tuple[Asset, list[Finding]]:
         """Normalize a Lambda function."""
         func_name = func["FunctionName"]
         func_arn = func["FunctionArn"]
@@ -61,20 +62,22 @@ class LambdaNormalizer:
             },
         )
 
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # Check for deprecated runtime
         runtime = func.get("Runtime", "")
         deprecated_runtimes = ["python2.7", "python3.6", "nodejs10.x", "nodejs12.x", "ruby2.5"]
         if any(runtime.startswith(dr) for dr in deprecated_runtimes):
-            findings.append(Finding(
-                snapshot_id=self._snapshot_id,
-                asset_id=asset.id,
-                finding_type="lambda-deprecated-runtime",
-                severity=FindingSeverity.medium,
-                title=f"Lambda function {func_name} uses deprecated runtime",
-                description=f"Function uses runtime {runtime} which is deprecated or EOL",
-                remediation="Upgrade to a supported runtime version",
-            ))
+            findings.append(
+                Finding(
+                    snapshot_id=self._snapshot_id,
+                    asset_id=asset.id,
+                    finding_type="lambda-deprecated-runtime",
+                    severity=FindingSeverity.medium,
+                    title=f"Lambda function {func_name} uses deprecated runtime",
+                    description=f"Function uses runtime {runtime} which is deprecated or EOL",
+                    remediation="Upgrade to a supported runtime version",
+                )
+            )
 
         return asset, findings

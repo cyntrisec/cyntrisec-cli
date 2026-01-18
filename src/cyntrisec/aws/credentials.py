@@ -6,12 +6,12 @@ Supports:
 - AWS CLI profiles
 - Default credential chain (env vars, instance metadata)
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class RoleCredentials:
     """Temporary credentials from AssumeRole."""
+
     access_key_id: str
     secret_access_key: str
     session_token: str
@@ -32,7 +33,7 @@ class RoleCredentials:
 class CredentialProvider:
     """
     AWS credential provider for CLI mode.
-    
+
     Example:
         provider = CredentialProvider(profile="my-profile")
         session = provider.assume_role(
@@ -44,12 +45,12 @@ class CredentialProvider:
     def __init__(
         self,
         *,
-        profile: Optional[str] = None,
+        profile: str | None = None,
         region: str = "us-east-1",
     ):
         self._profile = profile
         self._region = region
-        self._base_session: Optional[boto3.Session] = None
+        self._base_session: boto3.Session | None = None
 
     def _get_base_session(self) -> boto3.Session:
         """Get or create the base boto3 session."""
@@ -64,19 +65,19 @@ class CredentialProvider:
         self,
         role_arn: str,
         *,
-        external_id: Optional[str] = None,
+        external_id: str | None = None,
         session_name: str = "cyntrisec-cli",
         duration_seconds: int = 3600,
     ) -> boto3.Session:
         """
         Assume an IAM role and return a configured boto3 session.
-        
+
         Args:
             role_arn: ARN of the role to assume
             external_id: External ID for the role (optional)
             session_name: Name for the assumed role session
             duration_seconds: How long the credentials are valid
-            
+
         Returns:
             boto3.Session configured with temporary credentials
         """
@@ -92,7 +93,7 @@ class CredentialProvider:
             assume_kwargs["ExternalId"] = external_id
 
         log.info("Assuming role: %s", role_arn)
-        
+
         try:
             response = sts.assume_role(**assume_kwargs)
         except ClientError as e:
@@ -105,7 +106,7 @@ class CredentialProvider:
             raise
 
         creds = response["Credentials"]
-        
+
         return boto3.Session(
             aws_access_key_id=creds["AccessKeyId"],
             aws_secret_access_key=creds["SecretAccessKey"],
@@ -123,11 +124,11 @@ class CredentialProvider:
         self,
         role_arn: str,
         *,
-        external_id: Optional[str] = None,
+        external_id: str | None = None,
     ) -> bool:
         """
         Validate that a role can be assumed.
-        
+
         Returns True if role assumption succeeds.
         """
         try:

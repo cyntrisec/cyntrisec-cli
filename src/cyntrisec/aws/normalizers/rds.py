@@ -1,8 +1,9 @@
 """RDS Normalizer - Transform RDS data to canonical schema."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
 import uuid
+from typing import Any
 
 from cyntrisec.core.schema import Asset, Finding, FindingSeverity, Relationship
 
@@ -22,11 +23,11 @@ class RdsNormalizer:
 
     def normalize(
         self,
-        data: Dict[str, Any],
-    ) -> Tuple[List[Asset], List[Relationship], List[Finding]]:
+        data: dict[str, Any],
+    ) -> tuple[list[Asset], list[Relationship], list[Finding]]:
         """Normalize RDS data."""
-        assets: List[Asset] = []
-        findings: List[Finding] = []
+        assets: list[Asset] = []
+        findings: list[Finding] = []
 
         for instance in data.get("instances", []):
             asset, instance_findings = self._normalize_instance(instance)
@@ -42,8 +43,8 @@ class RdsNormalizer:
 
     def _normalize_instance(
         self,
-        instance: Dict[str, Any],
-    ) -> Tuple[Asset, List[Finding]]:
+        instance: dict[str, Any],
+    ) -> tuple[Asset, list[Finding]]:
         """Normalize an RDS DB instance."""
         db_id = instance["DBInstanceIdentifier"]
         db_arn = instance["DBInstanceArn"]
@@ -63,46 +64,49 @@ class RdsNormalizer:
                 "publicly_accessible": instance.get("PubliclyAccessible"),
                 "multi_az": instance.get("MultiAZ"),
                 "vpc_security_groups": [
-                    sg["VpcSecurityGroupId"]
-                    for sg in instance.get("VpcSecurityGroups", [])
+                    sg["VpcSecurityGroupId"] for sg in instance.get("VpcSecurityGroups", [])
                 ],
             },
             is_internet_facing=instance.get("PubliclyAccessible", False),
             is_sensitive_target=True,  # Databases are sensitive
         )
 
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # Check for public accessibility
         if instance.get("PubliclyAccessible"):
-            findings.append(Finding(
-                snapshot_id=self._snapshot_id,
-                asset_id=asset.id,
-                finding_type="rds-publicly-accessible",
-                severity=FindingSeverity.critical,
-                title=f"RDS instance {db_id} is publicly accessible",
-                description="Database is configured to be publicly accessible from the internet",
-                remediation="Disable public accessibility and use VPC endpoints or bastion hosts",
-            ))
+            findings.append(
+                Finding(
+                    snapshot_id=self._snapshot_id,
+                    asset_id=asset.id,
+                    finding_type="rds-publicly-accessible",
+                    severity=FindingSeverity.critical,
+                    title=f"RDS instance {db_id} is publicly accessible",
+                    description="Database is configured to be publicly accessible from the internet",
+                    remediation="Disable public accessibility and use VPC endpoints or bastion hosts",
+                )
+            )
 
         # Check for encryption
         if not instance.get("StorageEncrypted"):
-            findings.append(Finding(
-                snapshot_id=self._snapshot_id,
-                asset_id=asset.id,
-                finding_type="rds-not-encrypted",
-                severity=FindingSeverity.high,
-                title=f"RDS instance {db_id} is not encrypted",
-                description="Database storage is not encrypted at rest",
-                remediation="Enable storage encryption (requires database recreation)",
-            ))
+            findings.append(
+                Finding(
+                    snapshot_id=self._snapshot_id,
+                    asset_id=asset.id,
+                    finding_type="rds-not-encrypted",
+                    severity=FindingSeverity.high,
+                    title=f"RDS instance {db_id} is not encrypted",
+                    description="Database storage is not encrypted at rest",
+                    remediation="Enable storage encryption (requires database recreation)",
+                )
+            )
 
         return asset, findings
 
     def _normalize_cluster(
         self,
-        cluster: Dict[str, Any],
-    ) -> Tuple[Asset, List[Finding]]:
+        cluster: dict[str, Any],
+    ) -> tuple[Asset, list[Finding]]:
         """Normalize an RDS Aurora cluster."""
         cluster_id = cluster["DBClusterIdentifier"]
         cluster_arn = cluster["DBClusterArn"]
