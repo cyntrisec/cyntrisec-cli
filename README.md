@@ -91,6 +91,11 @@ cyntrisec report --output report.html
 Run Cyntrisec as an MCP server for AI agent integration:
 
 ```bash
+# Install with MCP support
+pip install "cyntrisec[mcp]"
+```
+
+```bash
 cyntrisec serve              # Start stdio server
 cyntrisec serve --list-tools # List available tools
 ```

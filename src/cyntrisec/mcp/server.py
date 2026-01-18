@@ -5,7 +5,6 @@ Exposes Cyntrisec capabilities as MCP tools that AI agents can invoke directly.
 
 Usage:
     cyntrisec serve            # Start MCP server (stdio transport)
-    cyntrisec serve --http     # Start HTTP server (for remote agents)
 """
 from __future__ import annotations
 
