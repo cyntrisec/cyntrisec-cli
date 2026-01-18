@@ -131,6 +131,13 @@ All suggested actions are informational.
 
 Every AWS API call is logged in CloudTrail under session name `cyntrisec-cli`.
 
+## Trust & Permissions
+
+Cyntrisec runs with a read-only IAM role. Generate the recommended policy with
+`cyntrisec setup iam <ACCOUNT_ID>` and keep permissions to `Describe*`, `Get*`,
+and `List*`. Live modes (`waste --live`, `can --live`) require extra IAM
+permissions; the generated policy and docs cover those additions.
+
 ## Output Format
 
 Primary output is JSON to stdout. When stdout is not a TTY, the CLI automatically switches to JSON:

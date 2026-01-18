@@ -1,0 +1,80 @@
+[
+  {
+    "id": "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
+    "source_asset_id": "22222222-2222-2222-2222-222222222222",
+    "target_asset_id": "44444444-4444-4444-4444-444444444444",
+    "path_asset_ids": [
+      "22222222-2222-2222-2222-222222222222",
+      "11111111-1111-1111-1111-111111111111",
+      "33333333-3333-3333-3333-333333333333",
+      "44444444-4444-4444-4444-444444444444"
+    ],
+    "path_relationship_ids": [
+      "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    ],
+    "attack_vector": "instance-compromise",
+    "path_length": 3,
+    "entry_confidence": 0.9,
+    "exploitability_score": 0.8,
+    "impact_score": 0.9,
+    "risk_score": 0.65,
+    "proof": {
+      "steps": [
+        {
+          "name": "sg-web"
+        },
+        {
+          "name": "entry-instance"
+        },
+        {
+          "name": "AdminRole"
+        },
+        {
+          "name": "prod-database"
+        }
+      ]
+    }
+  },
+  {
+    "id": "bbbbbbb2-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
+    "source_asset_id": "22222222-2222-2222-2222-222222222222",
+    "target_asset_id": "55555555-5555-5555-5555-555555555555",
+    "path_asset_ids": [
+      "22222222-2222-2222-2222-222222222222",
+      "11111111-1111-1111-1111-111111111111",
+      "33333333-3333-3333-3333-333333333333",
+      "55555555-5555-5555-5555-555555555555"
+    ],
+    "path_relationship_ids": [
+      "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    ],
+    "attack_vector": "data-exfiltration",
+    "path_length": 3,
+    "entry_confidence": 0.9,
+    "exploitability_score": 0.7,
+    "impact_score": 0.8,
+    "risk_score": 0.5,
+    "proof": {
+      "steps": [
+        {
+          "name": "sg-web"
+        },
+        {
+          "name": "entry-instance"
+        },
+        {
+          "name": "AdminRole"
+        },
+        {
+          "name": "public-bucket"
+        }
+      ]
+    }
+  }
+]

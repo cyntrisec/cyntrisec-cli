@@ -31,6 +31,10 @@ htmlcov/
 # Local data
 .cyntrisec/
 
+# Allow demo snapshots under scenarios
+!scenarios/demo-snapshots/.cyntrisec/
+!scenarios/demo-snapshots/.cyntrisec/**
+
 # Generated artifacts
 cyntrisec-report.html
 cyntrisec-remediation-plan.json

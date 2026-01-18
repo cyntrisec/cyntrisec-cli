@@ -1,0 +1,28 @@
+[
+  {
+    "id": "ccccccc1-cccc-cccc-cccc-cccccccccccc",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
+    "asset_id": "22222222-2222-2222-2222-222222222222",
+    "finding_type": "security_group_open_to_world",
+    "severity": "high",
+    "title": "Security group allows 0.0.0.0/0 ingress",
+    "description": "Inbound rule allows traffic from anywhere.",
+    "remediation": "Restrict ingress to known IP ranges.",
+    "evidence": {
+      "cidr": "0.0.0.0/0"
+    }
+  },
+  {
+    "id": "ccccccc2-cccc-cccc-cccc-cccccccccccc",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
+    "asset_id": "55555555-5555-5555-5555-555555555555",
+    "finding_type": "s3_public_bucket",
+    "severity": "critical",
+    "title": "S3 bucket is public",
+    "description": "Bucket allows public access.",
+    "remediation": "Enable Block Public Access and remove public ACLs.",
+    "evidence": {
+      "public": true
+    }
+  }
+]

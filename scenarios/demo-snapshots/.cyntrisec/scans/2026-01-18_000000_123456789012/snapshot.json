@@ -1,0 +1,17 @@
+{
+  "id": "00000000-0000-0000-0000-0000000000b2",
+  "aws_account_id": "123456789012",
+  "regions": [
+    "us-east-1"
+  ],
+  "status": "completed",
+  "asset_count": 6,
+  "relationship_count": 5,
+  "finding_count": 2,
+  "path_count": 2,
+  "scan_params": {
+    "role_arn": "arn:aws:iam::123456789012:role/CyntriSecReadOnly"
+  },
+  "started_at": "2026-01-18T00:00:00Z",
+  "completed_at": "2026-01-18T00:01:00Z"
+}

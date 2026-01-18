@@ -1,0 +1,15 @@
+[
+  {
+    "id": "ccccccc1-cccc-cccc-cccc-cccccccccccc",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000a1",
+    "asset_id": "22222222-2222-2222-2222-222222222222",
+    "finding_type": "security_group_open_to_world",
+    "severity": "high",
+    "title": "Security group allows 0.0.0.0/0 ingress",
+    "description": "Inbound rule allows traffic from anywhere.",
+    "remediation": "Restrict ingress to known IP ranges.",
+    "evidence": {
+      "cidr": "0.0.0.0/0"
+    }
+  }
+]
