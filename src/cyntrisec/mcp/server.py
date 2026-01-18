@@ -122,8 +122,7 @@ def create_mcp_server() -> "FastMCP":
     
     mcp = FastMCP(
         name="cyntrisec",
-        version=__version__,
-        description="AWS capability graph analysis and attack path discovery"
+        instructions="AWS capability graph analysis and attack path discovery"
     )
     session = SessionState()
 

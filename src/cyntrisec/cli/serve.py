@@ -80,8 +80,9 @@ def serve_cmd(
             exit_code=EXIT_CODE_MAP["usage"],
         )
 
-    console.print("[cyan]Starting MCP server (stdio transport)...[/cyan]", file=sys.stderr)
-    console.print("[dim]AI agents can now invoke Cyntrisec tools[/dim]", file=sys.stderr)
+    stderr_console = Console(file=sys.stderr)
+    stderr_console.print("[cyan]Starting MCP server (stdio transport)...[/cyan]")
+    stderr_console.print("[dim]AI agents can now invoke Cyntrisec tools[/dim]")
     try:
         run_mcp_server()
     except Exception as e:
