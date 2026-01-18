@@ -3,6 +3,19 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Publish target"
+        type: choice
+        options:
+          - pypi
+          - testpypi
+        default: testpypi
+      confirm_publish:
+        description: "Type 'publish' to confirm manual publish"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -30,4 +43,11 @@ jobs:
       run: python -m build
       
     - name: Publish package distributions to PyPI
+      if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_target == 'pypi' && inputs.confirm_publish == 'publish') }}
       uses: pypa/gh-action-pypi-publish@release/v1
+
+    - name: Publish package distributions to TestPyPI
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target == 'testpypi' && inputs.confirm_publish == 'publish' }}
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
