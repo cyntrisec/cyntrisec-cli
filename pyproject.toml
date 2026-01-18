@@ -30,6 +30,7 @@ dependencies = [
     "rich>=13.0",
     "boto3>=1.34",
     "pydantic>=2.4",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,10 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.1",
     "moto>=5.0",
+    "types-PyYAML",
+]
+mcp = [
+    "mcp>=0.1.0",
 ]
 
 [project.scripts]
