@@ -58,7 +58,7 @@ def remediate_cmd(
     execute_terraform: bool = typer.Option(
         False,
         "--execute-terraform",
-        help="Attempt to run terraform apply on the generated hints (requires terraform CLI, gated for safety)",
+        help="UNSAFE: execute terraform apply locally. Requires --enable-unsafe-write-mode.",
     ),
     terraform_plan: bool = typer.Option(
         False,

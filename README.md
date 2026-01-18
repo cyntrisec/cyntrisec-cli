@@ -67,7 +67,7 @@ cyntrisec report --output report.html
 |---------|-------------|
 | `cuts` | Find minimal fixes for attack paths |
 | `waste` | Find unused IAM permissions |
-| `remediate` | Generate Terraform remediation plan |
+| `remediate` | Generate or optionally apply Terraform plans (gated) |
 
 ### Policy Testing
 
@@ -122,12 +122,31 @@ should have only `Describe*`, `Get*`, `List*` permissions.
 All data stays on your local machine. Nothing is sent to external servers.
 Scan results are stored in `~/.cyntrisec/scans/`.
 
-### No Auto-Remediation
+### No Auto-Remediation (Default Safe Mode)
 
-The tool only analyzes. It never modifies your infrastructure.
-All suggested actions are informational.
+By default, Cyntrisec is **read-only** and **does not modify** your AWS infrastructure.
 
-### Auditable
+- It **analyzes** your account using read-only APIs.
+- It can **generate** remediation artifacts (e.g., Terraform modules) for you to review.
+- It does **not** apply changes automatically.
+
+### Optional Remediation Execution (Explicit Opt-In)
+
+Cyntrisec includes an **explicitly gated** path that can execute Terraform **only if you intentionally enable it**.
+
+This mode is:
+- **Disabled by default**
+- Requires `--enable-unsafe-write-mode`
+- Requires an additional explicit flag (e.g. `--execute-terraform`) to run Terraform
+- Intended for controlled environments (sandbox / CI with approvals), not unattended production
+
+If you do not pass these flags, Cyntrisec will never run `terraform apply`.
+
+### Write Operations
+
+Cyntrisec makes **no AWS write API calls** during scanning and analysis.
+
+The only supported "write" behavior is optional execution of Terraform **locally on your machine**, and only when explicitly enabled via unsafe flags.
 
 Every AWS API call is logged in CloudTrail under session name `cyntrisec-cli`.
 
