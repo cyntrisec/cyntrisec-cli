@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.3] - 2026-01-19
+### Fixed
+- Report format inference now handles dotfile outputs (.json/.html) on Windows
+- `can` JSON/agent output now validates with mode/disclaimer fields
+- Live policy simulation now tests correct S3 bucket vs object ARNs for `ListBucket` and object actions
+- Comply suggested actions now reference the first failing control
+
+### Added
+- `can` live proof now includes resources_tested for S3 actions
+
 ## [0.1.2] - 2026-01-19
 ### Fixed
 - MCP GraphBuilder.build() calls now use keyword arguments (fixes get_unused_permissions, get_remediations, check_access crashes)

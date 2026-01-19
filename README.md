@@ -1,5 +1,9 @@
 # Cyntrisec CLI
 
+[![PyPI](https://img.shields.io/pypi/v/cyntrisec)](https://pypi.org/project/cyntrisec/)
+[![Website](https://img.shields.io/badge/website-cyntrisec.com-blue)](https://cyntrisec.com/)
+[![Twitter](https://img.shields.io/badge/twitter-@cyntrisec-1DA1F2)](https://x.com/cyntrisec)
+
 AWS capability graph analysis and attack path discovery.
 
 A read-only CLI tool that:
@@ -8,6 +12,84 @@ A read-only CLI tool that:
 - Discovers attack paths from internet to sensitive targets
 - Identifies unused capabilities (blast radius reduction)
 - Outputs deterministic JSON with proof chains
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CYNTRISEC CLI                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                         CLI Layer (typer)                           │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │   │
+│  │  │  scan   │ │ analyze │ │  cuts   │ │  waste  │ │ report  │ ...   │   │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘       │   │
+│  └───────┼──────────┼──────────┼──────────┼──────────┼────────────────┘   │
+│          │          │          │          │          │                     │
+│  ┌───────▼──────────▼──────────▼──────────▼──────────▼────────────────┐   │
+│  │                         Core Engine                                 │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
+│  │  │    Graph     │  │    Paths     │  │  Compliance  │              │   │
+│  │  │  (AwsGraph)  │  │  (BFS/DFS)   │  │  (CIS/SOC2)  │              │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
+│  │  │    Cuts      │  │    Waste     │  │  Simulator   │              │   │
+│  │  │ (Min-Cut)    │  │  (Unused)    │  │  (IAM Eval)  │              │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│          │                                                                 │
+│  ┌───────▼────────────────────────────────────────────────────────────┐   │
+│  │                         AWS Layer                                   │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
+│  │  │  Collectors  │  │  Normalizers │  │ Relationship │              │   │
+│  │  │  (EC2, IAM,  │  │  (Asset →    │  │   Builder    │              │   │
+│  │  │   RDS, ...)  │  │   Schema)    │  │              │              │   │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│          │                                          │                      │
+│  ┌───────▼──────────────────────┐   ┌──────────────▼──────────────────┐   │
+│  │      Storage Layer           │   │         MCP Server              │   │
+│  │  ┌────────────┐ ┌─────────┐  │   │  ┌──────────────────────────┐  │   │
+│  │  │ Filesystem │ │ Memory  │  │   │  │  Tools: get_scan_summary │  │   │
+│  │  │ (~/.cyntri │ │ (tests) │  │   │  │  get_attack_paths, ...   │  │   │
+│  │  │   sec/)    │ │         │  │   │  └──────────────────────────┘  │   │
+│  │  └────────────┘ └─────────┘  │   │                                 │   │
+│  └──────────────────────────────┘   └─────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            AWS Account                                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │     IAM     │  │     EC2     │  │     RDS     │  │     S3      │  ...   │
+│  │  (Roles,    │  │ (Instances, │  │ (Databases) │  │  (Buckets)  │        │
+│  │  Policies)  │  │  SGs, VPCs) │  │             │  │             │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+┌──────────┐    AssumeRole     ┌──────────┐    Describe/Get/List    ┌─────────┐
+│   CLI    │ ─────────────────▶│   AWS    │ ◀─────────────────────▶ │  APIs   │
+│  (scan)  │                   │  Session │                         │(read-only)
+└────┬─────┘                   └──────────┘                         └─────────┘
+     │
+     ▼
+┌──────────┐    normalize      ┌──────────┐    build edges    ┌──────────────┐
+│Collectors│ ─────────────────▶│  Assets  │ ─────────────────▶│Relationships │
+└──────────┘                   └──────────┘                   └──────┬───────┘
+                                                                     │
+     ┌───────────────────────────────────────────────────────────────┘
+     ▼
+┌──────────┐    BFS/DFS        ┌──────────┐    min-cut        ┌──────────────┐
+│ AwsGraph │ ─────────────────▶│  Attack  │ ─────────────────▶│ Remediation  │
+│          │                   │  Paths   │                   │    Cuts      │
+└──────────┘                   └──────────┘                   └──────────────┘
+```
 
 ## Installation
 
@@ -58,8 +140,16 @@ cyntrisec report --output report.html
 | `scan` | Scan AWS infrastructure |
 | `analyze paths` | View attack paths |
 | `analyze findings` | View security findings |
+| `analyze stats` | View scan statistics |
 | `analyze business` | Business entrypoint analysis |
 | `report` | Generate HTML/JSON report |
+
+### Setup & Validation
+
+| Command | Description |
+|---------|-------------|
+| `setup iam` | Generate IAM role Terraform |
+| `validate-role` | Validate IAM role permissions |
 
 ### Remediation
 
@@ -227,3 +317,9 @@ This project follows Semantic Versioning. See `CHANGELOG.md` for release notes.
 ## License
 
 Apache-2.0
+
+## Links
+
+- [PyPI Package](https://pypi.org/project/cyntrisec/)
+- [Website](https://cyntrisec.com/)
+- [Twitter/X](https://x.com/cyntrisec)

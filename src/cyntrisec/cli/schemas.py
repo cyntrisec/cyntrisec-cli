@@ -206,6 +206,8 @@ class CanResponse(BaseSchema):
     can_access: bool
     simulations: list[CanSimulation]
     proof: dict[str, Any] = Field(default_factory=dict)
+    mode: str | None = None
+    disclaimer: str | None = None
 
 
 class DiffChange(BaseSchema):

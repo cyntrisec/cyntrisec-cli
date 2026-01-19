@@ -102,13 +102,14 @@ def comply_cmd(
         payload = _build_payload(results, fw, snapshot, show_passing)
         # Generate appropriate suggested actions based on compliance status
         if results.failing > 0:
+            first_failing = next((r for r in results.results if r.status != "pass"), None)
             actions = suggested_actions(
                 [
                     (
-                        f"cyntrisec explain control {results.results[0].control.id}"
-                        if results.results
+                        f"cyntrisec explain control {first_failing.control.id}"
+                        if first_failing
                         else "",
-                        "Explain top failing control" if results.results else "",
+                        "Explain top failing control" if first_failing else "",
                     ),
                     (
                         f"cyntrisec cuts --snapshot {scan_id}" if scan_id else "",

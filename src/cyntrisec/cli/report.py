@@ -22,10 +22,10 @@ from cyntrisec.cli.schemas import ReportResponse
 
 def _infer_format_from_extension(output_path: Path) -> str | None:
     """Infer output format from file extension."""
-    ext = output_path.suffix.lower()
-    if ext == ".html":
+    name = output_path.name.lower()
+    if name.endswith(".html"):
         return "html"
-    elif ext == ".json":
+    if name.endswith(".json"):
         return "json"
     return None
 

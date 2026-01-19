@@ -192,10 +192,11 @@ class PolicySimulator:
             actions_to_test = self._infer_actions(resource_arn)
 
         # Run simulation
+        resources_to_test = self._resources_for_actions(resource_arn, actions_to_test)
         simulations = self.simulate_principal_policy(
             principal_arn=principal_arn,
             actions=actions_to_test,
-            resources=[resource_arn],
+            resources=resources_to_test,
         )
 
         # Determine overall result - allowed if ANY action is allowed
@@ -205,6 +206,7 @@ class PolicySimulator:
         proof = {
             "principal": principal_arn,
             "resource": resource_arn,
+            "resources_tested": resources_to_test,
             "actions_tested": actions_to_test,
             "simulations": [
                 {
@@ -270,6 +272,37 @@ class PolicySimulator:
 
         # Default: test read access
         return ["*:Get*", "*:Describe*", "*:List*"]
+
+    def _resources_for_actions(self, resource_arn: str, actions: list[str]) -> list[str]:
+        """Build resource ARNs appropriate for the given actions."""
+        if ":s3:::" not in resource_arn:
+            return [resource_arn]
+
+        bucket_arn, object_arn = self._s3_variants(resource_arn)
+        resources: list[str] = []
+        if any(a.lower() == "s3:listbucket" for a in actions):
+            resources.append(bucket_arn)
+        if any(a.lower().startswith("s3:") and a.lower() != "s3:listbucket" for a in actions):
+            resources.append(object_arn)
+        if not resources:
+            resources = [object_arn]
+        return resources
+
+    def _s3_variants(self, resource_arn: str) -> tuple[str, str]:
+        """Return bucket ARN and object ARN variants for S3 resources."""
+        prefix = "arn:aws:s3:::"
+        if not resource_arn.startswith(prefix):
+            return resource_arn, resource_arn
+
+        suffix = resource_arn[len(prefix):]
+        if "/" in suffix:
+            bucket = suffix.split("/", 1)[0]
+            bucket_arn = f"{prefix}{bucket}"
+            object_arn = resource_arn
+        else:
+            bucket_arn = resource_arn
+            object_arn = f"{resource_arn}/*"
+        return bucket_arn, object_arn
 
 
 class OfflineSimulator:
