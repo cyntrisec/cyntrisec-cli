@@ -101,7 +101,8 @@ def _classify_query(query: str) -> dict:
 
     intents = {
         "attack_paths": ["reach", "path", "attack", "kill chain", "route"],
-        "public_s3": ["public", "bucket", "s3", "open"],
+        "public_s3": ["bucket", "s3"],  # Removed "public" - handled in scoring
+        "public_ec2": ["ec2", "instance", "server", "compute"],  # New intent for EC2
         "admin_roles": ["admin", "root", "privileged", "full access"],
         "compliance": ["compliance", "cis", "soc2", "benchmark"],
         "access_check": ["can", "access", "reach", "allowed"],
@@ -114,6 +115,12 @@ def _classify_query(query: str) -> dict:
         # boost if entities suggest buckets/roles
         if intent == "public_s3" and entities.get("buckets"):
             score += 2
+        # Boost S3 intent only if "public" AND "bucket" or "s3" are present
+        if intent == "public_s3" and "public" in q and ("bucket" in q or "s3" in q):
+            score += 3
+        # Boost EC2 intent if "public" AND EC2-related keywords are present
+        if intent == "public_ec2" and "public" in q and any(kw in q for kw in ["ec2", "instance", "server"]):
+            score += 3
         if intent == "admin_roles" and entities.get("roles"):
             score += 2
         if intent == "access_check" and (entities.get("arns") or entities.get("roles")):
@@ -191,6 +198,23 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
             ],
         }
 
+    if intent == "public_ec2":
+        assets = storage.get_assets(snapshot_id)
+        public_instances = [
+            {"name": a.name, "arn": a.arn or a.aws_resource_id, "public_ip": a.properties.get("public_ip")}
+            for a in assets
+            if a.asset_type == "ec2:instance"
+            and (a.properties.get("public_ip") or a.properties.get("public_dns_name"))
+        ]
+        return {
+            "results": {"public_ec2_instances": public_instances, "count": len(public_instances)},
+            "resolved_query": "list_public_ec2_instances",
+            "suggested_actions": [
+                ("cyntrisec explain finding ec2-public-ip", "See why public EC2 instances are risky"),
+                ("cyntrisec analyze paths --format agent", "Review attack paths involving these instances"),
+            ],
+        }
+
     if intent == "admin_roles":
         assets = storage.get_assets(snapshot_id)
         roles = [
@@ -213,24 +237,100 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
         }
 
     if intent == "access_check":
-        principal = entities["roles"][0] if entities.get("roles") else "<principal>"
-        resource = (
+        principal = entities["roles"][0] if entities.get("roles") else None
+        target = (
             entities["arns"][0]
             if entities.get("arns")
-            else (entities["buckets"][0] if entities.get("buckets") else "<resource>")
+            else (entities["buckets"][0] if entities.get("buckets") else None)
         )
+        
+        # Query graph data for access-related information
+        paths = storage.get_attack_paths(snapshot_id)
+        assets = storage.get_assets(snapshot_id)
+        
+        # Build asset lookup for matching targets
+        asset_lookup = {}
+        for a in assets:
+            asset_lookup[str(a.id)] = a
+            if a.arn:
+                asset_lookup[a.arn.lower()] = a
+            if a.name:
+                asset_lookup[a.name.lower()] = a
+            if a.aws_resource_id:
+                asset_lookup[a.aws_resource_id.lower()] = a
+        
+        # Find paths to/from the target
+        relevant_paths = []
+        if target:
+            target_lower = target.lower()
+            for p in paths:
+                target_asset = asset_lookup.get(str(p.target_asset_id))
+                source_asset = asset_lookup.get(str(p.source_asset_id))
+                
+                # Check if target matches the path's target or source
+                target_matches = (
+                    target_asset and (
+                        target_lower in (target_asset.arn or "").lower() or
+                        target_lower in (target_asset.name or "").lower() or
+                        target_lower in (target_asset.aws_resource_id or "").lower()
+                    )
+                )
+                source_matches = (
+                    source_asset and (
+                        target_lower in (source_asset.arn or "").lower() or
+                        target_lower in (source_asset.name or "").lower() or
+                        target_lower in (source_asset.aws_resource_id or "").lower()
+                    )
+                )
+                
+                if target_matches or source_matches:
+                    relevant_paths.append(p)
+        
+        # If we found relevant paths, return graph results
+        if relevant_paths:
+            top_paths = sorted(relevant_paths, key=lambda p: float(p.risk_score), reverse=True)[:5]
+            return {
+                "results": {
+                    "paths_to_target": len(relevant_paths),
+                    "target": target,
+                    "top_paths": [
+                        {
+                            "attack_vector": p.attack_vector,
+                            "risk_score": float(p.risk_score),
+                            "source": str(p.source_asset_id),
+                            "target": str(p.target_asset_id),
+                            "path_length": p.path_length,
+                        }
+                        for p in top_paths
+                    ],
+                },
+                "resolved_query": "graph_access_check",
+                "suggested_actions": [
+                    ("cyntrisec analyze paths --format agent", "View all attack paths"),
+                    ("cyntrisec cuts --format agent", "Get remediations to block paths"),
+                    (
+                        f"cyntrisec can <principal> access {target or '<resource>'} --live --format agent",
+                        "Run live access simulation for precise results",
+                    ),
+                ],
+            }
+        
+        # No paths found - return helpful response with graph context
+        principal_display = principal or "<principal>"
+        resource_display = target or "<resource>"
         return {
             "results": {
-                "message": "Use 'cyntrisec can' for precise access simulation.",
-                "principal": principal,
-                "resource": resource,
+                "paths_to_target": 0,
+                "target": target,
+                "message": f"No attack paths found to '{target}' in the graph. Use 'cyntrisec can' for precise access simulation.",
             },
-            "resolved_query": "simulate_access",
+            "resolved_query": "graph_access_check",
             "suggested_actions": [
                 (
-                    f"cyntrisec can {principal} access {resource} --format agent",
-                    "Run access simulation",
+                    f"cyntrisec can {principal_display} access {resource_display} --live --format agent",
+                    "Run live access simulation",
                 ),
+                ("cyntrisec analyze paths --format agent", "View all attack paths"),
             ],
         }
 

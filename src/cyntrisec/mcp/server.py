@@ -269,15 +269,15 @@ def _register_graph_tools(mcp, session):
         if not snapshot:
             return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found.")
 
-        graph = GraphBuilder().build(assets=assets, relationships=relationships)
-        simulator = OfflineSimulator(graph)
-        result = simulator.simulate(principal, resource)
+        # OfflineSimulator takes assets and relationships, not a graph
+        simulator = OfflineSimulator(assets=assets, relationships=relationships)
+        result = simulator.can_access(principal, resource)
 
         return {
             "principal": result.principal_arn,
-            "resource": result.resource_arn,
-            "can_access": result.allowed,
-            "via": result.via,
+            "resource": result.target_resource,
+            "can_access": result.can_access,
+            "via": result.proof.get("relationship_type", None),
         }
 
 
@@ -325,8 +325,8 @@ def _register_insight_tools(mcp, session):
                     "source": r.source_name,
                     "target": r.target_name,
                     "relationship_type": r.relationship_type,
-                    "paths_blocked": r.paths_blocked,
-                    "recommendation": r.recommendation,
+                    "paths_blocked": len(r.paths_blocked),
+                    "recommendation": r.description,  # Remediation uses 'description' not 'recommendation'
                 }
                 for r in result.remediations
             ],
@@ -352,25 +352,22 @@ def _register_insight_tools(mcp, session):
             )
 
         assets = session.get_assets(snapshot_id)
-        relationships = session.get_relationships(snapshot_id)
         session.set_snapshot(snapshot_id)
 
-        graph = GraphBuilder().build(assets=assets, relationships=relationships)
-        analyzer = WasteAnalyzer(graph, days_threshold=days_threshold)
-        results = analyzer.analyze_offline()
+        # WasteAnalyzer takes only days_threshold, then analyze_from_assets takes assets
+        analyzer = WasteAnalyzer(days_threshold=days_threshold)
+        report = analyzer.analyze_from_assets(assets=assets)
 
         return {
-            "total_unused": sum(r.unused_count for r in results),
-            "total_reduction": (
-                sum(r.blast_radius_reduction for r in results) / len(results) if results else 0
-            ),
+            "total_unused": report.total_unused,
+            "total_reduction": float(report.blast_radius_reduction),
             "roles": [
                 {
                     "role_name": r.role_name,
-                    "unused_count": r.unused_count,
+                    "unused_count": r.unused_services,
                     "blast_radius_reduction": float(r.blast_radius_reduction),
                 }
-                for r in results[:10]
+                for r in report.role_reports[:10]
             ],
         }
 

@@ -244,10 +244,14 @@ FINDING_TO_CONTROLS: dict[str, list[str]] = {
     "iam_no_mfa": ["CIS-AWS:1.10", "SOC2:CC6.2"],
     # S3 findings
     "s3_public_bucket": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.2", "SOC2:CC6.1"],
+    "s3-bucket-public-access-block": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.2", "SOC2:CC6.1"],
+    "s3-bucket-partial-public-access-block": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.5", "SOC2:CC6.1"],
     "s3_no_encryption": ["SOC2:CC6.6"],
     "s3_no_logging": ["CIS-AWS:2.1.5", "SOC2:CC7.1"],
     # EC2/Network findings
     "security_group_open_to_world": ["CIS-AWS:5.1", "SOC2:CC6.1"],
+    "security-group-open-to-world": ["CIS-AWS:5.1", "CIS-AWS:5.2", "SOC2:CC6.1"],
+    "ec2-public-ip": ["CIS-AWS:5.1", "CIS-AWS:5.2", "SOC2:CC6.1"],
     "vpc_default_sg_in_use": ["CIS-AWS:5.2", "SOC2:CC6.1"],
     "vpc_no_flow_logs": ["CIS-AWS:5.3", "SOC2:CC7.1"],
     "ec2_imdsv1": ["CIS-AWS:5.4", "SOC2:CC6.1"],

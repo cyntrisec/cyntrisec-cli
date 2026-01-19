@@ -20,6 +20,16 @@ from cyntrisec.cli.output import (
 from cyntrisec.cli.schemas import ReportResponse
 
 
+def _infer_format_from_extension(output_path: Path) -> str | None:
+    """Infer output format from file extension."""
+    ext = output_path.suffix.lower()
+    if ext == ".html":
+        return "html"
+    elif ext == ".json":
+        return "json"
+    return None
+
+
 @handle_errors
 def report_cmd(
     scan_id: str | None = typer.Option(
@@ -60,8 +70,14 @@ def report_cmd(
 
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
+    
+    # Infer format from output file extension if not explicitly specified
+    inferred_format = format
+    if inferred_format is None:
+        inferred_format = _infer_format_from_extension(output)
+    
     output_format = resolve_format(
-        format,
+        inferred_format,
         default_tty="html",
         allowed=["html", "json", "agent"],
     )

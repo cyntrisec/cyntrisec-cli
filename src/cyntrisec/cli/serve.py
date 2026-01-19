@@ -48,7 +48,12 @@ def serve_cmd(
     This allows AI agents to invoke Cyntrisec tools directly
     for security analysis, attack path discovery, and remediation.
 
+    Note: The server uses stdio transport and will exit if no client is connected.
+    Use with an MCP client (e.g., Claude Desktop, Cursor) that maintains the connection.
+
     Tools exposed:
+    - list_tools: List all available tools
+    - set_session_snapshot: Set active snapshot for session
     - get_scan_summary: Get latest scan stats
     - get_attack_paths: List discovered attack paths
     - get_remediations: Find optimal fixes
@@ -100,6 +105,16 @@ def serve_cmd(
 def _list_tools_data():
     """Return available MCP tools."""
     tools = [
+        {
+            "name": "list_tools",
+            "description": "List all available Cyntrisec tools",
+            "parameters": [],
+        },
+        {
+            "name": "set_session_snapshot",
+            "description": "Set active snapshot for session",
+            "parameters": [{"name": "snapshot_id", "type": "string", "required": False}],
+        },
         {
             "name": "get_scan_summary",
             "description": "Get summary of the latest AWS scan",

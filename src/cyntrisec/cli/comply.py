@@ -95,6 +95,9 @@ def comply_cmd(
     checker = ComplianceChecker()
     results = checker.check(findings, assets, framework=fw)
 
+    # Get scan_id for suggested actions
+    scan_id = storage.resolve_scan_id(snapshot_id)
+
     if output_format in {"json", "agent"}:
         payload = _build_payload(results, fw, snapshot, show_passing)
         # Generate appropriate suggested actions based on compliance status
@@ -108,8 +111,8 @@ def comply_cmd(
                         "Explain top failing control" if results.results else "",
                     ),
                     (
-                        f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
-                        "Map compliance fixes to attack path cuts" if snapshot else "",
+                        f"cyntrisec cuts --snapshot {scan_id}" if scan_id else "",
+                        "Map compliance fixes to attack path cuts" if scan_id else "",
                     ),
                 ]
             )
@@ -118,8 +121,8 @@ def comply_cmd(
             actions = suggested_actions(
                 [
                     (
-                        f"cyntrisec diff --snapshot {snapshot.id}" if snapshot else "",
-                        "Monitor for compliance drift" if snapshot else "",
+                        f"cyntrisec diff --old {scan_id}" if scan_id else "",
+                        "Monitor for compliance drift" if scan_id else "",
                     ),
                     (
                         "cyntrisec scan",

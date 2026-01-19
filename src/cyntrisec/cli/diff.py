@@ -123,11 +123,11 @@ def diff_cmd(
         actions = suggested_actions(
             [
                 (
-                    f"cyntrisec analyze paths --scan {new_snapshot or 'latest'}",
+                    f"cyntrisec analyze paths --scan {new_scan_id}",
                     "Review new attack paths",
                 ),
                 (
-                    f"cyntrisec cuts --snapshot {new_snapshot or 'latest'}",
+                    f"cyntrisec cuts --snapshot {new_scan_id}",
                     "Find fixes for new regressions",
                 ),
             ]

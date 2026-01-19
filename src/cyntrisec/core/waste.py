@@ -116,6 +116,19 @@ class WasteAnalyzer:
         self.days_threshold = days_threshold
         self._cutoff = datetime.utcnow() - timedelta(days=days_threshold)
 
+    def _is_aws_managed_role(self, role: Asset) -> bool:
+        """Check if role is AWS-managed and should be excluded from waste analysis."""
+        name = role.name or ""
+        arn = role.arn or role.aws_resource_id or ""
+        
+        # AWS service-linked roles
+        if name.startswith("AWSServiceRole"):
+            return True
+        if "/aws-service-role/" in arn:
+            return True
+        
+        return False
+
     def analyze_from_usage_reports(
         self,
         usage_reports: list[any],  # List[RoleUsageReport]
@@ -225,8 +238,11 @@ class WasteAnalyzer:
         # Fallback: simple heuristic-based analysis
         report = WasteReport()
 
-        # Find IAM roles
-        roles = [a for a in assets if a.asset_type == "iam:role"]
+        # Find IAM roles, excluding AWS-managed service roles
+        roles = [
+            a for a in assets 
+            if a.asset_type == "iam:role" and not self._is_aws_managed_role(a)
+        ]
 
         for role in roles:
             role_waste = RoleWasteReport(

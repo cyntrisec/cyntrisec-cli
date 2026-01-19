@@ -31,6 +31,14 @@ FINDING_EXPLANATIONS = {
         "fix": "Restrict the source IP to specific trusted ranges. Use VPN or bastion hosts for remote access instead of direct internet exposure.",
         "next_command": "cyntrisec cuts",
     },
+    "security-group-open-to-world": {
+        "title": "Security Group Open to World",
+        "severity": "HIGH",
+        "what": "A security group has an inbound rule allowing traffic from 0.0.0.0/0 (all IPs).",
+        "why": "This exposes the resource to the entire internet. Attackers can scan and probe the exposed ports, potentially leading to exploitation if vulnerabilities exist.",
+        "fix": "Restrict the source IP to specific trusted ranges. Use VPN or bastion hosts for remote access instead of direct internet exposure.",
+        "next_command": "cyntrisec cuts",
+    },
     "s3_public_bucket": {
         "title": "S3 Bucket Publicly Accessible",
         "severity": "CRITICAL",
@@ -38,6 +46,30 @@ FINDING_EXPLANATIONS = {
         "why": "Public buckets can be discovered and accessed by anyone. This is a leading cause of data breaches, exposing sensitive customer data, credentials, or intellectual property.",
         "fix": "Enable S3 Block Public Access at both bucket and account level. Review and remove any 'Principal: *' statements from bucket policies.",
         "next_command": "cyntrisec comply --framework cis-aws",
+    },
+    "s3-bucket-partial-public-access-block": {
+        "title": "S3 Bucket Missing Public Access Block",
+        "severity": "HIGH",
+        "what": "An S3 bucket does not have all public access block settings enabled.",
+        "why": "Partial public access blocks leave gaps that could allow unintended public access to bucket contents through ACLs or bucket policies.",
+        "fix": "Enable all four S3 Block Public Access settings: BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, RestrictPublicBuckets.",
+        "next_command": "cyntrisec comply --framework cis-aws",
+    },
+    "s3-bucket-public-access-block": {
+        "title": "S3 Bucket Public Access Block Disabled",
+        "severity": "HIGH",
+        "what": "An S3 bucket has public access block settings disabled.",
+        "why": "Without public access blocks, the bucket may be exposed to the internet through ACLs or bucket policies.",
+        "fix": "Enable S3 Block Public Access at both bucket and account level.",
+        "next_command": "cyntrisec comply --framework cis-aws",
+    },
+    "ec2-public-ip": {
+        "title": "EC2 Instance with Public IP",
+        "severity": "MEDIUM",
+        "what": "An EC2 instance has a public IP address assigned.",
+        "why": "Public IPs expose instances directly to the internet, increasing attack surface. Attackers can scan and probe exposed services.",
+        "fix": "Use private subnets with NAT gateways for outbound access. Use load balancers or bastion hosts for inbound access.",
+        "next_command": "cyntrisec analyze paths",
     },
     "iam_overly_permissive_trust": {
         "title": "Overly Permissive IAM Trust Policy",
@@ -168,7 +200,8 @@ def _explain_finding(finding_type: str, format: str):
             f"## Why does it matter?\n{explanation['why']}\n\n"
             f"## How to fix it?\n{explanation['fix']}\n"
         )
-        console.print(Markdown(md))
+        # Output raw markdown text, not Rich-rendered
+        typer.echo(md)
         return
 
     _render_finding_explanation(explanation)
@@ -211,7 +244,8 @@ def _explain_path(attack_vector: str, format: str):
             f"## Attack Stages\n" + "\n".join(explanation["stages"]) + "\n\n"
             "## Mitigations\n" + "\n".join(f"- {m}" for m in explanation["mitigations"])
         )
-        console.print(Markdown(md))
+        # Output raw markdown text, not Rich-rendered
+        typer.echo(md)
         return
 
     _render_path_explanation(explanation)
@@ -259,7 +293,8 @@ def _explain_control(control_id: str, format: str):
             f"{control.description}\n\n"
             f"**Severity:** {control.severity.upper()}\n"
         )
-        console.print(Markdown(md))
+        # Output raw markdown text, not Rich-rendered
+        typer.echo(md)
     else:
         console.print()
         console.print(

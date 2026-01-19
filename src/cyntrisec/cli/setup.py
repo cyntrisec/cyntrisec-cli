@@ -166,33 +166,33 @@ def _gen_terraform(account_id: str, role_name: str, external_id: str | None, pol
     """Generate Terraform configuration."""
     safe_name = role_name.lower().replace("-", "_")
 
-    ext_cond = ""
+    # Build assume role policy with proper Condition structure inside jsonencode
+    assume_statement = {
+        "Effect": "Allow",
+        "Principal": {"AWS": f"arn:aws:iam::{account_id}:root"},
+        "Action": "sts:AssumeRole",
+    }
     if external_id:
-        ext_cond = f'''
-    condition {{
-      test     = "StringEquals"
-      variable = "sts:ExternalId"
-      values   = ["{external_id}"]
-    }}'''
+        assume_statement["Condition"] = {
+            "StringEquals": {"sts:ExternalId": external_id}
+        }
 
+    assume_policy = {
+        "Version": "2012-10-17",
+        "Statement": [assume_statement],
+    }
+
+    # Format JSON for HCL embedding
+    assume_policy_json = json.dumps(assume_policy, indent=4)
     policy_json = json.dumps(policy, indent=4)
 
     return f'''# Cyntrisec Read-Only IAM Role
 # Usage: cyntrisec scan --role-arn <output.role_arn>{f" --external-id {external_id}" if external_id else ""}
 
-data "aws_caller_identity" "current" {{}}
-
 resource "aws_iam_role" "{safe_name}" {{
   name = "{role_name}"
 
-  assume_role_policy = jsonencode({{
-    Version = "2012-10-17"
-    Statement = [{{
-      Effect    = "Allow"
-      Principal = {{ AWS = "arn:aws:iam::${{data.aws_caller_identity.current.account_id}}:root" }}
-      Action    = "sts:AssumeRole"{ext_cond}
-    }}]
-  }})
+  assume_role_policy = jsonencode({assume_policy_json})
 
   tags = {{
     Purpose   = "Cyntrisec"

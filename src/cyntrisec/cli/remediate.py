@@ -496,8 +496,8 @@ def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
     if not shutil.which(terraform_cmd):
         return {"ok": False, "error": f"terraform command '{terraform_cmd}' not found"}
 
-    init_cmd = [terraform_cmd, "-chdir", tf_dir, "init", "-input=false"]
-    apply_cmd = [terraform_cmd, "-chdir", tf_dir, "apply", "-auto-approve"]
+    init_cmd = [terraform_cmd, f"-chdir={tf_dir}", "init", "-input=false"]
+    apply_cmd = [terraform_cmd, f"-chdir={tf_dir}", "apply", "-auto-approve"]
     try:
         init_result = subprocess.run(init_cmd, check=True, capture_output=True)
         apply_result = subprocess.run(apply_cmd, check=True, capture_output=True)
@@ -531,8 +531,8 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str) -> dict:
             "exit_code": None,
         }
 
-    init_cmd = [terraform_cmd, "-chdir", tf_dir, "init", "-input=false"]
-    plan_cmd = [terraform_cmd, "-chdir", tf_dir, "plan", "-input=false", "-no-color"]
+    init_cmd = [terraform_cmd, f"-chdir={tf_dir}", "init", "-input=false"]
+    plan_cmd = [terraform_cmd, f"-chdir={tf_dir}", "plan", "-input=false", "-no-color"]
     try:
         init_result = subprocess.run(init_cmd, check=True, capture_output=True)
         plan_result = subprocess.run(plan_cmd, check=True, capture_output=True)

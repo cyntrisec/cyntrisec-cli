@@ -150,9 +150,13 @@ def scan_cmd(
             for err in snapshot.errors
         ]
     
+    # Determine status based on errors
+    status = "completed_with_errors" if snapshot.errors else "success"
+    
     summary = {
         "scan_id": scan_id,
         "snapshot_id": str(snapshot.id),
+        "status": status,
         "account_id": snapshot.aws_account_id,
         "regions": snapshot.regions,
         "asset_count": snapshot.asset_count,

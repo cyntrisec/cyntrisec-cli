@@ -133,24 +133,27 @@ def can_cmd(
     else:
         result = _simulate_offline(principal_arn, resource, action, assets, relationships)
 
+    # Get scan_id for suggested actions
+    scan_id = storage.resolve_scan_id(snapshot_id)
+
     if output_format in {"json", "agent"}:
         payload = _build_payload(result, snapshot)
         followups = suggested_actions(
             [
                 (
-                    f"cyntrisec cuts --snapshot {snapshot.id}"
-                    if snapshot and result.can_access
+                    f"cyntrisec cuts --snapshot {scan_id}"
+                    if scan_id and result.can_access
                     else "",
                     "Identify changes that would block this access"
-                    if snapshot and result.can_access
+                    if scan_id and result.can_access
                     else "",
                 ),
                 (
-                    f"cyntrisec analyze paths --scan {snapshot.id}"
-                    if snapshot and not result.can_access
+                    f"cyntrisec analyze paths --scan {scan_id}"
+                    if scan_id and not result.can_access
                     else "",
                     "Review other risky paths from the latest scan"
-                    if snapshot and not result.can_access
+                    if scan_id and not result.can_access
                     else "",
                 ),
                 (
@@ -264,7 +267,7 @@ def _output_text(result, snapshot):
 
 def _build_payload(result, snapshot):
     """Build structured output for JSON/agent formats."""
-    return {
+    payload = {
         "snapshot_id": str(snapshot.id) if snapshot else None,
         "principal": result.principal_arn,
         "resource": result.target_resource,
@@ -283,3 +286,12 @@ def _build_payload(result, snapshot):
         else [],
         "proof": result.proof,
     }
+    
+    # Add mode and disclaimer for offline simulation
+    if not result.simulations:
+        payload["mode"] = "offline"
+        payload["disclaimer"] = "Offline results are based on graph relationships only. Use --live for authoritative policy simulation."
+    else:
+        payload["mode"] = "live"
+    
+    return payload
