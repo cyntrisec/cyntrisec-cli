@@ -24,6 +24,7 @@ class SnapshotStatus(str, Enum):
 
     running = "running"
     completed = "completed"
+    completed_with_errors = "completed_with_errors"
     failed = "failed"
 
 
@@ -71,6 +72,7 @@ class Snapshot(BaseSchema):
     # Metadata
     scan_params: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
+    errors: list[dict[str, Any]] | None = None
 
 
 class Asset(BaseSchema):

@@ -137,40 +137,55 @@ class FileSystemStorage(StorageBackend):
         self._write_json(scan_dir / "attack_paths.json", data)
 
     def get_snapshot(self, scan_id: str | None = None) -> Snapshot | None:
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            return None
         try:
-            scan_dir = self._get_scan_dir(scan_id)
+            scan_dir = self._get_scan_dir(resolved_id)
         except ValueError:
             return None
         data = self._read_json(scan_dir / "snapshot.json")
         return Snapshot.model_validate(data) if data else None
 
     def get_assets(self, scan_id: str | None = None) -> list[Asset]:
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            return []
         try:
-            scan_dir = self._get_scan_dir(scan_id)
+            scan_dir = self._get_scan_dir(resolved_id)
         except ValueError:
             return []
         data = self._read_json(scan_dir / "assets.json")
         return [Asset.model_validate(a) for a in (data or [])]
 
     def get_relationships(self, scan_id: str | None = None) -> list[Relationship]:
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            return []
         try:
-            scan_dir = self._get_scan_dir(scan_id)
+            scan_dir = self._get_scan_dir(resolved_id)
         except ValueError:
             return []
         data = self._read_json(scan_dir / "relationships.json")
         return [Relationship.model_validate(r) for r in (data or [])]
 
     def get_findings(self, scan_id: str | None = None) -> list[Finding]:
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            return []
         try:
-            scan_dir = self._get_scan_dir(scan_id)
+            scan_dir = self._get_scan_dir(resolved_id)
         except ValueError:
             return []
         data = self._read_json(scan_dir / "findings.json")
         return [Finding.model_validate(f) for f in (data or [])]
 
     def get_attack_paths(self, scan_id: str | None = None) -> list[AttackPath]:
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            return []
         try:
-            scan_dir = self._get_scan_dir(scan_id)
+            scan_dir = self._get_scan_dir(resolved_id)
         except ValueError:
             return []
         data = self._read_json(scan_dir / "attack_paths.json")
@@ -199,6 +214,46 @@ class FileSystemStorage(StorageBackend):
                 scans.append(item.name)
         return sorted(scans, reverse=True)  # Most recent first
 
+    def resolve_scan_id(self, identifier: str | None) -> str | None:
+        """
+        Resolve an identifier to a scan_id (directory name).
+
+        Accepts:
+        - scan_id (directory name): returned as-is if valid
+        - snapshot UUID: looks up the scan directory containing that snapshot
+        - None: returns latest scan_id
+
+        Returns:
+            scan_id (directory name) or None if not found
+        """
+        if identifier is None:
+            # Return latest scan_id
+            latest_link = self._base / "latest"
+            if latest_link.is_symlink():
+                return os.readlink(latest_link)
+            elif latest_link.exists() and latest_link.is_file():
+                # Windows fallback: file contains directory name
+                return latest_link.read_text().strip()
+            # No latest, try to get most recent scan
+            scans = self.list_scans()
+            return scans[0] if scans else None
+
+        # Check if it's already a valid scan directory
+        scan_dir = self._base / identifier
+        if scan_dir.is_dir():
+            return identifier
+
+        # Try to find by UUID - iterate through scans and check snapshot.id
+        for scan_id in self.list_scans():
+            scan_dir = self._base / scan_id
+            snapshot_path = scan_dir / "snapshot.json"
+            if snapshot_path.exists():
+                data = self._read_json(snapshot_path)
+                if data and str(data.get("id", "")) == identifier:
+                    return scan_id
+
+        return None
+
     def list_snapshots(self) -> list[Snapshot]:
         """List all available snapshots, sorted by date (most recent first)."""
         snapshots = []
@@ -211,4 +266,7 @@ class FileSystemStorage(StorageBackend):
 
     def get_scan_path(self, scan_id: str | None = None) -> Path:
         """Get the filesystem path for a scan directory."""
-        return self._get_scan_dir(scan_id)
+        resolved_id = self.resolve_scan_id(scan_id)
+        if resolved_id is None:
+            raise ValueError("No scan specified and no latest scan found")
+        return self._get_scan_dir(resolved_id)

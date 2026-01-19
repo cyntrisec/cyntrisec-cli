@@ -61,6 +61,14 @@ class CredentialProvider:
             )
         return self._base_session
 
+    def default_session(self) -> boto3.Session:
+        """
+        Return the base boto3 session (default credentials).
+
+        Uses the profile and region configured at initialization.
+        """
+        return self._get_base_session()
+
     def assume_role(
         self,
         role_arn: str,

@@ -97,20 +97,36 @@ def comply_cmd(
 
     if output_format in {"json", "agent"}:
         payload = _build_payload(results, fw, snapshot, show_passing)
-        actions = suggested_actions(
-            [
-                (
-                    f"cyntrisec explain control {results.results[0].control.id}"
-                    if results.results
-                    else "",
-                    "Explain top failing control" if results.results else "",
-                ),
-                (
-                    f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
-                    "Map compliance fixes to attack path cuts" if snapshot else "",
-                ),
-            ]
-        )
+        # Generate appropriate suggested actions based on compliance status
+        if results.failing > 0:
+            actions = suggested_actions(
+                [
+                    (
+                        f"cyntrisec explain control {results.results[0].control.id}"
+                        if results.results
+                        else "",
+                        "Explain top failing control" if results.results else "",
+                    ),
+                    (
+                        f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
+                        "Map compliance fixes to attack path cuts" if snapshot else "",
+                    ),
+                ]
+            )
+        else:
+            # Clean scan - no failing controls
+            actions = suggested_actions(
+                [
+                    (
+                        f"cyntrisec diff --snapshot {snapshot.id}" if snapshot else "",
+                        "Monitor for compliance drift" if snapshot else "",
+                    ),
+                    (
+                        "cyntrisec scan",
+                        "Run periodic scans to maintain compliance",
+                    ),
+                ]
+            )
         emit_agent_or_json(
             output_format,
             payload,

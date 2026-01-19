@@ -118,12 +118,40 @@ def scan_cmd(
     typer.echo(f"  Relationships: {snapshot.relationship_count}", err=True)
     typer.echo(f"  Findings: {snapshot.finding_count}", err=True)
     typer.echo(f"  Attack paths: {snapshot.path_count}", err=True)
+    
+    # Print warnings if there were partial failures
+    if snapshot.errors:
+        typer.echo("", err=True)
+        typer.echo("Warnings:", err=True)
+        for err in snapshot.errors:
+            service = err.get("service", "unknown")
+            region = err.get("region", "")
+            error_msg = err.get("error", "unknown error")
+            if region:
+                typer.echo(f"  - Failed to collect {service} in {region}: {error_msg}", err=True)
+            else:
+                typer.echo(f"  - Failed to collect {service}: {error_msg}", err=True)
+    
     typer.echo("", err=True)
     typer.echo("Run 'cyntrisec analyze paths' to view attack paths", err=True)
     typer.echo("Run 'cyntrisec report' to generate HTML report", err=True)
 
-    artifact_paths = build_artifact_paths(storage, snapshot.id)
+    # Get the scan_id (directory name) for use in suggested actions
+    scan_id = storage.resolve_scan_id(None)  # Get latest scan_id
+    artifact_paths = build_artifact_paths(storage, scan_id)
+    
+    # Build warnings from snapshot errors
+    warnings = None
+    if snapshot.errors:
+        warnings = [
+            f"Failed to collect {err.get('service', 'unknown')}"
+            + (f" in {err['region']}" if 'region' in err else "")
+            + f": {err.get('error', 'unknown error')}"
+            for err in snapshot.errors
+        ]
+    
     summary = {
+        "scan_id": scan_id,
         "snapshot_id": str(snapshot.id),
         "account_id": snapshot.aws_account_id,
         "regions": snapshot.regions,
@@ -131,13 +159,14 @@ def scan_cmd(
         "relationship_count": snapshot.relationship_count,
         "finding_count": snapshot.finding_count,
         "attack_path_count": snapshot.path_count,
+        "warnings": warnings,
     }
     followups = suggested_actions(
         [
-            (f"cyntrisec analyze paths --scan {snapshot.id}", "Review discovered attack paths"),
-            (f"cyntrisec cuts --snapshot {snapshot.id}", "Prioritize fixes that block paths"),
+            (f"cyntrisec analyze paths --scan {scan_id}", "Review discovered attack paths"),
+            (f"cyntrisec cuts --snapshot {scan_id}", "Prioritize fixes that block paths"),
             (
-                f"cyntrisec report --scan {snapshot.id} --output cyntrisec-report.html",
+                f"cyntrisec report --scan {scan_id} --output cyntrisec-report.html",
                 "Generate a full report",
             ),
         ]

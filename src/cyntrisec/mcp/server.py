@@ -64,47 +64,55 @@ class SessionState:
 
     def set_snapshot(self, snapshot_id: str | None) -> str | None:
         """Set or update the active snapshot id and clear cache if changed."""
-        if snapshot_id and snapshot_id != self.snapshot_id:
+        # Resolve the identifier to a scan_id (directory name)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id)
+        if resolved_id and resolved_id != self.snapshot_id:
             self._cache.clear()
-            self.snapshot_id = snapshot_id
-        elif snapshot_id is None and self.snapshot_id is None:
+            self.snapshot_id = resolved_id
+        elif resolved_id is None and self.snapshot_id is None:
             # Try to seed from latest snapshot if present
             snap = self.storage.get_snapshot()
             if snap:
-                self.snapshot_id = str(snap.id)
+                self.snapshot_id = self.storage.resolve_scan_id(None)
         return self.snapshot_id
 
     def _key(self, kind: str, snapshot_id: str | None) -> tuple[str, str | None]:
-        return (kind, snapshot_id or self.snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id) if snapshot_id else self.snapshot_id
+        return (kind, resolved_id or self.snapshot_id)
 
     def get_snapshot(self, snapshot_id: str | None = None):
-        snap = self.storage.get_snapshot(snapshot_id or self.snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id or self.snapshot_id)
+        snap = self.storage.get_snapshot(resolved_id)
         if snap and not self.snapshot_id:
-            self.snapshot_id = snapshot_id or str(snap.id)
+            self.snapshot_id = resolved_id or self.storage.resolve_scan_id(None)
         return snap
 
     def get_assets(self, snapshot_id: str | None = None):
-        key = self._key("assets", snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id or self.snapshot_id)
+        key = self._key("assets", resolved_id)
         if key not in self._cache:
-            self._cache[key] = self.storage.get_assets(snapshot_id or self.snapshot_id)
+            self._cache[key] = self.storage.get_assets(resolved_id)
         return self._cache[key]
 
     def get_relationships(self, snapshot_id: str | None = None):
-        key = self._key("relationships", snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id or self.snapshot_id)
+        key = self._key("relationships", resolved_id)
         if key not in self._cache:
-            self._cache[key] = self.storage.get_relationships(snapshot_id or self.snapshot_id)
+            self._cache[key] = self.storage.get_relationships(resolved_id)
         return self._cache[key]
 
     def get_paths(self, snapshot_id: str | None = None):
-        key = self._key("paths", snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id or self.snapshot_id)
+        key = self._key("paths", resolved_id)
         if key not in self._cache:
-            self._cache[key] = self.storage.get_attack_paths(snapshot_id or self.snapshot_id)
+            self._cache[key] = self.storage.get_attack_paths(resolved_id)
         return self._cache[key]
 
     def get_findings(self, snapshot_id: str | None = None):
-        key = self._key("findings", snapshot_id)
+        resolved_id = self.storage.resolve_scan_id(snapshot_id or self.snapshot_id)
+        key = self._key("findings", resolved_id)
         if key not in self._cache:
-            self._cache[key] = self.storage.get_findings(snapshot_id or self.snapshot_id)
+            self._cache[key] = self.storage.get_findings(resolved_id)
         return self._cache[key]
 
     def clear_cache(self) -> None:
@@ -189,6 +197,8 @@ def _register_session_tools(mcp, session):
         """
         return {
             "tools": [
+                {"name": "list_tools", "description": "List all available Cyntrisec tools"},
+                {"name": "set_session_snapshot", "description": "Set active snapshot for session"},
                 {"name": "get_scan_summary", "description": "Get summary of latest AWS scan"},
                 {"name": "get_attack_paths", "description": "Get discovered attack paths"},
                 {"name": "get_remediations", "description": "Find optimal fixes for attack paths"},
@@ -214,6 +224,12 @@ def _register_graph_tools(mcp, session):
         Returns:
             List of attack paths with risk scores and vectors.
         """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
         paths = session.get_paths(snapshot_id)
         session.set_snapshot(snapshot_id)
 
@@ -253,7 +269,7 @@ def _register_graph_tools(mcp, session):
         if not snapshot:
             return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found.")
 
-        graph = GraphBuilder().build(assets, relationships)
+        graph = GraphBuilder().build(assets=assets, relationships=relationships)
         simulator = OfflineSimulator(graph)
         result = simulator.simulate(principal, resource)
 
@@ -282,6 +298,12 @@ def _register_insight_tools(mcp, session):
         Returns:
             List of remediations with coverage percentages.
         """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
         assets = session.get_assets(snapshot_id)
         relationships = session.get_relationships(snapshot_id)
         paths = session.get_paths(snapshot_id)
@@ -290,7 +312,7 @@ def _register_insight_tools(mcp, session):
         if not paths:
             return {"total_paths": 0, "remediations": []}
 
-        graph = GraphBuilder().build(assets, relationships)
+        graph = GraphBuilder().build(assets=assets, relationships=relationships)
         finder = MinCutFinder()
         result = finder.find_cuts(graph, paths, max_cuts=max_cuts)
 
@@ -323,11 +345,17 @@ def _register_insight_tools(mcp, session):
         Returns:
             Unused permissions grouped by role with reduction percentages.
         """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
         assets = session.get_assets(snapshot_id)
         relationships = session.get_relationships(snapshot_id)
         session.set_snapshot(snapshot_id)
 
-        graph = GraphBuilder().build(assets, relationships)
+        graph = GraphBuilder().build(assets=assets, relationships=relationships)
         analyzer = WasteAnalyzer(graph, days_threshold=days_threshold)
         results = analyzer.analyze_offline()
 
@@ -359,6 +387,12 @@ def _register_insight_tools(mcp, session):
         Returns:
             Compliance score and failing controls.
         """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
         findings = session.get_findings(snapshot_id)
         assets = session.get_assets(snapshot_id)
         session.set_snapshot(snapshot_id)

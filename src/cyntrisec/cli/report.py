@@ -98,7 +98,6 @@ def report_cmd(
                 "snapshot_id": str(snapshot.id),
                 "account_id": snapshot.aws_account_id,
                 "output_path": str(output),
-                "format": "json",
                 "findings": len(data.get("findings", [])),
                 "paths": len(data.get("attack_paths", [])),
             },

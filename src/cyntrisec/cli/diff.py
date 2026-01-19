@@ -119,7 +119,7 @@ def diff_cmd(
     )
 
     if output_format in {"json", "agent"}:
-        payload = _build_payload(result, old_snap, new_snap)
+        payload = _build_payload(result, old_snap, new_snap, show_all)
         actions = suggested_actions(
             [
                 (
@@ -270,9 +270,9 @@ def _output_table(result, old_snap, new_snap, show_all: bool):
         console.print()
 
 
-def _build_payload(result, old_snap, new_snap):
+def _build_payload(result, old_snap, new_snap, show_all: bool = False):
     """Build structured output for JSON/agent formats."""
-    return {
+    payload = {
         "old_snapshot": {
             "id": str(old_snap.id),
             "account_id": old_snap.aws_account_id,
@@ -306,3 +306,27 @@ def _build_payload(result, old_snap, new_snap):
             for c in result.finding_changes
         ],
     }
+
+    # Include asset_changes and relationship_changes when show_all is True
+    if show_all:
+        payload["asset_changes"] = [
+            {
+                "change_type": c.change_type.value,
+                "asset_id": str(c.asset.id),
+                "asset_type": c.asset.asset_type,
+                "name": c.asset.name,
+            }
+            for c in result.asset_changes
+        ]
+        payload["relationship_changes"] = [
+            {
+                "change_type": c.change_type.value,
+                "relationship_id": str(c.relationship.id),
+                "relationship_type": c.relationship.relationship_type,
+                "source_id": str(c.relationship.source_asset_id),
+                "target_id": str(c.relationship.target_asset_id),
+            }
+            for c in result.relationship_changes
+        ]
+
+    return payload

@@ -98,7 +98,11 @@ def emit_agent_or_json(
 def build_artifact_paths(storage, snapshot_id: str | None) -> dict[str, str] | None:
     """Return key artifact paths for a snapshot, if available."""
     try:
-        scan_dir = storage.get_scan_path(snapshot_id)
+        # Resolve the identifier to a scan_id first
+        resolved_id = storage.resolve_scan_id(snapshot_id)
+        if not resolved_id:
+            return None
+        scan_dir = storage.get_scan_path(resolved_id)
     except Exception:
         return None
     if not scan_dir:

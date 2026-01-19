@@ -45,6 +45,7 @@ class AgentEnvelope(BaseSchema):
 
 
 class ScanResponse(BaseSchema):
+    scan_id: str
     snapshot_id: str
     account_id: str | None = None
     regions: list[str]
@@ -52,6 +53,7 @@ class ScanResponse(BaseSchema):
     relationship_count: int
     finding_count: int
     attack_path_count: int
+    warnings: list[str] | None = None
 
 
 class AttackPathOut(BaseSchema):
@@ -96,6 +98,18 @@ class AnalyzeFindingsResponse(BaseSchema):
     findings: list[FindingOut]
     total: int
     filter: str
+
+
+class AnalyzeStatsResponse(BaseSchema):
+    snapshot_id: str | None = None
+    scan_id: str | None = None
+    account_id: str | None = None
+    asset_count: int
+    relationship_count: int
+    finding_count: int
+    path_count: int
+    regions: list[str]
+    status: str
 
 
 class WasteCandidate(BaseSchema):
@@ -334,6 +348,7 @@ SCHEMA_REGISTRY = {
     "scan": ScanResponse,
     "analyze_paths": AnalyzePathsResponse,
     "analyze_findings": AnalyzeFindingsResponse,
+    "analyze_stats": AnalyzeStatsResponse,
     "analyze_business": BusinessAnalysisResponse,
     "cuts": CutsResponse,
     "waste": WasteResponse,

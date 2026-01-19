@@ -163,6 +163,17 @@ def remediate_cmd(
         )
 
     if output_format in {"json", "agent"}:
+        # Determine status and applied based on mode
+        if dry_run:
+            status = "dry_run"
+            applied = False
+        elif apply_output:
+            status = "applied"
+            applied = True
+        else:
+            status = "planned"
+            applied = False
+
         payload = {
             "snapshot_id": str(snapshot.id) if snapshot else None,
             "account_id": snapshot.aws_account_id if snapshot else None,
@@ -170,7 +181,7 @@ def remediate_cmd(
             "paths_blocked": result.paths_blocked,
             "coverage": result.coverage,
             "plan": plan,
-            "applied": bool(apply_output),
+            "applied": applied,
             "mode": mode,
             "output_path": apply_output["output_path"] if apply_output else None,
             "terraform_path": apply_output["terraform_path"] if apply_output else None,
@@ -190,7 +201,7 @@ def remediate_cmd(
             output_format,
             payload,
             suggested=actions,
-            status="applied" if apply_output else "planned",
+            status=status,
             artifact_paths=build_artifact_paths(storage, snapshot_id),
             schema=RemediateResponse,
         )
@@ -350,9 +361,10 @@ def _handle_apply_mode(
             exit_code=EXIT_CODE_MAP["usage"],
         )
 
-    mode = "apply" if apply else ("terraform-plan" if terraform_plan else "dry-run")
+    mode = "apply" if apply else ("terraform-plan" if terraform_plan else "dry_run")
 
-    if not yes:
+    # Skip confirmation for dry-run since it's safe (no actual changes)
+    if not dry_run and not yes:
         confirm = typer.confirm(
             "This will write the remediation plan to disk and mark actions as pending. Proceed?",
             default=False,

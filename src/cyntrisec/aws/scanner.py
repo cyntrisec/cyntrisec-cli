@@ -122,6 +122,7 @@ class AwsScanner:
         all_assets: list[Asset] = []
         all_relationships: list[Relationship] = []
         all_findings: list[Finding] = []
+        collector_errors: list[dict[str, str]] = []
 
         # Collect global resources (IAM, S3)
         log.info("Collecting global resources (IAM, S3)...")
@@ -134,6 +135,7 @@ class AwsScanner:
             log.info("  IAM: %d assets, %d relationships", len(assets), len(rels))
         except Exception as e:
             log.error("Error collecting IAM: %s", e)
+            collector_errors.append({"service": "iam", "error": str(e)})
 
         try:
             s3_data = S3Collector(session).collect_all()
@@ -144,6 +146,7 @@ class AwsScanner:
             log.info("  S3: %d assets, %d findings", len(assets), len(findings))
         except Exception as e:
             log.error("Error collecting S3: %s", e)
+            collector_errors.append({"service": "s3", "error": str(e)})
 
         # Collect regional resources
         for region in regions:
@@ -163,6 +166,7 @@ class AwsScanner:
                 log.info("  EC2: %d assets", len(assets))
             except Exception as e:
                 log.error("Error collecting EC2 in %s: %s", region, e)
+                collector_errors.append({"service": "ec2", "region": region, "error": str(e)})
 
             # Network (VPC, subnets, security groups)
             try:
@@ -178,6 +182,7 @@ class AwsScanner:
                 log.info("  Network: %d assets, %d relationships", len(assets), len(rels))
             except Exception as e:
                 log.error("Error collecting Network in %s: %s", region, e)
+                collector_errors.append({"service": "network", "region": region, "error": str(e)})
 
             # Lambda
             try:
@@ -193,6 +198,7 @@ class AwsScanner:
                 log.info("  Lambda: %d assets", len(assets))
             except Exception as e:
                 log.error("Error collecting Lambda in %s: %s", region, e)
+                collector_errors.append({"service": "lambda", "region": region, "error": str(e)})
 
             # RDS
             try:
@@ -208,6 +214,7 @@ class AwsScanner:
                 log.info("  RDS: %d assets", len(assets))
             except Exception as e:
                 log.error("Error collecting RDS in %s: %s", region, e)
+                collector_errors.append({"service": "rds", "region": region, "error": str(e)})
 
         # 4. Build cross-service relationships
         log.info("Building cross-service relationships...")
@@ -253,7 +260,11 @@ class AwsScanner:
 
         # 7. Finalize snapshot
         duration = time.monotonic() - start_time
-        snapshot.status = SnapshotStatus.completed
+        if collector_errors:
+            snapshot.status = SnapshotStatus.completed_with_errors
+            snapshot.errors = collector_errors
+        else:
+            snapshot.status = SnapshotStatus.completed
         snapshot.completed_at = datetime.utcnow()
         snapshot.asset_count = len(all_assets)
         snapshot.relationship_count = len(all_relationships)

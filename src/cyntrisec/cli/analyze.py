@@ -231,12 +231,19 @@ def analyze_findings(
 
 
 @analyze_app.command("stats")
+@handle_errors
 def analyze_stats(
     scan_id: str | None = typer.Option(
         None,
         "--scan",
         "-s",
         help="Scan ID (default: latest)",
+    ),
+    format: str | None = typer.Option(
+        None,
+        "--format",
+        "-f",
+        help="Output format: text, json, agent (defaults to json when piped)",
     ),
 ):
     """
@@ -245,15 +252,59 @@ def analyze_stats(
     from cyntrisec.storage import FileSystemStorage
 
     storage = FileSystemStorage()
+    output_format = resolve_format(
+        format,
+        default_tty="text",
+        allowed=["text", "json", "agent"],
+    )
 
     snapshot = storage.get_snapshot(scan_id)
     if not snapshot:
+        if output_format in {"json", "agent"}:
+            from cyntrisec.cli.errors import ErrorCode
+            emit_agent_or_json(
+                output_format,
+                {},
+                status="error",
+                error_code=ErrorCode.SNAPSHOT_NOT_FOUND.value,
+                message="No scan found.",
+            )
+            raise typer.Exit(2)
         typer.echo("No scan found.", err=True)
         raise typer.Exit(2)
 
     assets = storage.get_assets(scan_id)
     findings = storage.get_findings(scan_id)
     paths = storage.get_attack_paths(scan_id)
+    resolved_scan_id = storage.resolve_scan_id(scan_id)
+
+    if output_format in {"json", "agent"}:
+        from cyntrisec.cli.schemas import AnalyzeStatsResponse
+        payload = {
+            "snapshot_id": str(snapshot.id),
+            "scan_id": resolved_scan_id,
+            "account_id": snapshot.aws_account_id,
+            "asset_count": len(assets),
+            "relationship_count": snapshot.relationship_count,
+            "finding_count": len(findings),
+            "path_count": len(paths),
+            "regions": snapshot.regions,
+            "status": snapshot.status.value if hasattr(snapshot.status, 'value') else str(snapshot.status),
+        }
+        actions = suggested_actions(
+            [
+                (f"cyntrisec analyze paths --scan {resolved_scan_id or 'latest'}", "View attack paths"),
+                (f"cyntrisec analyze findings --scan {resolved_scan_id or 'latest'}", "View security findings"),
+            ]
+        )
+        emit_agent_or_json(
+            output_format,
+            payload,
+            suggested=actions,
+            artifact_paths=build_artifact_paths(storage, scan_id),
+            schema=AnalyzeStatsResponse,
+        )
+        raise typer.Exit(0)
 
     typer.echo("=== Scan Statistics ===")
     typer.echo("")
