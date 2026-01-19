@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.2] - 2026-01-19
+### Fixed
+- MCP GraphBuilder.build() calls now use keyword arguments (fixes get_unused_permissions, get_remediations, check_access crashes)
+- Scan ID vs snapshot UUID mismatch: storage now accepts both scan_id and snapshot UUID via resolve_scan_id()
+- CLI scan output now includes scan_id and suggested_actions use scan_id format
+- Live mode for `can --live` and `waste --live` now works (added default_session() to CredentialProvider)
+- Report command no longer emits invalid "format" field in JSON/agent output
+- MCP tools now return SNAPSHOT_NOT_FOUND when no scan data is loaded (instead of misleading empty/perfect results)
+- MCP list_tools now includes set_session_snapshot and list_tools itself
+- Partial scan failures now surface as warnings in output and set status to completed_with_errors
+- Remediate dry-run no longer prompts for confirmation and correctly reports status as "dry_run" with applied=false
+- Diff --all now populates asset_changes and relationship_changes in JSON/agent output
+- Comply suggested actions no longer reference "top failing control" when there are no failures
+
+### Added
+- `analyze stats --format` option for JSON/agent output consistency
+- AnalyzeStatsResponse schema for structured stats output
+- Manifest entries for: report, validate-role, setup iam, explain, analyze findings, analyze stats
+- Snapshot.errors field and completed_with_errors status for partial scan failure tracking
+
+### Changed
+- Manifest scan command: role_arn no longer required, added profile and format parameters
+- Manifest commands now include snapshot parameter where CLI supports it
+- Manifest format enums now include "agent" where CLI supports it
+- Manifest cuts/waste commands include cost-source parameter
+- Manifest waste command includes max-roles parameter
+- Manifest analyze paths includes min-risk and limit parameters
+
 ## [0.1.1] - 2026-01-18
 ### Fixed
 - MCP SDK 1.25.0 compatibility: removed unsupported `version` argument from FastMCP
