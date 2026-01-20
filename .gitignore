@@ -43,3 +43,6 @@ cyntrisec-remediation-tf/
 # OS
 .DS_Store
 Thumbs.db
+
+.kiro
+cyntrisec_v0.1.3_issue_reports
