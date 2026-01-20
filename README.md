@@ -36,8 +36,12 @@ A read-only CLI tool that:
 │  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
 │  │  │    Cuts      │  │    Waste     │  │  Simulator   │              │   │
-│  │  │ (Min-Cut)    │  │  (Unused)    │  │  (IAM Eval)  │              │   │
+│  │  │  (ROI/Min)   │  │  (Unused)    │  │  (IAM Eval)  │              │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘              │   │
+│  │  ┌──────────────┐                                                  │   │
+│  │  │ Cost Engine  │                                                  │   │
+│  │  │ (Estimator)  │                                                  │   │
+│  │  └──────────────┘                                                  │   │
 │  └────────────────────────────────────────────────────────────────────┘   │
 │          │                                                                 │
 │  ┌───────▼────────────────────────────────────────────────────────────┐   │
@@ -84,12 +88,16 @@ A read-only CLI tool that:
 │Collectors│ ─────────────────▶│  Assets  │ ─────────────────▶│Relationships │
 └──────────┘                   └──────────┘                   └──────┬───────┘
                                                                      │
-     ┌───────────────────────────────────────────────────────────────┘
+     ┌───────────────────────────────────────────────────────────────┐
      ▼
 ┌──────────┐    BFS/DFS        ┌──────────┐    min-cut        ┌──────────────┐
 │ AwsGraph │ ─────────────────▶│  Attack  │ ─────────────────▶│ Remediation  │
 │          │                   │  Paths   │                   │    Cuts      │
-└──────────┘                   └──────────┘                   └──────────────┘
+└──────────┘                   └──────────┘                   └──▲───────────┘
+                                                                 │ (ROI)
+                                                          ┌──────┴───────┐
+                                                          │ Cost Engine  │
+                                                          └──────────────┘
 ```
 
 ## Installation
@@ -193,7 +201,33 @@ cyntrisec serve --list-tools # List available tools
 
 **MCP Tools:** `get_scan_summary`, `get_attack_paths`, `get_remediations`, `check_access`, `get_unused_permissions`, `check_compliance`, `compare_scans`
 
-### Claude Desktop Config
+### Claude Desktop
+
+**MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "cyntrisec": {
+      "command": "python",
+      "args": ["-m", "cyntrisec", "serve"]
+    }
+  }
+}
+```
+
+### Claude Code (CLI)
+
+Run the following command to configure the server:
+
+```bash
+claude mcp add cyntrisec -- python -m cyntrisec serve
+```
+
+### Google Gemini / Antigravity
+
+Locate your agent configuration (e.g., `~/.gemini/antigravity/mcp_config.json`) and add:
 
 ```json
 {
