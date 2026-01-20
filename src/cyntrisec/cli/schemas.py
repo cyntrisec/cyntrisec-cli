@@ -149,6 +149,11 @@ class CutRemediation(BaseSchema):
     target: str | None = None
     paths_blocked: int
     path_ids: list[str] = Field(default_factory=list)
+    # Cost fields
+    estimated_monthly_savings: float | None = None
+    cost_source: str | None = None
+    cost_confidence: str | None = None
+    cost_assumptions: list[str] | None = None
 
 
 class CutsResponse(BaseSchema):

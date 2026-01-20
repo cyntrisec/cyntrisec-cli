@@ -20,7 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from cyntrisec.core.cost import CostEstimator
+from cyntrisec.core.cost_estimator import CostEstimator, CostEstimate
 from cyntrisec.core.graph import AwsGraph
 from cyntrisec.core.schema import AttackPath, CostCutCandidate, Relationship
 
