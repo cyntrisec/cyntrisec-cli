@@ -49,3 +49,6 @@ Thumbs.db
 
 .kiro
 cyntrisec_v0.1.3_issue_reports
+audit_debug.txt
+scan_output.txt
+test_output.log

@@ -92,25 +92,29 @@ class AwsScanner:
         datetime.utcnow()
         start_time = time.monotonic()
 
-        # 1. Get session - either via AssumeRole or default credentials
-        if role_arn:
-            log.info("Assuming role: %s", role_arn)
-            creds = CredentialProvider(profile=profile, region=regions[0])
-            session = creds.assume_role(
-                role_arn,
-                external_id=external_id,
-                session_name=role_session_name or "cyntrisec-scan",
-            )
-        else:
-            log.info("Using default AWS credentials")
-            import boto3
+        try:
+            if role_arn:
+                log.info("Assuming role: %s", role_arn)
+                creds = CredentialProvider(profile=profile, region=regions[0])
+                session = creds.assume_role(
+                    role_arn,
+                    external_id=external_id,
+                    session_name=role_session_name or "cyntrisec-scan",
+                )
+            else:
+                log.info("Using default AWS credentials")
+                import boto3
 
-            session = boto3.Session(profile_name=profile, region_name=regions[0])
+                session = boto3.Session(profile_name=profile, region_name=regions[0])
 
-        # Get account ID
-        identity = session.client("sts").get_caller_identity()
-        account_id = identity["Account"]
-        log.info("Connected to AWS account: %s", account_id)
+            # Get account ID
+            identity = session.client("sts").get_caller_identity()
+            account_id = identity["Account"]
+            log.info("Connected to AWS account: %s", account_id)
+        except Exception as e:
+            # Catch-all for credential/connection errors during init
+            print(f"DEBUG: Caught exception in scanner: {type(e)} {e}")
+            raise ConnectionError(f"Failed to authenticate with AWS: {e}") from e
 
         # 2. Initialize storage
         scan_id = self._storage.new_scan(account_id)

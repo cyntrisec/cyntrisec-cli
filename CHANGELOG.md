@@ -10,8 +10,10 @@ Semantic Versioning.
 - **ROI Prioritization**: Updated `cuts` command and `MinCutFinder` to prioritize remediations based on ROI (Security + Cost Savings)
 - **MCP Enhancements**: Exposed `estimated_savings` and `roi_score` in `get_remediations` MCP tool
 - **Verification Scripts**: Added `verify_phase2.py` for cost/ROI logic validation
+- **Security Audit**: Completed adversarial audit (Phase 2.5) verifying input safety and resilience
 
 ### Fixed
+- **Scanner UX**: Improved error handling for invalid AWS credentials (now raises friendly `ConnectionError` instead of crashing)
 - **Relationship Regression**: Fixed issue where `MAY_ACCESS` edges (Role -> Sensitive Target) were not being created
 - **Test Mocking**: Corrected mock patching for `AwsScanner` and `FileSystemStorage` in unit tests
 - **Schema Validation**: Fixed `cuts` command JSON output schema to include cost fields

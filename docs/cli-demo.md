@@ -1,121 +1,22 @@
-# Cyntrisec CLI - Demo Outputs (Sanitized)
+# Cyntrisec CLI - Demo Outputs
 
-Generated: 2026-01-18 00:21:49 UTC
+Generated: 2026-01-20 15:33:08.554963 UTC
 
-This file is generated from synthetic demo data only. It contains no real AWS account data.
-All IDs, ARNs, and paths are placeholders.
+This file is generated from synthetic demo data only.
 
-## Command coverage
-| Command | Exit code | Notes |
-| --- | --- | --- |
-| cyntrisec scan | n/a | Live AWS command. Sample output included below. |
-| cyntrisec validate-role | n/a | Live AWS command. Sample output included below. |
-| cyntrisec manifest | 0 | ok |
-| cyntrisec serve --list-tools | 0 | ok |
-| cyntrisec setup iam | 0 | ok |
-| cyntrisec analyze paths | 0 | ok |
-| cyntrisec analyze findings | 0 | ok |
-| cyntrisec analyze business | 0 | ok |
-| cyntrisec analyze stats | 0 | ok |
-| cyntrisec cuts | 0 | ok |
-| cyntrisec waste | 0 | ok |
-| cyntrisec can | 0 | ok |
-| cyntrisec comply | 1 | non-zero exit (compliance failures) |
-| cyntrisec diff | 1 | non-zero exit (regressions detected) |
-| cyntrisec remediate (dry-run) | 0 | ok |
-| cyntrisec report | 0 | ok |
-| cyntrisec ask | 0 | ok |
-| cyntrisec explain finding | 0 | ok |
-| cyntrisec explain path | 0 | ok |
-| cyntrisec explain control | 0 | ok |
+## Command Outputs
 
-## Sample output: cyntrisec scan (synthetic)
+### cyntrisec manifest
+```bash
+cyntrisec manifest --format agent
 ```
-python -m cyntrisec scan --role-arn arn:aws:iam::123456789012:role/CyntriSecReadOnly --regions us-east-1 --format agent
 ```
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "account_id": "123456789012",
-    "regions": [
-      "us-east-1"
-    ],
-    "asset_count": 6,
-    "relationship_count": 5,
-    "finding_count": 2,
-    "attack_path_count": 2
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/...",
-    "snapshot": "<demo_home>/.../snapshot.json",
-    "assets": "<demo_home>/.../assets.json",
-    "relationships": "<demo_home>/.../relationships.json",
-    "attack_paths": "<demo_home>/.../attack_paths.json",
-    "findings": "<demo_home>/.../findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec analyze paths --scan <scan_id>",
-      "reason": "Review discovered attack paths"
-    },
-    {
-      "command": "cyntrisec cuts --snapshot <scan_id>",
-      "reason": "Prioritize fixes that block paths"
-    },
-    {
-      "command": "cyntrisec report --scan <scan_id> --output cyntrisec-report.html",
-      "reason": "Generate a full report"
-    }
-  ]
-}
-```
-
-## Sample output: cyntrisec validate-role (synthetic)
-```
-python -m cyntrisec validate-role --role-arn arn:aws:iam::123456789012:role/CyntriSecReadOnly --format agent
-```
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "success": true,
-    "role_arn": "arn:aws:iam::123456789012:role/CyntriSecReadOnly",
-    "account": "123456789012",
-    "arn": "arn:aws:sts::123456789012:assumed-role/CyntriSecReadOnly/cyntrisec-validate",
-    "user_id": "AROAEXAMPLE:cyntrisec-validate"
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec scan --role-arn arn:aws:iam::123456789012:role/CyntriSecReadOnly",
-      "reason": "Start a scan"
-    }
-  ]
-}
-```
-
-## cyntrisec manifest
-```
-python -m cyntrisec manifest --format agent
-```
-Exit code: 0
-
-Output:
-```json
 {
   "schema_version": "1.0",
   "status": "success",
   "data": {
     "name": "cyntrisec",
-    "version": "0.1.0",
+    "version": "0.1.4",
     "description": "AWS capability graph analysis and attack path discovery",
     "capabilities": [
       {
@@ -125,8 +26,8 @@ Output:
           {
             "name": "role_arn",
             "type": "string",
-            "required": true,
-            "description": "AWS IAM role ARN to assume for scanning"
+            "required": false,
+            "description": "AWS IAM role ARN to assume for scanning (uses default credentials if not provided)"
           },
           {
             "name": "external_id",
@@ -142,25 +43,55 @@ Output:
               "us-east-1"
             ],
             "description": "AWS regions to scan"
+          },
+          {
+            "name": "profile",
+            "type": "string",
+            "required": false,
+            "description": "AWS CLI profile for base credentials"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
           }
         ],
         "output": {
           "type": "object",
           "properties": {
+            "scan_id": {
+              "type": "string"
+            },
             "snapshot_id": {
               "type": "string"
             },
-            "assets": {
+            "account_id": {
+              "type": "string"
+            },
+            "regions": {
+              "type": "array"
+            },
+            "asset_count": {
               "type": "integer"
             },
-            "relationships": {
+            "relationship_count": {
               "type": "integer"
             },
-            "findings": {
+            "finding_count": {
               "type": "integer"
             },
-            "attack_paths": {
+            "attack_path_count": {
               "type": "integer"
+            },
+            "warnings": {
+              "type": "array"
             }
           }
         },
@@ -189,9 +120,23 @@ Output:
             "default": "table",
             "enum": [
               "table",
-              "json"
+              "json",
+              "agent"
             ],
             "description": "Output format"
+          },
+          {
+            "name": "snapshot",
+            "type": "string",
+            "required": false,
+            "description": "Specific snapshot ID (default: latest)"
+          },
+          {
+            "name": "cost_source",
+            "type": "string",
+            "required": false,
+            "default": "estimate",
+            "description": "Cost data source: estimate (static), pricing-api, cost-explorer"
           }
         ],
         "output": {
@@ -245,9 +190,30 @@ Output:
             "default": "table",
             "enum": [
               "table",
-              "json"
+              "json",
+              "agent"
             ],
             "description": "Output format"
+          },
+          {
+            "name": "snapshot",
+            "type": "string",
+            "required": false,
+            "description": "Specific snapshot ID (default: latest)"
+          },
+          {
+            "name": "cost_source",
+            "type": "string",
+            "required": false,
+            "default": "estimate",
+            "description": "Cost data source: estimate (static), pricing-api, cost-explorer"
+          },
+          {
+            "name": "max_roles",
+            "type": "integer",
+            "required": false,
+            "default": 20,
+            "description": "Maximum number of roles to analyze (API throttling)"
           }
         ],
         "output": {
@@ -311,6 +277,24 @@ Output:
             "required": false,
             "default": false,
             "description": "Use AWS Policy Simulator API"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
+          },
+          {
+            "name": "snapshot",
+            "type": "string",
+            "required": false,
+            "description": "Specific snapshot ID (default: latest)"
           }
         ],
         "output": {
@@ -364,9 +348,17 @@ Output:
             "default": "table",
             "enum": [
               "table",
-              "json"
+              "json",
+              "agent"
             ],
             "description": "Output format"
+          },
+          {
+            "name": "all",
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "Show all changes including assets and relationships"
           }
         ],
         "output": {
@@ -418,9 +410,16 @@ Output:
             "default": "table",
             "enum": [
               "table",
-              "json"
+              "json",
+              "agent"
             ],
             "description": "Output format"
+          },
+          {
+            "name": "snapshot",
+            "type": "string",
+            "required": false,
+            "description": "Specific snapshot ID (default: latest)"
           }
         ],
         "output": {
@@ -464,9 +463,30 @@ Output:
             "default": "table",
             "enum": [
               "table",
-              "json"
+              "json",
+              "agent"
             ],
             "description": "Output format"
+          },
+          {
+            "name": "scan",
+            "type": "string",
+            "required": false,
+            "description": "Scan ID (default: latest)"
+          },
+          {
+            "name": "min_risk",
+            "type": "number",
+            "required": false,
+            "default": 0.0,
+            "description": "Minimum risk score (0-1)"
+          },
+          {
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "default": 20,
+            "description": "Maximum number of paths to show"
           }
         ],
         "output": {
@@ -562,7 +582,7 @@ Output:
       },
       {
         "name": "remediate",
-        "description": "Generate remediation plan to block attack paths",
+        "description": "Generate remediation plan or optionally execute Terraform (gated)",
         "parameters": [
           {
             "name": "max_cuts",
@@ -586,6 +606,13 @@ Output:
             "description": "Simulate apply and write plan/IaC artifacts"
           },
           {
+            "name": "execute_terraform",
+            "type": "boolean",
+            "required": false,
+            "default": false,
+            "description": "UNSAFE: execute terraform apply locally. Requires --enable-unsafe-write-mode."
+          },
+          {
             "name": "terraform_plan",
             "type": "boolean",
             "required": false,
@@ -602,7 +629,7 @@ Output:
             "name": "enable_unsafe_write_mode",
             "type": "boolean",
             "required": false,
-            "description": "Required to run apply/terraform"
+            "description": "Required to allow --apply/--execute-terraform (defaults to off for safety)"
           },
           {
             "name": "terraform_dir",
@@ -696,6 +723,394 @@ Output:
           "scan",
           "analyze paths"
         ]
+      },
+      {
+        "name": "report",
+        "description": "Generate HTML or JSON report from scan results",
+        "parameters": [
+          {
+            "name": "scan",
+            "type": "string",
+            "required": false,
+            "description": "Scan ID (default: latest)"
+          },
+          {
+            "name": "output",
+            "type": "string",
+            "required": false,
+            "default": "cyntrisec-report.html",
+            "description": "Output file path"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "required": false,
+            "description": "Report title"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "html",
+            "enum": [
+              "html",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "snapshot_id": {
+              "type": "string"
+            },
+            "account_id": {
+              "type": "string"
+            },
+            "output_path": {
+              "type": "string"
+            },
+            "findings": {
+              "type": "integer"
+            },
+            "paths": {
+              "type": "integer"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "success",
+          "2": "error"
+        },
+        "example": "cyntrisec report --output report.html",
+        "suggested_after": [
+          "scan"
+        ]
+      },
+      {
+        "name": "validate-role",
+        "description": "Validate that an IAM role can be assumed",
+        "parameters": [
+          {
+            "name": "role_arn",
+            "type": "string",
+            "required": true,
+            "description": "IAM role ARN to validate"
+          },
+          {
+            "name": "external_id",
+            "type": "string",
+            "required": false,
+            "description": "External ID for role assumption"
+          },
+          {
+            "name": "profile",
+            "type": "string",
+            "required": false,
+            "description": "AWS CLI profile for base credentials"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "role_arn": {
+              "type": "string"
+            },
+            "account": {
+              "type": "string"
+            },
+            "arn": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "role valid",
+          "1": "role invalid",
+          "2": "error"
+        },
+        "example": "cyntrisec validate-role --role-arn arn:aws:iam::123:role/Scanner"
+      },
+      {
+        "name": "setup iam",
+        "description": "Generate IAM role template for Cyntrisec scanning",
+        "parameters": [
+          {
+            "name": "account_id",
+            "type": "string",
+            "required": true,
+            "description": "AWS account ID (12 digits)"
+          },
+          {
+            "name": "role_name",
+            "type": "string",
+            "required": false,
+            "default": "CyntrisecReadOnly",
+            "description": "Name for the IAM role"
+          },
+          {
+            "name": "external_id",
+            "type": "string",
+            "required": false,
+            "description": "External ID for extra security"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "terraform",
+            "enum": [
+              "terraform",
+              "cloudformation",
+              "policy"
+            ],
+            "description": "Template format"
+          },
+          {
+            "name": "output",
+            "type": "string",
+            "required": false,
+            "description": "Output file path"
+          },
+          {
+            "name": "output_format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "agent"
+            ],
+            "description": "Render format for CLI output"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "account_id": {
+              "type": "string"
+            },
+            "role_name": {
+              "type": "string"
+            },
+            "external_id": {
+              "type": "string"
+            },
+            "template_format": {
+              "type": "string"
+            },
+            "template": {
+              "type": "string"
+            },
+            "output_path": {
+              "type": "string"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "success",
+          "2": "error"
+        },
+        "example": "cyntrisec setup iam 123456789012 --output role.tf"
+      },
+      {
+        "name": "explain",
+        "description": "Get natural language explanation of paths, controls, or findings",
+        "parameters": [
+          {
+            "name": "category",
+            "type": "string",
+            "required": true,
+            "enum": [
+              "finding",
+              "path",
+              "control"
+            ],
+            "description": "Category to explain: finding, path, control"
+          },
+          {
+            "name": "identifier",
+            "type": "string",
+            "required": true,
+            "description": "Identifier of the item to explain"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "markdown",
+              "agent"
+            ],
+            "description": "Output format"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "explanation": {
+              "type": "object"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "success",
+          "2": "error"
+        },
+        "example": "cyntrisec explain finding security_group_open_to_world --format agent"
+      },
+      {
+        "name": "analyze findings",
+        "description": "View security findings from the latest scan",
+        "parameters": [
+          {
+            "name": "scan",
+            "type": "string",
+            "required": false,
+            "description": "Scan ID (default: latest)"
+          },
+          {
+            "name": "severity",
+            "type": "string",
+            "required": false,
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ],
+            "description": "Filter by severity"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "table",
+            "enum": [
+              "table",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "findings": {
+              "type": "array"
+            },
+            "total": {
+              "type": "integer"
+            },
+            "filter": {
+              "type": "string"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "success",
+          "2": "error"
+        },
+        "example": "cyntrisec analyze findings --severity high --format json",
+        "suggested_after": [
+          "scan"
+        ]
+      },
+      {
+        "name": "analyze stats",
+        "description": "View summary statistics from the latest scan",
+        "parameters": [
+          {
+            "name": "scan",
+            "type": "string",
+            "required": false,
+            "description": "Scan ID (default: latest)"
+          },
+          {
+            "name": "format",
+            "type": "string",
+            "required": false,
+            "default": "text",
+            "enum": [
+              "text",
+              "json",
+              "agent"
+            ],
+            "description": "Output format"
+          }
+        ],
+        "output": {
+          "type": "object",
+          "properties": {
+            "snapshot_id": {
+              "type": "string"
+            },
+            "scan_id": {
+              "type": "string"
+            },
+            "account_id": {
+              "type": "string"
+            },
+            "asset_count": {
+              "type": "integer"
+            },
+            "relationship_count": {
+              "type": "integer"
+            },
+            "finding_count": {
+              "type": "integer"
+            },
+            "path_count": {
+              "type": "integer"
+            },
+            "regions": {
+              "type": "array"
+            },
+            "status": {
+              "type": "string"
+            }
+          }
+        },
+        "exit_codes": {
+          "0": "success",
+          "2": "error"
+        },
+        "example": "cyntrisec analyze stats --format json",
+        "suggested_after": [
+          "scan"
+        ]
       }
     ],
     "schemas": {
@@ -705,8 +1120,16 @@ Output:
         "scan": {
           "additionalProperties": false,
           "properties": {
+            "scan_id": {
+              "title": "Scan Id",
+              "type": "string"
+            },
             "snapshot_id": {
               "title": "Snapshot Id",
+              "type": "string"
+            },
+            "status": {
+              "title": "Status",
               "type": "string"
             },
             "account_id": {
@@ -743,10 +1166,27 @@ Output:
             "attack_path_count": {
               "title": "Attack Path Count",
               "type": "integer"
+            },
+            "warnings": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Warnings"
             }
           },
           "required": [
+            "scan_id",
             "snapshot_id",
+            "status",
             "regions",
             "asset_count",
             "relationship_count",
@@ -990,6 +1430,84 @@ Output:
           "title": "AnalyzeFindingsResponse",
           "type": "object"
         },
+        "analyze_stats": {
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Snapshot Id"
+            },
+            "scan_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Scan Id"
+            },
+            "account_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Account Id"
+            },
+            "asset_count": {
+              "title": "Asset Count",
+              "type": "integer"
+            },
+            "relationship_count": {
+              "title": "Relationship Count",
+              "type": "integer"
+            },
+            "finding_count": {
+              "title": "Finding Count",
+              "type": "integer"
+            },
+            "path_count": {
+              "title": "Path Count",
+              "type": "integer"
+            },
+            "regions": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Regions",
+              "type": "array"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "asset_count",
+            "relationship_count",
+            "finding_count",
+            "path_count",
+            "regions",
+            "status"
+          ],
+          "title": "AnalyzeStatsResponse",
+          "type": "object"
+        },
         "analyze_business": {
           "$defs": {
             "BusinessAsset": {
@@ -1224,6 +1742,57 @@ Output:
                   },
                   "title": "Path Ids",
                   "type": "array"
+                },
+                "estimated_monthly_savings": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Estimated Monthly Savings"
+                },
+                "cost_source": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Cost Source"
+                },
+                "cost_confidence": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Cost Confidence"
+                },
+                "cost_assumptions": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Cost Assumptions"
                 }
               },
               "required": [
@@ -1597,6 +2166,30 @@ Output:
               "additionalProperties": true,
               "title": "Proof",
               "type": "object"
+            },
+            "mode": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mode"
+            },
+            "disclaimer": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Disclaimer"
             }
           },
           "required": [
@@ -1797,6 +2390,55 @@ Output:
               ],
               "title": "ControlResult",
               "type": "object"
+            },
+            "DataGap": {
+              "additionalProperties": false,
+              "properties": {
+                "control_id": {
+                  "title": "Control Id",
+                  "type": "string"
+                },
+                "reason": {
+                  "title": "Reason",
+                  "type": "string"
+                },
+                "required_assets": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Required Assets"
+                },
+                "services": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Services"
+                }
+              },
+              "required": [
+                "control_id",
+                "reason"
+              ],
+              "title": "DataGap",
+              "type": "object"
             }
           },
           "additionalProperties": false,
@@ -1823,6 +2465,21 @@ Output:
               },
               "title": "Controls",
               "type": "array"
+            },
+            "data_gaps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/DataGap"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Data Gaps"
             }
           },
           "required": [
@@ -2509,145 +3166,11 @@ Output:
 }
 ```
 
-## cyntrisec serve --list-tools
+### cyntrisec analyze paths
+```bash
+cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
 ```
-python -m cyntrisec serve --list-tools --format agent
 ```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "tools": [
-      {
-        "name": "get_scan_summary",
-        "description": "Get summary of the latest AWS scan",
-        "parameters": []
-      },
-      {
-        "name": "get_attack_paths",
-        "description": "Get discovered attack paths with risk scores",
-        "parameters": [
-          {
-            "name": "max_paths",
-            "type": "integer",
-            "default": 10
-          }
-        ]
-      },
-      {
-        "name": "get_remediations",
-        "description": "Find minimal set of fixes to block attack paths",
-        "parameters": [
-          {
-            "name": "max_cuts",
-            "type": "integer",
-            "default": 5
-          }
-        ]
-      },
-      {
-        "name": "check_access",
-        "description": "Test if a principal can access a resource",
-        "parameters": [
-          {
-            "name": "principal",
-            "type": "string",
-            "required": true
-          },
-          {
-            "name": "resource",
-            "type": "string",
-            "required": true
-          }
-        ]
-      },
-      {
-        "name": "get_unused_permissions",
-        "description": "Find unused IAM permissions",
-        "parameters": [
-          {
-            "name": "days_threshold",
-            "type": "integer",
-            "default": 90
-          }
-        ]
-      },
-      {
-        "name": "check_compliance",
-        "description": "Check CIS AWS or SOC 2 compliance",
-        "parameters": [
-          {
-            "name": "framework",
-            "type": "string",
-            "enum": [
-              "cis-aws",
-              "soc2"
-            ],
-            "default": "cis-aws"
-          }
-        ]
-      },
-      {
-        "name": "compare_scans",
-        "description": "Compare latest scan to previous for regressions",
-        "parameters": []
-      }
-    ]
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": null
-}
-```
-
-## cyntrisec setup iam
-```
-python -m cyntrisec setup iam 123456789012 --format policy --output-format agent
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "account_id": "123456789012",
-    "role_name": "CyntrisecReadOnly",
-    "external_id": null,
-    "template_format": "policy",
-    "template": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"CyntrisecReadOnly\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"ec2:Describe*\",\n        \"iam:Get*\",\n        \"iam:List*\",\n        \"s3:GetBucketAcl\",\n        \"s3:GetBucketPolicy\",\n        \"s3:GetBucketPolicyStatus\",\n        \"s3:GetBucketPublicAccessBlock\",\n        \"s3:GetBucketLocation\",\n        \"s3:ListBucket\",\n        \"s3:ListAllMyBuckets\",\n        \"lambda:GetFunction\",\n        \"lambda:GetFunctionConfiguration\",\n        \"lambda:GetPolicy\",\n        \"lambda:ListFunctions\",\n        \"rds:Describe*\",\n        \"elasticloadbalancing:Describe*\",\n        \"route53:List*\",\n        \"route53:Get*\",\n        \"cloudfront:Get*\",\n        \"cloudfront:List*\",\n        \"apigateway:GET\",\n        \"sts:GetCallerIdentity\"\n      ],\n      \"Resource\": \"*\"\n    }\n  ]\n}",
-    "output_path": null
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec validate-role --role-arn arn:aws:iam::123456789012:role/CyntrisecReadOnly",
-      "reason": "Verify trust and permissions"
-    },
-    {
-      "command": "cyntrisec scan --role-arn <role_arn>",
-      "reason": "Kick off the first scan"
-    }
-  ]
-}
-```
-
-## cyntrisec analyze paths
-```
-python -m cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
-```
-Exit code: 0
-
-Output:
-```json
 {
   "schema_version": "1.0",
   "status": "success",
@@ -2738,16 +3261,16 @@ Output:
   "message": null,
   "error_code": null,
   "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
+    "snapshot_dir": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012",
+    "snapshot": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\snapshot.json",
+    "assets": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\assets.json",
+    "relationships": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\relationships.json",
+    "attack_paths": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\attack_paths.json",
+    "findings": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\findings.json"
   },
   "suggested_actions": [
     {
-      "command": "cyntrisec cuts --snapshot 2026-01-18_000000_123456789012",
+      "command": "cyntrisec cuts --snapshot 00000000-0000-0000-0000-0000000000b2",
       "reason": "Prioritize fixes that block these paths"
     },
     {
@@ -2758,245 +3281,34 @@ Output:
 }
 ```
 
-## cyntrisec analyze findings
+### cyntrisec cuts (ROI Table)
+```bash
+cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format table
 ```
-python -m cyntrisec analyze findings --scan 2026-01-18_000000_123456789012 --format agent
 ```
-Exit code: 0
++------------------------------ cyntrisec cuts -------------------------------+
+| Minimal Cut Analysis                                                        |
+| Account: 123456789012                                                       |
+| Attack Paths: 2 -> 2 blocked (100% coverage)                                |
++-----------------------------------------------------------------------------+
 
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "findings": [
-      {
-        "id": "ccccccc2-cccc-cccc-cccc-cccccccccccc",
-        "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-        "asset_id": "55555555-5555-5555-5555-555555555555",
-        "finding_type": "s3_public_bucket",
-        "severity": "critical",
-        "title": "S3 bucket is public",
-        "description": "Bucket allows public access.",
-        "remediation": "Enable Block Public Access and remove public ACLs.",
-        "evidence": {
-          "public": true
-        }
-      },
-      {
-        "id": "ccccccc1-cccc-cccc-cccc-cccccccccccc",
-        "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-        "asset_id": "22222222-2222-2222-2222-222222222222",
-        "finding_type": "security_group_open_to_world",
-        "severity": "high",
-        "title": "Security group allows 0.0.0.0/0 ingress",
-        "description": "Inbound rule allows traffic from anywhere.",
-        "remediation": "Restrict ingress to known IP ranges.",
-        "evidence": {
-          "cidr": "0.0.0.0/0"
-        }
-      }
-    ],
-    "total": 2,
-    "filter": "any"
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec explain finding s3_public_bucket",
-      "reason": "See remediation context for the most common finding"
-    },
-    {
-      "command": "cyntrisec comply --format agent",
-      "reason": "Map findings to compliance controls"
-    }
-  ]
-}
+                              Top 2 Remediations                               
++-----------------------------------------------------------------------------+
+| #   |   Blocks | Action          | Remediation                              |
+|-----+----------+-----------------+------------------------------------------|
+| 1   |  1 paths | restrict_policy | Restrict AdminRole access to             |
+|     |          |                 | prod-database                            |
+| 2   |  1 paths | restrict        | Remove 0.0.0.0/0 ingress from sg-web     |
++-----------------------------------------------------------------------------+
+
+All 2 attack paths can be blocked with 2 changes.
 ```
 
-## cyntrisec analyze business
+### cyntrisec cuts (JSON with Cost)
+```bash
+cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format json
 ```
-python -m cyntrisec analyze business --scan 2026-01-18_000000_123456789012 --business-tag Environment=prod,Critical=true --report --format agent
 ```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "entrypoints_requested": [],
-    "entrypoints_found": [
-      "prod-database"
-    ],
-    "attackable_count": 5,
-    "business_required_count": 1,
-    "waste_candidate_count": 4,
-    "waste_candidates": [
-      {
-        "name": "sg-web",
-        "asset_type": "ec2:security-group",
-        "reason": "in attack paths",
-        "asset_id": "22222222-2222-2222-2222-222222222222",
-        "monthly_cost_usd": null
-      },
-      {
-        "name": "entry-instance",
-        "asset_type": "ec2:instance",
-        "reason": "in attack paths",
-        "asset_id": "11111111-1111-1111-1111-111111111111",
-        "monthly_cost_usd": 50.0
-      },
-      {
-        "name": "AdminRole",
-        "asset_type": "iam:role",
-        "reason": "in attack paths",
-        "asset_id": "33333333-3333-3333-3333-333333333333",
-        "monthly_cost_usd": null
-      },
-      {
-        "name": "public-bucket",
-        "asset_type": "s3:bucket",
-        "reason": "in attack paths",
-        "asset_id": "55555555-5555-5555-5555-555555555555",
-        "monthly_cost_usd": 5.0
-      }
-    ],
-    "business_assets": [
-      {
-        "name": "prod-database",
-        "asset_type": "rds:db-instance",
-        "reason": "tags",
-        "asset_id": "44444444-4444-4444-4444-444444444444",
-        "tags": {
-          "Environment": "prod",
-          "Critical": "true"
-        }
-      }
-    ],
-    "unknown_assets": [
-      {
-        "name": "sg-web",
-        "asset_type": "ec2:security-group",
-        "reason": "attackable_not_business",
-        "asset_id": "22222222-2222-2222-2222-222222222222",
-        "tags": {
-          "Environment": "prod"
-        }
-      },
-      {
-        "name": "entry-instance",
-        "asset_type": "ec2:instance",
-        "reason": "attackable_not_business",
-        "asset_id": "11111111-1111-1111-1111-111111111111",
-        "tags": {
-          "Environment": "prod"
-        }
-      },
-      {
-        "name": "AdminRole",
-        "asset_type": "iam:role",
-        "reason": "attackable_not_business",
-        "asset_id": "33333333-3333-3333-3333-333333333333",
-        "tags": {
-          "Owner": "security"
-        }
-      },
-      {
-        "name": "public-bucket",
-        "asset_type": "s3:bucket",
-        "reason": "attackable_not_business",
-        "asset_id": "55555555-5555-5555-5555-555555555555",
-        "tags": {
-          "Environment": "prod"
-        }
-      }
-    ]
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec waste --format agent",
-      "reason": "Review unused permissions/waste"
-    },
-    {
-      "command": "cyntrisec cuts --format agent",
-      "reason": "Prioritize fixes to reduce attackable surface"
-    },
-    {
-      "command": "cyntrisec analyze business --report --format agent",
-      "reason": "Show full business coverage report"
-    }
-  ]
-}
-```
-
-## cyntrisec analyze stats
-```
-python -m cyntrisec analyze stats --scan 2026-01-18_000000_123456789012
-```
-Exit code: 0
-
-Output:
-```
-=== Scan Statistics ===
-
-Account: 123456789012
-Regions: us-east-1
-Status: completed
-Started: 2026-01-18 00:00:00+00:00
-Completed: 2026-01-18 00:01:00+00:00
-
---- Counts ---
-Assets: 6
-Findings: 2
-Attack paths: 2
-
---- Assets by Type ---
-  ec2:security-group: 1
-  ec2:instance: 1
-  iam:role: 1
-  rds:db-instance: 1
-  s3:bucket: 1
-  lambda:function: 1
-
---- Findings by Severity ---
-  critical: 1
-  high: 1
-
---- Attack Paths ---
-  Highest risk: 0.650
-  Average risk: 0.575
-```
-
-## cyntrisec cuts
-```
-python -m cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format agent
-```
-Exit code: 0
-
-Output:
-```json
 {
   "schema_version": "1.0",
   "status": "success",
@@ -3009,564 +3321,99 @@ Output:
     "remediations": [
       {
         "priority": 1,
+        "action": "restrict_policy",
+        "description": "Restrict AdminRole access to prod-database",
+        "relationship_type": "MAY_ACCESS",
+        "source": "AdminRole",
+        "target": "prod-database",
+        "paths_blocked": 1,
+        "path_ids": [
+          "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        ],
+        "estimated_monthly_savings": 49.64,
+        "cost_source": "estimate",
+        "cost_confidence": "unknown",
+        "cost_assumptions": [
+          "Unknown RDS class - estimate uses median of known classes"
+        ]
+      },
+      {
+        "priority": 2,
         "action": "restrict",
         "description": "Remove 0.0.0.0/0 ingress from sg-web",
         "relationship_type": "ALLOWS_TRAFFIC_TO",
         "source": "sg-web",
         "target": "entry-instance",
-        "paths_blocked": 2,
+        "paths_blocked": 1,
         "path_ids": [
-          "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
           "bbbbbbb2-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-        ]
+        ],
+        "estimated_monthly_savings": null,
+        "cost_source": null,
+        "cost_confidence": null,
+        "cost_assumptions": null
       }
     ]
   },
   "message": null,
   "error_code": null,
   "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
+    "snapshot_dir": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012",
+    "snapshot": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\snapshot.json",
+    "assets": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\assets.json",
+    "relationships": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\relationships.json",
+    "attack_paths": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\attack_paths.json",
+    "findings": "<demo_home>\\.cyntrisec\\scans\\2026-01-18_000000_123456789012\\findings.json"
   },
   "suggested_actions": [
     {
-      "command": "cyntrisec can sg-web access entry-instance",
+      "command": "cyntrisec can AdminRole access prod-database",
       "reason": "Verify the highest-priority remediation closes access"
     },
     {
-      "command": "cyntrisec report --scan 00000000-0000-0000-0000-0000000000b2",
+      "command": "cyntrisec report --scan 2026-01-18_000000_123456789012",
       "reason": "Export a full report for stakeholders"
     }
   ]
 }
 ```
 
-## cyntrisec waste
+### cyntrisec waste
+```bash
+cyntrisec waste --snapshot 2026-01-18_000000_123456789012 --format table
 ```
-python -m cyntrisec waste --snapshot 2026-01-18_000000_123456789012 --format agent
 ```
-Exit code: 0
++------------------------------ cyntrisec waste ------------------------------+
+| Unused Permissions Analysis                                                 |
+| Account: 123456789012                                                       |
+| Threshold: 90 days                                                          |
+| Unused: 0 / 0 permissions                                                   |
+| Blast Radius Reduction: 0%                                                  |
++-----------------------------------------------------------------------------+
 
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "account_id": "123456789012",
-    "days_threshold": 90,
-    "total_permissions": 1,
-    "total_unused": 1,
-    "blast_radius_reduction": 1.0,
-    "roles": [
-      {
-        "role_arn": "arn:aws:iam::123456789012:role/AdminRole",
-        "role_name": "AdminRole",
-        "total_services": 1,
-        "unused_services": 1,
-        "reduction": 1.0,
-        "unused_capabilities": [
-          {
-            "service": "*",
-            "service_name": "All Services",
-            "days_unused": null,
-            "risk_level": "high",
-            "recommendation": "Review AdminRole - broad name suggests over-permissioning",
-            "monthly_cost_usd_estimate": null,
-            "cost_source": null,
-            "confidence": null,
-            "assumptions": null
-          }
-        ]
-      }
-    ]
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec comply --snapshot 2026-01-18_000000_123456789012 --format agent",
-      "reason": "Connect unused permissions to compliance gaps"
-    },
-    {
-      "command": "cyntrisec cuts --snapshot 2026-01-18_000000_123456789012",
-      "reason": "Prioritize fixes that remove risky unused permissions"
-    }
-  ]
-}
+No obvious waste found.
+Run with --live for detailed IAM Access Advisor analysis.
 ```
 
-## cyntrisec can
+### cyntrisec can
+```bash
+cyntrisec can --snapshot 2026-01-18_000000_123456789012 Admin access s3://prod-bucket --format json
 ```
-python -m cyntrisec can AdminRole access arn:aws:rds:us-east-1:123456789012:db:prod-database --snapshot 2026-01-18_000000_123456789012 --format agent
 ```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "principal": "arn:aws:iam::123456789012:role/AdminRole",
-    "resource": "arn:aws:rds:us-east-1:123456789012:db:prod-database",
-    "action": "*",
-    "can_access": true,
-    "simulations": [],
-    "proof": {
-      "relationship_type": "MAY_ACCESS",
-      "properties": {}
-    }
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec cuts --snapshot 00000000-0000-0000-0000-0000000000b2",
-      "reason": "Identify changes that would block this access"
-    },
-    {
-      "command": "cyntrisec can arn:aws:iam::123456789012:role/AdminRole access arn:aws:rds:us-east-1:123456789012:db:prod-database --live",
-      "reason": "Validate against live IAM policy simulation"
-    }
-  ]
-}
+Error:
 ```
 
-## cyntrisec comply
+### cyntrisec ask
+```bash
+cyntrisec ask --snapshot 2026-01-18_000000_123456789012 'what can reach the database?' --format text
 ```
-python -m cyntrisec comply --snapshot 2026-01-18_000000_123456789012 --format agent
 ```
-Exit code: 1
++------------------------------- cyntrisec ask -------------------------------+
+| Query: what can reach the database?                                         |
+| Intent: access_check                                                        |
+| Snapshot: 123456789012                                                      |
++-----------------------------------------------------------------------------+
+No attack paths found to 'what can reach the database?' in the graph.
 
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "framework": "CIS-AWS",
-    "compliance_score": 0.7692307692307693,
-    "passing": 10,
-    "failing": 3,
-    "controls": [
-      {
-        "id": "2.1.1",
-        "title": "Ensure S3 bucket Block Public Access is enabled",
-        "status": "fail",
-        "severity": "high",
-        "description": "Ensure S3 bucket Block Public Access is enabled"
-      },
-      {
-        "id": "2.1.2",
-        "title": "Ensure S3 bucket Block Public Access at account level",
-        "status": "fail",
-        "severity": "high",
-        "description": "Ensure S3 bucket Block Public Access at account level"
-      },
-      {
-        "id": "5.1",
-        "title": "Ensure no open Security Groups to 0.0.0.0/0",
-        "status": "fail",
-        "severity": "high",
-        "description": "Ensure no open Security Groups to 0.0.0.0/0"
-      }
-    ]
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec explain control 1.4",
-      "reason": "Explain top failing control"
-    },
-    {
-      "command": "cyntrisec cuts --snapshot 00000000-0000-0000-0000-0000000000b2",
-      "reason": "Map compliance fixes to attack path cuts"
-    }
-  ]
-}
-```
-
-## cyntrisec diff
-```
-python -m cyntrisec diff --format agent
-```
-Exit code: 1
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "regressions",
-  "data": {
-    "has_regressions": true,
-    "has_improvements": false,
-    "summary": {
-      "assets_added": 0,
-      "assets_removed": 0,
-      "relationships_added": 0,
-      "relationships_removed": 0,
-      "paths_added": 1,
-      "paths_removed": 0,
-      "findings_new": 1,
-      "findings_resolved": 0
-    },
-    "path_changes": [
-      {
-        "change_type": "added",
-        "path_id": null,
-        "detail": {},
-        "attack_vector": "data-exfiltration",
-        "risk_score": 0.5,
-        "is_regression": true,
-        "is_improvement": false
-      }
-    ],
-    "old_snapshot": {
-      "id": "00000000-0000-0000-0000-0000000000a1",
-      "account_id": "123456789012",
-      "timestamp": "2026-01-17T00:00:00+00:00"
-    },
-    "new_snapshot": {
-      "id": "00000000-0000-0000-0000-0000000000b2",
-      "account_id": "123456789012",
-      "timestamp": "2026-01-18T00:00:00+00:00"
-    },
-    "finding_changes": [
-      {
-        "change_type": "added",
-        "severity": "critical",
-        "title": "S3 bucket is public",
-        "is_regression": true
-      }
-    ],
-    "asset_changes": null,
-    "relationship_changes": null
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec analyze paths --scan latest",
-      "reason": "Review new attack paths"
-    },
-    {
-      "command": "cyntrisec cuts --snapshot latest",
-      "reason": "Find fixes for new regressions"
-    }
-  ]
-}
-```
-
-## cyntrisec remediate (dry-run)
-```
-python -m cyntrisec remediate --snapshot 2026-01-18_000000_123456789012 --format agent --dry-run --enable-unsafe-write-mode --yes --output <demo_home>\remediation-plan.json --terraform-dir <demo_home>\remediation-tf
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "applied",
-  "data": {
-    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "account_id": "123456789012",
-    "total_paths": 2,
-    "paths_blocked": 2,
-    "coverage": 1.0,
-    "plan": [
-      {
-        "priority": 1,
-        "action": "restrict",
-        "description": "Remove 0.0.0.0/0 ingress from sg-web",
-        "source": "sg-web",
-        "target": "entry-instance",
-        "relationship_type": "ALLOWS_TRAFFIC_TO",
-        "paths_blocked": 2,
-        "terraform": "# Restrict security group ingress\nresource \"aws_security_group_rule\" \"restrict_ingress\" {\n  description = \"Restrict sg-web -> entry-instance\"\n  type        = \"ingress\"\n  from_port   = 0\n  to_port     = 0\n  protocol    = \"tcp\"\n  cidr_blocks = [\"10.0.0.0/8\"]\n}",
-        "status": null,
-        "terraform_path": null,
-        "terraform_result": null
-      }
-    ],
-    "applied": true,
-    "mode": "dry-run",
-    "output_path": "<demo_home>/remediation-plan.json",
-    "terraform_path": "<demo_home>/remediation-tf/main.tf",
-    "terraform_dir": "<demo_home>/remediation-tf",
-    "apply": {
-      "mode": "dry-run",
-      "output_path": "<demo_home>/remediation-plan.json",
-      "terraform_path": "<demo_home>/remediation-tf/main.tf",
-      "terraform_dir": "<demo_home>/remediation-tf",
-      "plan_exit_code": null,
-      "plan_summary": null,
-      "results": [
-        {
-          "priority": 1,
-          "action": "restrict",
-          "description": "Remove 0.0.0.0/0 ingress from sg-web",
-          "source": null,
-          "target": null,
-          "relationship_type": null,
-          "paths_blocked": 2,
-          "terraform": null,
-          "status": "pending_dry_run",
-          "terraform_path": "<demo_home>/remediation-tf/main.tf",
-          "terraform_result": null
-        }
-      ]
-    }
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec can <principal> access <resource>",
-      "reason": "Verify access is closed after remediation"
-    },
-    {
-      "command": "cyntrisec diff --format agent",
-      "reason": "Detect regressions after applying fixes"
-    }
-  ]
-}
-```
-
-## cyntrisec report
-```
-python -m cyntrisec report --scan 2026-01-18_000000_123456789012 --format agent --output <demo_home>\report.json
-```
-Exit code: 4
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "error",
-  "data": {
-    "errors": [
-      {
-        "type": "extra_forbidden",
-        "loc": [
-          "format"
-        ],
-        "msg": "Extra inputs are not permitted",
-        "input": "json",
-        "url": "https://errors.pydantic.dev/2.12/v/extra_forbidden"
-      }
-    ]
-  },
-  "message": "Response schema validation failed",
-  "error_code": "SCHEMA_MISMATCH",
-  "artifact_paths": null,
-  "suggested_actions": null
-}
-```
-
-## cyntrisec ask
-```
-python -m cyntrisec ask show public s3 buckets --snapshot 2026-01-18_000000_123456789012 --format agent
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "query": "show public s3 buckets",
-    "intent": "public_s3",
-    "results": {
-      "public_buckets": [
-        {
-          "name": "public-bucket",
-          "arn": "arn:aws:s3:::public-bucket"
-        }
-      ],
-      "count": 1
-    },
-    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "entities": {
-      "buckets": [],
-      "arns": [],
-      "roles": []
-    },
-    "resolved": "list_public_buckets"
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": {
-    "snapshot_dir": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012",
-    "snapshot": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/snapshot.json",
-    "assets": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/assets.json",
-    "relationships": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/relationships.json",
-    "attack_paths": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/attack_paths.json",
-    "findings": "<demo_home>/.cyntrisec/scans/2026-01-18_000000_123456789012/findings.json"
-  },
-  "suggested_actions": [
-    {
-      "command": "cyntrisec explain finding s3_public_bucket",
-      "reason": "See why public buckets are risky"
-    },
-    {
-      "command": "cyntrisec can <principal> access s3://bucket --format agent",
-      "reason": "Verify specific access"
-    }
-  ]
-}
-```
-
-## cyntrisec explain finding
-```
-python -m cyntrisec explain finding security_group_open_to_world --format agent
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "type": "finding",
-    "id": "security_group_open_to_world",
-    "explanation": {
-      "title": "Security Group Open to World",
-      "severity": "HIGH",
-      "what": "A security group has an inbound rule allowing traffic from 0.0.0.0/0 (all IPs).",
-      "why": "This exposes the resource to the entire internet. Attackers can scan and probe the exposed ports, potentially leading to exploitation if vulnerabilities exist.",
-      "fix": "Restrict the source IP to specific trusted ranges. Use VPN or bastion hosts for remote access instead of direct internet exposure.",
-      "next_command": "cyntrisec cuts"
-    }
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec cuts",
-      "reason": "Suggested next step"
-    }
-  ]
-}
-```
-
-## cyntrisec explain path
-```
-python -m cyntrisec explain path instance-compromise --format agent
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "type": "path",
-    "id": "instance-compromise",
-    "explanation": {
-      "title": "Instance Compromise Attack Path",
-      "description": "An attacker who gains access to an EC2 instance can leverage its IAM role to access other resources.",
-      "stages": [
-        "1. **Initial Access**: Attacker exploits vulnerability or uses stolen credentials to access EC2 instance",
-        "2. **Credential Theft**: Instance metadata service (IMDS) provides temporary IAM credentials",
-        "3. **Lateral Movement**: Attacker uses IAM role permissions to access S3, RDS, or other services",
-        "4. **Impact**: Data exfiltration, privilege escalation, or further infrastructure compromise"
-      ],
-      "mitigations": [
-        "Use IMDSv2 instead of IMDSv1 to prevent SSRF-based credential theft",
-        "Apply least-privilege to instance IAM roles",
-        "Use VPC endpoints to restrict network paths",
-        "Enable GuardDuty for anomaly detection"
-      ]
-    }
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec analyze paths --format agent",
-      "reason": "List concrete paths of this type"
-    }
-  ]
-}
-```
-
-## cyntrisec explain control
-```
-python -m cyntrisec explain control CIS-AWS:5.1 --format agent
-```
-Exit code: 0
-
-Output:
-```json
-{
-  "schema_version": "1.0",
-  "status": "success",
-  "data": {
-    "type": "control",
-    "id": "CIS-AWS:5.1",
-    "explanation": {
-      "id": "CIS-AWS:5.1",
-      "title": "Ensure no open Security Groups to 0.0.0.0/0",
-      "description": "Security groups should not allow 0.0.0.0/0 ingress",
-      "severity": "high",
-      "framework": "CIS-AWS"
-    }
-  },
-  "message": null,
-  "error_code": null,
-  "artifact_paths": null,
-  "suggested_actions": [
-    {
-      "command": "cyntrisec comply --format agent",
-      "reason": "Run a full compliance check"
-    }
-  ]
-}
+Use --format agent for structured responses and follow-ups.
 ```
