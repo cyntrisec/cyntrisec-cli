@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.4] - 2026-01-20
+### Added
+- **Cost-Aware Graph**: Added `CostEstimator` with static pricing for AWS resources (NAT, ALB, RDS, EBS, etc.)
+- **ROI Prioritization**: Updated `cuts` command and `MinCutFinder` to prioritize remediations based on ROI (Security + Cost Savings)
+- **MCP Enhancements**: Exposed `estimated_savings` and `roi_score` in `get_remediations` MCP tool
+- **Verification Scripts**: Added `verify_phase2.py` for cost/ROI logic validation
+
+### Fixed
+- **Relationship Regression**: Fixed issue where `MAY_ACCESS` edges (Role -> Sensitive Target) were not being created
+- **Test Mocking**: Corrected mock patching for `AwsScanner` and `FileSystemStorage` in unit tests
+- **Schema Validation**: Fixed `cuts` command JSON output schema to include cost fields
+
 ## [0.1.3] - 2026-01-19
 ### Fixed
 - Report format inference now handles dotfile outputs (.json/.html) on Windows

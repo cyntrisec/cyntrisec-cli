@@ -1,8 +1,8 @@
 # Cyntrisec CLI
 
-[![PyPI](https://img.shields.io/pypi/v/cyntrisec)](https://pypi.org/project/cyntrisec/)
-[![Website](https://img.shields.io/badge/website-cyntrisec.com-blue)](https://cyntrisec.com/)
-[![Twitter](https://img.shields.io/badge/twitter-@cyntrisec-1DA1F2)](https://x.com/cyntrisec)
+[![PyPI](https://img.shields.io/pypi/v/cyntrisec?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/cyntrisec/)
+[![Website](https://img.shields.io/badge/website-cyntrisec.com-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://cyntrisec.com/)
+[![X](https://img.shields.io/badge/X-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
 
 AWS capability graph analysis and attack path discovery.
 
@@ -10,6 +10,7 @@ A read-only CLI tool that:
 - Scans AWS infrastructure via AssumeRole
 - Builds a capability graph (IAM, network, dependencies)
 - Discovers attack paths from internet to sensitive targets
+- Prioritizes fixes by ROI (security impact + cost savings)
 - Identifies unused capabilities (blast radius reduction)
 - Outputs deterministic JSON with proof chains
 
@@ -124,7 +125,7 @@ cyntrisec scan --role-arn arn:aws:iam::123456789012:role/CyntrisecReadOnly
 # 4. View attack paths
 cyntrisec analyze paths --min-risk 0.5
 
-# 5. Find minimal fixes
+# 5. Find minimal fixes (prioritized by ROI)
 cyntrisec cuts --format json
 
 # 6. Generate HTML report
@@ -155,7 +156,7 @@ cyntrisec report --output report.html
 
 | Command | Description |
 |---------|-------------|
-| `cuts` | Find minimal fixes for attack paths |
+| `cuts` | Find minimal fixes (Cost & ROI prioritized) |
 | `waste` | Find unused IAM permissions |
 | `remediate` | Generate or optionally apply Terraform plans (gated) |
 
