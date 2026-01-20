@@ -274,6 +274,7 @@ class TestApplyPlanStatusIntegration:
             execute_terraform=True,
             terraform_plan=False,
             terraform_cmd="terraform",
+            terraform_include_output=False,
         )
 
         # Verify status reflects terraform failure
@@ -311,6 +312,7 @@ class TestApplyPlanStatusIntegration:
             execute_terraform=True,
             terraform_plan=False,
             terraform_cmd="terraform",
+            terraform_include_output=False,
         )
 
         # Verify status reflects terraform success
@@ -351,6 +353,7 @@ class TestApplyPlanStatusIntegration:
             execute_terraform=False,
             terraform_plan=False,
             terraform_cmd="terraform",
+            terraform_include_output=False,
         )
 
         # Verify terraform was not called

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import re
 from pathlib import Path
 
 import typer
@@ -74,6 +75,11 @@ def remediate_cmd(
         "terraform",
         "--terraform-cmd",
         help="Terraform binary to invoke when using --execute-terraform",
+    ),
+    terraform_include_output: bool = typer.Option(
+        False,
+        "--terraform-include-output",
+        help="Include truncated terraform stdout/stderr in output (may contain secrets).",
     ),
     enable_unsafe_write_mode: bool = typer.Option(
         False,
@@ -155,6 +161,7 @@ def remediate_cmd(
             dry_run=dry_run,
             execute_terraform=execute_terraform,
             terraform_plan=terraform_plan,
+            terraform_include_output=terraform_include_output,
             enable_unsafe_write_mode=enable_unsafe_write_mode,
             yes=yes,
             output=output,
@@ -388,6 +395,7 @@ def _handle_apply_mode(
     dry_run: bool,
     execute_terraform: bool,
     terraform_plan: bool,
+    terraform_include_output: bool,
     enable_unsafe_write_mode: bool,
     yes: bool,
     output: str | None,
@@ -438,6 +446,7 @@ def _handle_apply_mode(
         execute_terraform=execute_terraform and apply,
         terraform_plan=terraform_plan,
         terraform_cmd=terraform_cmd,
+        terraform_include_output=terraform_include_output,
     )
 
     apply_output = {
@@ -477,6 +486,7 @@ def _apply_plan(
     execute_terraform: bool,
     terraform_plan: bool,
     terraform_cmd: str,
+    terraform_include_output: bool,
 ) -> tuple[list[dict], dict | None]:
     """
     Apply or simulate apply of the remediation plan.
@@ -491,10 +501,10 @@ def _apply_plan(
     plan_result = None
 
     if terraform_plan:
-        plan_result = _run_terraform_plan(terraform_cmd, tf_dir)
+        plan_result = _run_terraform_plan(terraform_cmd, tf_dir, include_output=terraform_include_output)
         status = "terraform_plan_ok" if plan_result.get("ok") else "terraform_plan_failed"
     elif execute_terraform and not dry_run:
-        tf_result = _run_terraform(terraform_cmd, tf_dir)
+        tf_result = _run_terraform(terraform_cmd, tf_dir, include_output=terraform_include_output)
         status = "terraform_invoked" if tf_result.get("ok") else "terraform_failed"
 
     items = [
@@ -531,7 +541,36 @@ def _write_terraform_files(plan: list[dict], dir_path: str, main_path: str) -> s
     return str(main_file)
 
 
-def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
+def _safe_output(text: str, limit: int = 4096) -> str:
+    """
+    Truncate and sanitize output to prevent excessive logging and secret leakage.
+    """
+    if not text:
+        return ""
+
+    text = re.sub(r"(?i)\\b(AKIA|ASIA)[0-9A-Z]{16}\\b", "[REDACTED_AWS_ACCESS_KEY_ID]", text)
+    text = re.sub(
+        r'(?i)(\"?(?:aws_secret_access_key|aws_session_token|secret_access_key|password|secret|token)\"?\\s*[:=]\\s*)\"?[^\\s\",]+\"?',
+        r"\\1[REDACTED]",
+        text,
+    )
+     
+    # Truncate if too long
+    if len(text) > limit:
+        text = text[:limit] + f"\n...[truncated {len(text)-limit} chars]..."
+         
+    return text
+
+
+def _decode_bytes(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode(errors="replace")
+    return str(value)
+
+
+def _run_terraform(terraform_cmd: str, tf_dir: str, *, include_output: bool = False) -> dict:
     """
     Run terraform apply -auto-approve against the generated hints.
 
@@ -548,10 +587,10 @@ def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
         return {
             "ok": True,
             "command": " ".join(apply_cmd),
-            "stdout": apply_result.stdout.decode(),
-            "stderr": apply_result.stderr.decode(),
+            "stdout": _safe_output(_decode_bytes(apply_result.stdout)) if include_output else "",
+            "stderr": _safe_output(_decode_bytes(apply_result.stderr)) if include_output else "",
             "exit_code": apply_result.returncode,
-            "init_stdout": init_result.stdout.decode(),
+            "init_stdout": _safe_output(_decode_bytes(init_result.stdout)) if include_output else "",
         }
     except subprocess.CalledProcessError as e:
         return {
@@ -559,12 +598,12 @@ def _run_terraform(terraform_cmd: str, tf_dir: str) -> dict:
             "error": str(e),
             "command": " ".join(apply_cmd),
             "exit_code": e.returncode,
-            "stdout": getattr(e, "stdout", b"").decode() if hasattr(e, "stdout") else "",
-            "stderr": getattr(e, "stderr", b"").decode() if hasattr(e, "stderr") else "",
+            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b""))) if include_output else "",
+            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b""))) if include_output else "",
         }
 
 
-def _run_terraform_plan(terraform_cmd: str, tf_dir: str) -> dict:
+def _run_terraform_plan(terraform_cmd: str, tf_dir: str, *, include_output: bool = False) -> dict:
     """
     Run terraform plan (no apply) to validate generated module.
     """
@@ -580,7 +619,7 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str) -> dict:
     try:
         init_result = subprocess.run(init_cmd, check=True, capture_output=True)
         plan_result = subprocess.run(plan_cmd, check=True, capture_output=True)
-        stdout_text = plan_result.stdout.decode()
+        stdout_text = _decode_bytes(plan_result.stdout)
         summary = None
         for line in reversed(stdout_text.splitlines()):
             if "Plan:" in line:
@@ -589,16 +628,16 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str) -> dict:
         return {
             "ok": True,
             "exit_code": plan_result.returncode,
-            "stdout": stdout_text,
-            "stderr": plan_result.stderr.decode(),
+            "stdout": _safe_output(stdout_text) if include_output else "",
+            "stderr": _safe_output(_decode_bytes(plan_result.stderr)) if include_output else "",
             "summary": summary,
-            "init_stdout": init_result.stdout.decode(),
+            "init_stdout": _safe_output(_decode_bytes(init_result.stdout)) if include_output else "",
         }
     except subprocess.CalledProcessError as e:
         return {
             "ok": False,
             "exit_code": e.returncode,
             "error": str(e),
-            "stdout": getattr(e, "stdout", b"").decode() if hasattr(e, "stdout") else "",
-            "stderr": getattr(e, "stderr", b"").decode() if hasattr(e, "stderr") else "",
+            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b""))) if include_output else "",
+            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b""))) if include_output else "",
         }

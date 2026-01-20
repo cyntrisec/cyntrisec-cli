@@ -70,8 +70,41 @@ class BusinessConfig(BaseConfig):
 
     @classmethod
     def load(cls, path: str) -> BusinessConfig:
-        """Load configuration from a JSON file."""
+        """Load configuration from a JSON or YAML file."""
         import json
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        from pathlib import Path
+         
+        path_obj = Path(path)
+        text = path_obj.read_text(encoding="utf-8")
+
+        data: object | None = None
+        suffix = path_obj.suffix.lower()
+
+        def parse_yaml() -> object | None:
+            import yaml
+
+            return yaml.safe_load(text)
+
+        def parse_json() -> object | None:
+            return json.loads(text)
+
+        try:
+            if suffix in {".yaml", ".yml"}:
+                data = parse_yaml()
+            elif suffix == ".json":
+                data = parse_json()
+            else:
+                # Default: YAML first (JSON is valid YAML), then JSON for clearer errors.
+                try:
+                    data = parse_yaml()
+                except Exception:
+                    data = parse_json()
+        except Exception as e:
+            raise ValueError(f"Failed to parse business config: {path}") from e
+
+        if data is None:
+            data = {}
+        if not isinstance(data, dict):
+            raise ValueError(f"Business config must be a mapping/object: {path}")
+
         return cls(**data)

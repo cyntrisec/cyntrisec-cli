@@ -76,6 +76,7 @@ def test_apply_plan_writes_plan_and_terraform(tmp_path: Path):
         execute_terraform=False,
         terraform_plan=False,
         terraform_cmd="terraform",
+        terraform_include_output=False,
     )
 
     # Files written

@@ -16,6 +16,26 @@ A read-only CLI tool that:
 
 ## Architecture
 
+```text
++----------------------------------------------------------------------------------+
+|                                   CYNTRISEC CLI                                   |
++----------------------------------------------------------------------------------+
+| CLI Layer (Typer)                                                                 |
+|   scan   analyze   cuts   waste   report   comply   can   diff   serve   ...       |
++-----------------------------+----------------------------------------------------+
+| Core Engine                 | Storage (local)                                     |
+|  - AWS collectors           |  ~/.cyntrisec/scans/<scan_id>/                       |
+|  - Normalization/schema     |    snapshot.json, assets.json, relationships.json   |
+|  - GraphBuilder -> AwsGraph |    findings.json, attack_paths.json                 |
+|  - Path search -> paths     |  ~/.cyntrisec/scans/latest -> <scan_id>              |
+|  - Min-cut + Cost (ROI)     |  (Windows fallback: latest is a file)               |
++-----------------------------+----------------------------------------------------+
+| Outputs: JSON/agent, HTML report, remediation plan + Terraform hints              |
++----------------------------------------------------------------------------------+
+```
+
+<!-- Legacy Unicode diagram (kept for reference; may render oddly in some environments) -->
+<!--
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              CYNTRISEC CLI                                  │
@@ -74,9 +94,30 @@ A read-only CLI tool that:
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+-->
 
 ### Data Flow
 
+```text
+CLI (scan) --AssumeRole--> AWS Session --Describe/Get/List--> AWS APIs (read-only)
+     |
+     v
+Collectors -> normalize -> Assets + Relationships -> AwsGraph
+                                                |
+                                                v
+                                   Attack path search (BFS/DFS)
+                                                |
+                                                v
+                                   Min-cut (remediation cuts)
+                                                |
+                                                v
+                                      Cost engine (ROI)
+
+Local artifacts: ~/.cyntrisec/scans/<scan_id>/*.json
+```
+
+<!-- Legacy Unicode diagram (kept for reference; may render oddly in some environments) -->
+<!--
 ```
 ┌──────────┐    AssumeRole     ┌──────────┐    Describe/Get/List    ┌─────────┐
 │   CLI    │ ─────────────────▶│   AWS    │ ◀─────────────────────▶ │  APIs   │
@@ -99,6 +140,7 @@ A read-only CLI tool that:
                                                           │ Cost Engine  │
                                                           └──────────────┘
 ```
+-->
 
 ## Installation
 
@@ -332,6 +374,21 @@ cyntrisec diff || echo "Regressions detected"
 
 Scan results are stored locally:
 
+```text
+~/.cyntrisec/
+|-- scans/
+|   |-- 2026-01-17_123456_123456789012/
+|   |   |-- snapshot.json
+|   |   |-- assets.json
+|   |   |-- relationships.json
+|   |   |-- findings.json
+|   |   `-- attack_paths.json
+|   `-- latest -> 2026-01-17_...
+`-- config.yaml
+```
+
+<!-- Legacy Unicode tree (kept for reference; may render oddly in some environments) -->
+<!--
 ```
 ~/.cyntrisec/
 ├── scans/
@@ -344,6 +401,7 @@ Scan results are stored locally:
 │   └── latest -> 2026-01-17_...
 └── config.yaml
 ```
+-->
 
 ## Versioning
 

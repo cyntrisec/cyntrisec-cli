@@ -49,6 +49,7 @@ class FileSystemStorage(StorageBackend):
         """Create a new scan directory."""
         timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H%M%S")
         scan_id = f"{timestamp}_{account_id}"
+        self._validate_scan_id(scan_id)
         self._current_id = scan_id
         self._current_dir = self._base / scan_id
         self._current_dir.mkdir(parents=True, exist_ok=True)
@@ -71,25 +72,68 @@ class FileSystemStorage(StorageBackend):
             latest_link.symlink_to(self._current_dir.name)
         except OSError:
             # On Windows without dev mode, just write the name to a file
-            latest_link.write_text(self._current_dir.name)
+            latest_link.write_text(self._current_dir.name, encoding="utf-8")
 
         return scan_id
+
+    def _validate_scan_id(self, scan_id: str) -> str:
+        """
+        Validate that scan_id is a safe directory name.
+        Reject: empty, .., path separators.
+        """
+        scan_id = (scan_id or "").strip()
+        if not scan_id:
+            raise ValueError("Invalid scan id: empty")
+        if scan_id in {".", "..", "latest"}:
+            raise ValueError(f"Invalid scan id: {scan_id}")
+        if any(ord(ch) < 32 or ch == "\x7f" for ch in scan_id):
+            raise ValueError(f"Invalid scan id: {scan_id}")
+        if len(scan_id) > 200:
+            raise ValueError(f"Invalid scan id: too long ({len(scan_id)})")
+        if "\x00" in scan_id or any(x in scan_id for x in ("..", "/", "\\", ":")):
+            raise ValueError(f"Invalid scan id: {scan_id}")
+        return scan_id
+
+    def _safe_join_scan_dir(self, scan_id: str) -> Path:
+        """
+        Safely resolve scan directory ensuring it stays within base.
+        """
+        self._validate_scan_id(scan_id)
+        base = self._base.resolve()
+        # Resolve the candidate path
+        # Note: on Windows resolving a non-existent path might be tricky if we don't catch errors,
+        # but here we generally expect to create or read it.
+        # We construct it simply first.
+        candidate = (base / scan_id).resolve()
+        
+        # Security check: must be inside base
+        # python 3.9+ has is_relative_to
+        if not candidate.is_relative_to(base) or candidate == base:
+            raise ValueError(f"Scan dir escapes base dir: {scan_id}")
+            
+        return candidate
 
     def _get_scan_dir(self, scan_id: str | None = None) -> Path:
         """Get the directory for a scan ID."""
         if scan_id:
-            return self._base / scan_id
+            return self._safe_join_scan_dir(scan_id)
+            
         if self._current_dir:
             return self._current_dir
 
         # Try to get latest
         latest_link = self._base / "latest"
+        target_id = None
+        
         if latest_link.is_symlink():
-            return self._base / os.readlink(latest_link)
+            target_id = os.readlink(latest_link)
         elif latest_link.exists() and latest_link.is_file():
             # Windows fallback: file contains directory name
-            return self._base / latest_link.read_text().strip()
-
+            target_id = latest_link.read_text().strip()
+            
+        if target_id:
+            return self._safe_join_scan_dir(target_id)
+            
         raise ValueError("No scan specified and no latest scan found")
 
     def _write_json(self, path: Path, data: any) -> None:
@@ -211,7 +255,10 @@ class FileSystemStorage(StorageBackend):
         scans = []
         for item in self._base.iterdir():
             if item.is_dir() and item.name != "latest":
-                scans.append(item.name)
+                try:
+                    scans.append(self._validate_scan_id(item.name))
+                except ValueError:
+                    continue
         return sorted(scans, reverse=True)  # Most recent first
 
     def resolve_scan_id(self, identifier: str | None) -> str | None:
@@ -219,7 +266,7 @@ class FileSystemStorage(StorageBackend):
         Resolve an identifier to a scan_id (directory name).
 
         Accepts:
-        - scan_id (directory name): returned as-is if valid
+        - scan_id (directory name): returned as-is if valid (and safe!)
         - snapshot UUID: looks up the scan directory containing that snapshot
         - None: returns latest scan_id
 
@@ -229,23 +276,42 @@ class FileSystemStorage(StorageBackend):
         if identifier is None:
             # Return latest scan_id
             latest_link = self._base / "latest"
+            target = None
             if latest_link.is_symlink():
-                return os.readlink(latest_link)
+                target = os.readlink(latest_link)
             elif latest_link.exists() and latest_link.is_file():
                 # Windows fallback: file contains directory name
-                return latest_link.read_text().strip()
+                target = latest_link.read_text().strip()
+            
+            if target:
+                try:
+                    # Validate that the latest target is a safe ID
+                    return self._validate_scan_id(target)
+                except ValueError:
+                    # If latest is corrupt/malicious, ignore it and fall back to listing
+                    pass
+
             # No latest, try to get most recent scan
             scans = self.list_scans()
             return scans[0] if scans else None
 
         # Check if it's already a valid scan directory
-        scan_dir = self._base / identifier
-        if scan_dir.is_dir():
-            return identifier
+        try:
+            # Use safe join to verify it is a valid scan directory under base.
+            scan_dir = self._safe_join_scan_dir(identifier)
+            if scan_dir.exists() and scan_dir.is_dir():
+                return identifier
+        except (ValueError, OSError):
+              # Not a simple scan dir, proceed to check if it's a UUID
+              pass
 
         # Try to find by UUID - iterate through scans and check snapshot.id
         for scan_id in self.list_scans():
-            scan_dir = self._base / scan_id
+            # We trust list_scans() to return safe directory names from self._base
+            try:
+                scan_dir = self._safe_join_scan_dir(scan_id)
+            except ValueError:
+                continue
             snapshot_path = scan_dir / "snapshot.json"
             if snapshot_path.exists():
                 data = self._read_json(snapshot_path)
@@ -258,6 +324,8 @@ class FileSystemStorage(StorageBackend):
         """List all available snapshots, sorted by date (most recent first)."""
         snapshots = []
         for scan_id in self.list_scans():
+            # list_scans returns directory names, so they should be safe, 
+            # but using get_snapshot calls resolve_scan_id again which is safe.
             snapshot = self.get_snapshot(scan_id)
             if snapshot:
                 snapshots.append(snapshot)
@@ -270,3 +338,4 @@ class FileSystemStorage(StorageBackend):
         if resolved_id is None:
             raise ValueError("No scan specified and no latest scan found")
         return self._get_scan_dir(resolved_id)
+

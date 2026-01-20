@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "cyntrisec": {
+      "command": "python",
+      "args": [
+        "-m",
+        "cyntrisec",
+        "serve"
+      ],
+      "env": {
+        "PYTHONPATH": "/path/to/cyntrisec-cli/src"
+      }
+    }
+  }
+}
