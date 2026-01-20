@@ -99,6 +99,9 @@ STATIC_PRICING = {
     },
 }
 
+# Optional regional overrides for static pricing
+REGIONAL_PRICING: dict[str, dict[str, dict[str, Any]]] = {}
+
 # Priority ranking for known high-cost resources
 COST_PRIORITY = [
     "ec2:nat-gateway",
@@ -135,7 +138,7 @@ class CostEstimator:
     Future modes can use AWS Pricing API or Cost Explorer for more accuracy.
     """
 
-    def __init__(self, source: str = "estimate"):
+    def __init__(self, source: str = "estimate", *, region: str = "us-east-1"):
         """
         Initialize estimator.
 
@@ -143,8 +146,14 @@ class CostEstimator:
             source: Cost data source - "estimate", "pricing-api", "cost-explorer"
         """
         self._source = source
+        self._region = region
         if source not in ("estimate", "pricing-api", "cost-explorer"):
             raise ValueError(f"Unknown cost source: {source}")
+
+    @property
+    def source(self) -> str:
+        """Return configured cost source."""
+        return self._source
 
     def estimate(self, asset: Asset) -> CostEstimate | None:
         """
@@ -152,29 +161,32 @@ class CostEstimator:
 
         Returns None if no estimate is available for this asset type.
         """
+        region = asset.aws_region or self._region
         if self._source == "estimate":
-            return self._static_estimate(asset)
+            return self._static_estimate(asset, region)
         elif self._source == "pricing-api":
             # Future: call AWS Pricing API
-            return self._static_estimate(asset)  # Fallback for now
+            return self._static_estimate(asset, region)  # Fallback for now
         elif self._source == "cost-explorer":
             # Future: call Cost Explorer
             return None  # Requires opt-in
         return None
 
-    def _static_estimate(self, asset: Asset) -> CostEstimate | None:
+    def _static_estimate(self, asset: Asset, region: str) -> CostEstimate | None:
         """Generate estimate from static pricing rules."""
         asset_type = asset.asset_type
         props = asset.properties or {}
+        pricing_table = REGIONAL_PRICING.get(region, STATIC_PRICING)
+        region_fallback = region != "us-east-1" and region not in REGIONAL_PRICING
 
         # NAT Gateway
         if asset_type == "ec2:nat-gateway":
-            pricing = STATIC_PRICING["ec2:nat-gateway"]
+            pricing = pricing_table["ec2:nat-gateway"]
             return CostEstimate(
                 monthly_cost_usd_estimate=pricing["monthly_base"],
                 cost_source="estimate",
                 confidence=pricing["confidence"],
-                assumptions=pricing["assumptions"],
+                assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
             )
 
         # Elastic IP (only if unattached)
@@ -182,12 +194,12 @@ class CostEstimator:
             # Check if attached to an instance
             instance_id = props.get("instance_id") or props.get("InstanceId")
             if not instance_id:
-                pricing = STATIC_PRICING["ec2:elastic-ip"]
+                pricing = pricing_table["ec2:elastic-ip"]
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=pricing["assumptions"],
+                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
                 )
             return None  # Attached EIPs are free
 
@@ -195,13 +207,13 @@ class CostEstimator:
         if asset_type == "elbv2:load-balancer":
             lb_type = props.get("type", "application").lower()
             key = f"elbv2:load-balancer:{lb_type}"
-            if key in STATIC_PRICING:
-                pricing = STATIC_PRICING[key]
+            if key in pricing_table:
+                pricing = pricing_table[key]
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=pricing["assumptions"],
+                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
                 )
 
         # EBS Volumes
@@ -210,14 +222,16 @@ class CostEstimator:
             size_gb = props.get("size", props.get("Size", 0))
             key = f"ec2:ebs-volume:{volume_type}"
 
-            if key in STATIC_PRICING and size_gb:
-                pricing = STATIC_PRICING[key]
+            if key in pricing_table and size_gb:
+                pricing = pricing_table[key]
                 monthly = pricing["per_gb_month"] * Decimal(str(size_gb))
                 return CostEstimate(
                     monthly_cost_usd_estimate=monthly,
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=pricing["assumptions"] + [f"{size_gb} GB volume"],
+                    assumptions=self._assumptions_with_region(
+                        pricing["assumptions"] + [f"{size_gb} GB volume"], region_fallback
+                    ),
                 )
 
         # RDS Instances
@@ -225,23 +239,47 @@ class CostEstimator:
             db_class = props.get("db_instance_class", props.get("DBInstanceClass", ""))
             key = f"rds:db-instance:{db_class}"
 
-            if key in STATIC_PRICING:
-                pricing = STATIC_PRICING[key]
+            if key in pricing_table:
+                pricing = pricing_table[key]
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=pricing["assumptions"],
+                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
                 )
             # Unknown class - return None with low confidence indicator
+            fallback_estimate = self._unknown_rds_estimate(pricing_table)
             return CostEstimate(
-                monthly_cost_usd_estimate=Decimal("0"),
+                monthly_cost_usd_estimate=fallback_estimate,
                 cost_source="estimate",
-                confidence="low",
-                assumptions=["Unknown RDS class - cost not estimated"],
+                confidence="unknown",
+                assumptions=self._assumptions_with_region(
+                    ["Unknown RDS class - estimate uses median of known classes"],
+                    region_fallback,
+                ),
             )
 
         return None
+
+    @staticmethod
+    def _unknown_rds_estimate(pricing_table: dict[str, dict[str, Any]]) -> Decimal:
+        """Return a fallback estimate for unknown RDS classes."""
+        values = [
+            p["monthly_base"]
+            for key, p in pricing_table.items()
+            if key.startswith("rds:db-instance:") and "monthly_base" in p
+        ]
+        if not values:
+            return Decimal("1")
+        values_sorted = sorted(values)
+        return values_sorted[len(values_sorted) // 2]
+
+    @staticmethod
+    def _assumptions_with_region(assumptions: list[str], region_fallback: bool) -> list[str]:
+        """Add region fallback note when needed."""
+        if region_fallback:
+            return assumptions + ["Pricing fallback: us-east-1 (region not supported)"]
+        return assumptions
 
     def get_priority(self, asset: Asset) -> int:
         """

@@ -396,7 +396,7 @@ def _register_insight_tools(mcp, session):
 
         fw = Framework.CIS_AWS if "cis" in framework.lower() else Framework.SOC2
         checker = ComplianceChecker()
-        report = checker.check(findings, assets, framework=fw)
+        report = checker.check(findings, assets, framework=fw, collection_errors=snapshot.errors)
         summary = checker.summary(report)
 
         return {

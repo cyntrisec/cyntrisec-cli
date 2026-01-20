@@ -52,7 +52,7 @@ def comply_cmd(
         None,
         "--snapshot",
         "-s",
-        help="Specific snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
 ):
     """
@@ -93,7 +93,7 @@ def comply_cmd(
         )
 
     checker = ComplianceChecker()
-    results = checker.check(findings, assets, framework=fw)
+    results = checker.check(findings, assets, framework=fw, collection_errors=snapshot.errors)
 
     # Get scan_id for suggested actions
     scan_id = storage.resolve_scan_id(snapshot_id)
@@ -112,8 +112,8 @@ def comply_cmd(
                         "Explain top failing control" if first_failing else "",
                     ),
                     (
-                        f"cyntrisec cuts --snapshot {scan_id}" if scan_id else "",
-                        "Map compliance fixes to attack path cuts" if scan_id else "",
+                        f"cyntrisec cuts --snapshot {snapshot.id}" if snapshot else "",
+                        "Map compliance fixes to attack path cuts" if snapshot else "",
                     ),
                 ]
             )
@@ -150,7 +150,9 @@ def _output_table(results, framework: Framework, show_passing: bool):
     """Render compliance results."""
     passing = results.passing
     failing = results.failing
-    total = passing + failing
+    unknown = results.unknown
+    evaluated = passing + failing
+    total = evaluated + unknown
     score = results.compliance_score * 100
 
     console.print()
@@ -158,7 +160,8 @@ def _output_table(results, framework: Framework, show_passing: bool):
         Panel(
             f"[bold]Compliance Report[/bold]\n"
             f"Framework: {framework.value}\n"
-            f"Score: {score:.0f}% ({passing}/{total})",
+            f"Score: {score:.0f}% ({passing}/{evaluated})"
+            + (f"  Unknown: {unknown}" if unknown else ""),
             title="cyntrisec comply",
             border_style="green" if failing == 0 else "red",
         )
@@ -186,7 +189,12 @@ def _output_table(results, framework: Framework, show_passing: bool):
     for r in results.results:
         if r.status == "pass" and not show_passing:
             continue
-        status = "[green]PASS[/green]" if r.status == "pass" else "[red]FAIL[/red]"
+        if r.status == "pass":
+            status = "[green]PASS[/green]"
+        elif r.status == "fail":
+            status = "[red]FAIL[/red]"
+        else:
+            status = "[yellow]UNKNOWN[/yellow]"
         table.add_row(status, r.control.id, r.control.severity, r.control.title[:60])
 
     console.print(table)
@@ -210,4 +218,9 @@ def _build_payload(results, framework: Framework, snapshot, show_passing: bool):
             for r in results.results
             if show_passing or r.status != "pass"
         ],
+        "data_gaps": [
+            {"control_id": ctrl_id, **gap} for ctrl_id, gap in results.data_gaps.items()
+        ]
+        if results.data_gaps
+        else [],
     }

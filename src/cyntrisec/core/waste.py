@@ -124,6 +124,8 @@ class WasteAnalyzer:
         # AWS service-linked roles
         if name.startswith("AWSServiceRole"):
             return True
+        if name.startswith("AWSReservedSSO_"):
+            return True
         if "/aws-service-role/" in arn:
             return True
         
@@ -235,7 +237,7 @@ class WasteAnalyzer:
         if usage_reports:
             return self.analyze_from_usage_reports(usage_reports)
 
-        # Fallback: simple heuristic-based analysis
+        # Fallback: offline analysis based on attached policies
         report = WasteReport()
 
         # Find IAM roles, excluding AWS-managed service roles
@@ -250,22 +252,22 @@ class WasteAnalyzer:
                 role_name=role.name,
             )
 
-            # Check for potentially over-permissioned roles by name
-            name_lower = role.name.lower()
-            if any(kw in name_lower for kw in ["admin", "fullaccess", "poweruser"]):
+            policy_docs = role.properties.get("policy_documents", [])
+            services_granted = self._extract_services_from_policies(policy_docs)
+            role_waste.total_services = len(services_granted)
+
+            if services_granted:
                 role_waste.unused_capabilities.append(
                     UnusedCapability(
                         role_arn=role.arn or role.aws_resource_id,
                         role_name=role.name,
-                        service="*",
-                        service_name="All Services",
+                        service="unknown",
+                        service_name="Usage data unavailable",
                         days_unused=None,
-                        risk_level="high",
-                        recommendation=f"Review {role.name} - broad name suggests over-permissioning",
+                        risk_level="info",
+                        recommendation="Use --live for accurate usage analysis",
                     )
                 )
-                role_waste.unused_services += 1
-                role_waste.total_services += 1
 
             if role_waste.unused_capabilities:
                 report.role_reports.append(role_waste)
@@ -273,3 +275,35 @@ class WasteAnalyzer:
                 report.total_permissions += role_waste.total_services
 
         return report
+
+    def _extract_services_from_policies(self, policy_docs: list[dict]) -> list[str]:
+        """Extract service namespaces from policy documents."""
+        services: set[str] = set()
+        wildcard = False
+        for policy in policy_docs or []:
+            statements = policy.get("Statement", [])
+            if isinstance(statements, dict):
+                statements = [statements]
+            for statement in statements:
+                if statement.get("Effect") != "Allow":
+                    continue
+                actions = statement.get("Action")
+                if not actions:
+                    continue
+                if isinstance(actions, str):
+                    actions = [actions]
+                for action in actions:
+                    if not isinstance(action, str):
+                        continue
+                    if action == "*":
+                        wildcard = True
+                        continue
+                    if ":" in action:
+                        service = action.split(":", 1)[0]
+                        if service and service != "*":
+                            services.add(service.lower())
+                    elif action:
+                        services.add(action.lower())
+        if wildcard and not services:
+            services.update(HIGH_RISK_SERVICES.keys())
+        return sorted(services)

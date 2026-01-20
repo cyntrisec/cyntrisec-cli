@@ -26,6 +26,7 @@ from cyntrisec.cli.schemas import CanResponse
 from cyntrisec.storage import FileSystemStorage
 
 console = Console()
+status_console = Console(stderr=True)
 log = logging.getLogger(__name__)
 
 
@@ -77,7 +78,7 @@ def can_cmd(
         None,
         "--snapshot",
         "-s",
-        help="Specific snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
 ):
     """
@@ -123,7 +124,15 @@ def can_cmd(
 
     if live:
         try:
-            result = _simulate_live(principal_arn, resource, action, role_arn, external_id)
+            live_console = console if output_format == "text" else status_console
+            result = _simulate_live(
+                principal_arn,
+                resource,
+                action,
+                role_arn,
+                external_id,
+                status_console=live_console,
+            )
         except PermissionError as e:
             raise CyntriError(
                 error_code=ErrorCode.AWS_ACCESS_DENIED,
@@ -133,19 +142,20 @@ def can_cmd(
     else:
         result = _simulate_offline(principal_arn, resource, action, assets, relationships)
 
-    # Get scan_id for suggested actions
+    # Get scan_id and snapshot_id for suggested actions
     scan_id = storage.resolve_scan_id(snapshot_id)
+    snapshot_uuid = str(snapshot.id) if snapshot else None
 
     if output_format in {"json", "agent"}:
         payload = _build_payload(result, snapshot)
         followups = suggested_actions(
             [
                 (
-                    f"cyntrisec cuts --snapshot {scan_id}"
-                    if scan_id and result.can_access
+                    f"cyntrisec cuts --snapshot {snapshot_uuid}"
+                    if snapshot_uuid and result.can_access
                     else "",
                     "Identify changes that would block this access"
-                    if scan_id and result.can_access
+                    if snapshot_uuid and result.can_access
                     else "",
                 ),
                 (
@@ -186,12 +196,12 @@ def _resolve_principal(principal: str, assets) -> str:
     return principal
 
 
-def _simulate_live(principal_arn, resource, action, role_arn, external_id):
+def _simulate_live(principal_arn, resource, action, role_arn, external_id, *, status_console):
     """Run live simulation using AWS API."""
     from cyntrisec.aws import CredentialProvider
     from cyntrisec.core.simulator import PolicySimulator
 
-    console.print("[cyan]Running live policy simulation...[/cyan]")
+    status_console.print("[cyan]Running live policy simulation...[/cyan]")
 
     provider = CredentialProvider()
     if role_arn:

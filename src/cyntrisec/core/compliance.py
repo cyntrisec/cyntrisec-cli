@@ -67,20 +67,53 @@ class ComplianceReport:
 
     framework: Framework
     results: list[ComplianceResult] = field(default_factory=list)
+    data_gaps: dict[str, dict] = field(default_factory=dict)
 
     @property
     def passing(self) -> int:
-        return sum(1 for r in self.results if r.is_passing)
+        return sum(1 for r in self.results if r.status == "pass")
 
     @property
     def failing(self) -> int:
-        return sum(1 for r in self.results if not r.is_passing)
+        return sum(1 for r in self.results if r.status == "fail")
+
+    @property
+    def unknown(self) -> int:
+        return sum(1 for r in self.results if r.status not in {"pass", "fail"})
 
     @property
     def compliance_score(self) -> float:
         """Percentage of controls passing."""
-        total = len(self.results)
-        return self.passing / total if total > 0 else 1.0
+        total = self.passing + self.failing
+        return self.passing / total if total > 0 else 0.0
+
+
+CONTROL_ASSET_REQUIREMENTS: dict[str, list[str]] = {
+    # IAM
+    "CIS-AWS:1.4": ["iam:user"],
+    "CIS-AWS:1.5": ["iam:user"],
+    "CIS-AWS:1.10": ["iam:user"],
+    "CIS-AWS:1.12": ["iam:user"],
+    "CIS-AWS:1.16": ["iam:user"],
+    "CIS-AWS:1.17": ["iam:role"],
+    # S3
+    "CIS-AWS:2.1.1": ["s3:bucket"],
+    "CIS-AWS:2.1.2": ["s3:bucket"],
+    "CIS-AWS:2.1.5": ["s3:bucket"],
+    # EC2/VPC
+    "CIS-AWS:5.1": ["ec2:security-group"],
+    "CIS-AWS:5.2": ["ec2:security-group"],
+    "CIS-AWS:5.3": ["ec2:vpc"],
+    "CIS-AWS:5.4": ["ec2:instance"],
+    # SOC2
+    "SOC2:CC6.1": ["iam:user", "iam:role"],
+    "SOC2:CC6.2": ["iam:user"],
+    "SOC2:CC6.3": ["iam:role"],
+    "SOC2:CC6.6": ["s3:bucket"],
+    "SOC2:CC7.1": ["ec2:security-group", "s3:bucket"],
+    "SOC2:CC7.2": ["iam:role"],
+    "SOC2:CC6.7": ["s3:bucket"],
+}
 
 
 # CIS AWS Foundations Benchmark v1.5 Controls
@@ -244,8 +277,11 @@ FINDING_TO_CONTROLS: dict[str, list[str]] = {
     "iam_no_mfa": ["CIS-AWS:1.10", "SOC2:CC6.2"],
     # S3 findings
     "s3_public_bucket": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.2", "SOC2:CC6.1"],
+    "s3-bucket-no-public-access-block": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.2", "SOC2:CC6.1"],
     "s3-bucket-public-access-block": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.2", "SOC2:CC6.1"],
     "s3-bucket-partial-public-access-block": ["CIS-AWS:2.1.1", "CIS-AWS:2.1.5", "SOC2:CC6.1"],
+    "s3-bucket-public-acl": ["CIS-AWS:2.1.1", "SOC2:CC6.1"],
+    "s3-bucket-authenticated-users-acl": ["CIS-AWS:2.1.1", "SOC2:CC6.1"],
     "s3_no_encryption": ["SOC2:CC6.6"],
     "s3_no_logging": ["CIS-AWS:2.1.5", "SOC2:CC7.1"],
     # EC2/Network findings
@@ -255,6 +291,8 @@ FINDING_TO_CONTROLS: dict[str, list[str]] = {
     "vpc_default_sg_in_use": ["CIS-AWS:5.2", "SOC2:CC6.1"],
     "vpc_no_flow_logs": ["CIS-AWS:5.3", "SOC2:CC7.1"],
     "ec2_imdsv1": ["CIS-AWS:5.4", "SOC2:CC6.1"],
+    "ec2-imdsv1-enabled": ["CIS-AWS:5.4", "SOC2:CC6.1"],
+    "iam-role-trust-any-principal": ["CIS-AWS:1.17", "SOC2:CC6.3"],
 }
 
 
@@ -274,6 +312,7 @@ class ComplianceChecker:
         assets: list[Asset],
         *,
         framework: Framework | None = None,
+        collection_errors: list[dict] | None = None,
     ) -> ComplianceReport:
         """
         Check compliance based on findings.
@@ -298,16 +337,44 @@ class ComplianceChecker:
                     violations[ctrl_id] = []
                 violations[ctrl_id].append(finding)
 
+        asset_types = {a.asset_type for a in assets}
+        error_services = {
+            err.get("service")
+            for err in (collection_errors or [])
+            if err.get("service")
+        }
+
         # Build results
         results = []
+        data_gaps: dict[str, dict] = {}
         for ctrl in controls:
             violating_findings = violations.get(ctrl.full_id, [])
+            required_assets = CONTROL_ASSET_REQUIREMENTS.get(ctrl.full_id, [])
 
             if violating_findings:
                 status = "fail"
             else:
-                # Check if we have relevant assets to make a determination
-                status = "pass"  # Assume pass if no violations found
+                has_assets = not required_assets or any(
+                    asset_type in asset_types for asset_type in required_assets
+                )
+                if has_assets:
+                    status = "pass"
+                else:
+                    status = "unknown"
+                    data_gaps[ctrl.full_id] = {
+                        "reason": "missing_assets",
+                        "required_assets": required_assets,
+                    }
+
+            if status != "fail" and required_assets and error_services:
+                impacted = self._assets_impacted_by_errors(required_assets, error_services)
+                if impacted:
+                    status = "unknown"
+                    data_gaps[ctrl.full_id] = {
+                        "reason": "collection_error",
+                        "required_assets": required_assets,
+                        "services": sorted(impacted),
+                    }
 
             results.append(
                 ComplianceResult(
@@ -321,7 +388,28 @@ class ComplianceChecker:
         return ComplianceReport(
             framework=framework,
             results=results,
+            data_gaps=data_gaps,
         )
+
+    @staticmethod
+    def _assets_impacted_by_errors(
+        required_assets: list[str],
+        error_services: set[str],
+    ) -> set[str]:
+        """Map collection errors to affected control services."""
+        impacted: set[str] = set()
+        for service in error_services:
+            if service == "iam" and any(a.startswith("iam:") for a in required_assets):
+                impacted.add(service)
+            if service == "s3" and any(a.startswith("s3:") for a in required_assets):
+                impacted.add(service)
+            if service in {"ec2", "network"} and any(a.startswith("ec2:") for a in required_assets):
+                impacted.add(service)
+            if service == "lambda" and any(a.startswith("lambda:") for a in required_assets):
+                impacted.add(service)
+            if service == "rds" and any(a.startswith("rds:") for a in required_assets):
+                impacted.add(service)
+        return impacted
 
     def get_control(self, control_id: str) -> Control | None:
         """Get a control by ID."""

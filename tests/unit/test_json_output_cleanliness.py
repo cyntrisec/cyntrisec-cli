@@ -197,14 +197,14 @@ class TestCanJsonOutput:
     """Tests for can command JSON output cleanliness."""
 
     def test_can_uses_rich_console_for_status(self):
-        """Verify can.py uses Rich console (which outputs to stderr by default)."""
+        """Verify can.py uses a stderr console for status output."""
         import inspect
         from cyntrisec.cli import can
         
         source = inspect.getsource(can)
         
-        # Rich console.print outputs to stderr by default
-        assert 'console.print("[cyan]Running live policy simulation...[/cyan]")' in source
+        assert "Console(stderr=True)" in source
+        assert 'status_console.print("[cyan]Running live policy simulation...[/cyan]")' in source
 
 
 class TestPropertyJsonOutputCleanliness:

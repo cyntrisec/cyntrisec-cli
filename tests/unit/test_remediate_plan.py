@@ -58,7 +58,7 @@ def test_build_plan_returns_actions_and_terraform_snippets():
 
     graph = GraphBuilder().build(assets=[a1, a2], relationships=[rel])
     result = MinCutFinder().find_cuts(graph, [path], max_cuts=3)
-    plan = _build_plan(result)
+    plan = _build_plan(result, graph)
 
     assert plan, "Plan should not be empty"
     first = plan[0]

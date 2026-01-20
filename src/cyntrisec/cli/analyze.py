@@ -98,10 +98,11 @@ def analyze_paths(
             "returned": len(paths),
             "total": total_paths,
         }
+        snapshot_uuid = str(snapshot.id)
         actions = suggested_actions(
             [
                 (
-                    f"cyntrisec cuts --snapshot {scan_id or 'latest'}",
+                    f"cyntrisec cuts --snapshot {snapshot_uuid}",
                     "Prioritize fixes that block these paths",
                 ),
                 (

@@ -22,7 +22,7 @@ from cyntrisec.core.compliance import (
     ComplianceChecker,
     Framework,
 )
-from cyntrisec.core.schema import Finding, FindingSeverity
+from cyntrisec.core.schema import Asset, Finding, FindingSeverity
 from cyntrisec.cli.explain import FINDING_EXPLANATIONS
 
 
@@ -126,9 +126,17 @@ class TestComplianceFindingMapping:
         checker = ComplianceChecker()
         snapshot_id = uuid.uuid4()
         asset_id = uuid.uuid4()
+        assets = [
+            Asset(snapshot_id=snapshot_id, asset_type="iam:user", aws_resource_id="user-1", name="user-1"),
+            Asset(snapshot_id=snapshot_id, asset_type="iam:role", aws_resource_id="role-1", name="role-1"),
+            Asset(snapshot_id=snapshot_id, asset_type="s3:bucket", aws_resource_id="arn:aws:s3:::bucket", name="bucket"),
+            Asset(snapshot_id=snapshot_id, asset_type="ec2:security-group", aws_resource_id="sg-1", name="sg-1"),
+            Asset(snapshot_id=snapshot_id, asset_type="ec2:vpc", aws_resource_id="vpc-1", name="vpc-1"),
+            Asset(snapshot_id=snapshot_id, asset_type="ec2:instance", aws_resource_id="i-1", name="i-1"),
+        ]
         
         # Test with no findings - should have 100% compliance
-        report_no_findings = checker.check([], [], framework=Framework.CIS_AWS)
+        report_no_findings = checker.check([], assets, framework=Framework.CIS_AWS)
         assert report_no_findings.compliance_score == 1.0, \
             "Compliance score should be 100% with no findings"
         
@@ -141,7 +149,7 @@ class TestComplianceFindingMapping:
             title="Security Group Open to World",
         )
         
-        report_with_findings = checker.check([finding], [], framework=Framework.CIS_AWS)
+        report_with_findings = checker.check([finding], assets, framework=Framework.CIS_AWS)
         assert report_with_findings.compliance_score < 1.0, \
             "Compliance score should be less than 100% with findings"
         assert report_with_findings.failing > 0, \

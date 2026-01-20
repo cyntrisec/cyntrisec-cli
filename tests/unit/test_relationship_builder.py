@@ -93,18 +93,28 @@ class TestRelationshipBuilder:
         """Test Instance -> Role (via profile) relationship."""
         role_id = UUID("44444444-4444-4444-4444-444444444444")
         instance_id = UUID("22222222-2222-2222-2222-222222222222")
-        
+        profile_arn = "arn:aws:iam::123456789012:instance-profile/Ec2RoleProfile"
+        role_arn = "arn:aws:iam::123456789012:role/Ec2Role"
+
         role = make_asset(
-            snapshot_id, role_id, "iam:role", "Ec2Role"
+            snapshot_id, role_id, "iam:role", "Ec2Role", arn=role_arn
+        )
+        profile = make_asset(
+            snapshot_id,
+            UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "iam:instance-profile",
+            "Ec2RoleProfile",
+            properties={"role_arns": [role_arn]},
+            arn=profile_arn,
         )
         instance = make_asset(
             snapshot_id, instance_id, "ec2:instance", "web",
             properties={
-                "iam_instance_profile": "arn:aws:iam::123456789012:instance-profile/Ec2Role"
+                "iam_instance_profile": profile_arn
             }
         )
         
-        rels = builder.build([role, instance])
+        rels = builder.build([role, profile, instance])
         
         assert len(rels) == 1
         assert rels[0].relationship_type == "CAN_ASSUME"
@@ -159,20 +169,49 @@ class TestRelationshipBuilder:
         role_id = UUID("44444444-4444-4444-4444-444444444444")
         instance_id = UUID("22222222-2222-2222-2222-222222222222")
         target_id = UUID("77777777-7777-7777-7777-777777777777")
-        
-        role = make_asset(snapshot_id, role_id, "iam:role", "ComputeRole")
+        profile_arn = "arn:aws:iam::123:instance-profile/ComputeRole"
+        role_arn = "arn:aws:iam::123:role/ComputeRole"
+        role = make_asset(
+            snapshot_id,
+            role_id,
+            "iam:role",
+            "ComputeRole",
+            arn=role_arn,
+            properties={
+                "policy_documents": [
+                    {
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Action": "s3:GetObject",
+                                "Resource": "arn:aws:s3:::secrets/*",
+                            }
+                        ]
+                    }
+                ]
+            },
+        )
+        profile = make_asset(
+            snapshot_id,
+            UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            "iam:instance-profile",
+            "ComputeRole",
+            properties={"role_arns": [role_arn]},
+            arn=profile_arn,
+        )
         instance = make_asset(
             snapshot_id, instance_id, "ec2:instance", "web",
             properties={
-                "iam_instance_profile": "arn:aws:iam::123:instance-profile/ComputeRole"
+                "iam_instance_profile": profile_arn
             }
         )
         target = make_asset(
             snapshot_id, target_id, "s3:bucket", "secrets",
-            is_sensitive=True
+            is_sensitive=True,
+            arn="arn:aws:s3:::secrets",
         )
         
-        rels = builder.build([role, instance, target])
+        rels = builder.build([role, profile, instance, target])
         
         # Expect:
         # 1. Instance -> Role (CAN_ASSUME)

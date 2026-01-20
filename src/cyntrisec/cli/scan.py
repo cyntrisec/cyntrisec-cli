@@ -39,6 +39,11 @@ def scan_cmd(
         "-e",
         help="External ID for role assumption",
     ),
+    role_session_name: str | None = typer.Option(
+        None,
+        "--role-session-name",
+        help="Session name for role assumption (default: cyntrisec-scan)",
+    ),
     profile: str | None = typer.Option(
         None,
         "--profile",
@@ -95,6 +100,7 @@ def scan_cmd(
             regions=region_list,
             role_arn=role_arn,
             external_id=external_id,
+            role_session_name=role_session_name,
             profile=profile,
         )
     except PermissionError as e:
@@ -168,7 +174,10 @@ def scan_cmd(
     followups = suggested_actions(
         [
             (f"cyntrisec analyze paths --scan {scan_id}", "Review discovered attack paths"),
-            (f"cyntrisec cuts --snapshot {scan_id}", "Prioritize fixes that block paths"),
+            (
+                f"cyntrisec cuts --snapshot {snapshot.id}",
+                "Prioritize fixes that block paths",
+            ),
             (
                 f"cyntrisec report --scan {scan_id} --output cyntrisec-report.html",
                 "Generate a full report",

@@ -34,6 +34,7 @@ from cyntrisec.core.waste import WasteAnalyzer
 from cyntrisec.storage import FileSystemStorage
 
 console = Console()
+status_console = Console(stderr=True)
 log = logging.getLogger(__name__)
 
 
@@ -83,7 +84,7 @@ def waste_cmd(
         None,
         "--snapshot",
         "-s",
-        help="Specific snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
 ):
     """
@@ -117,7 +118,14 @@ def waste_cmd(
 
     if live:
         # Fetch real usage data from AWS
-        usage_reports = _collect_live_usage(assets, role_arn, external_id, max_roles)
+        live_console = console if output_format == "table" else status_console
+        usage_reports = _collect_live_usage(
+            assets,
+            role_arn,
+            external_id,
+            max_roles,
+            status_console=live_console,
+        )
 
     # Run analysis
     report = analyzer.analyze_from_assets(assets, usage_reports)
@@ -128,11 +136,11 @@ def waste_cmd(
         actions = suggested_actions(
             [
                 (
-                    f"cyntrisec comply --snapshot {snapshot_id or 'latest'} --format agent",
+                    f"cyntrisec comply --snapshot {snapshot.id} --format agent",
                     "Connect unused permissions to compliance gaps",
                 ),
                 (
-                    f"cyntrisec cuts --snapshot {snapshot_id or 'latest'}",
+                    f"cyntrisec cuts --snapshot {snapshot.id}",
                     "Prioritize fixes that remove risky unused permissions",
                 ),
             ]
@@ -148,12 +156,12 @@ def waste_cmd(
         _output_table(report, snapshot, days)
 
 
-def _collect_live_usage(assets, role_arn, external_id, max_roles):
+def _collect_live_usage(assets, role_arn, external_id, max_roles, *, status_console):
     """Collect live usage data from AWS."""
     from cyntrisec.aws import CredentialProvider
     from cyntrisec.aws.collectors.usage import UsageCollector
 
-    console.print("[cyan]Fetching live usage data from AWS...[/cyan]")
+    status_console.print("[cyan]Fetching live usage data from AWS...[/cyan]")
 
     provider = CredentialProvider()
     if role_arn:
@@ -167,10 +175,10 @@ def _collect_live_usage(assets, role_arn, external_id, max_roles):
     role_arns = [a.arn for a in assets if a.asset_type == "iam:role" and a.arn]
 
     if not role_arns:
-        console.print("[yellow]No IAM roles found in scan data.[/yellow]")
+        status_console.print("[yellow]No IAM roles found in scan data.[/yellow]")
         return []
 
-    console.print(f"[dim]Analyzing {min(len(role_arns), max_roles)} roles...[/dim]")
+    status_console.print(f"[dim]Analyzing {min(len(role_arns), max_roles)} roles...[/dim]")
     return collector.collect_all_roles(role_arns, max_roles=max_roles)
 
 
@@ -283,7 +291,33 @@ def _build_capability_dict(c, role_report, cost_estimator, asset_lookup):
         "recommendation": c.recommendation,
     }
 
-    # Note: Cost estimation for IAM roles is heuristic-based.
-    # For actual resource costs (NAT, EIP, EBS), use analyze business command.
+    if cost_estimator:
+        estimate = _estimate_service_cost(c.service, asset_lookup, cost_estimator)
+        if estimate:
+            result["monthly_cost_usd_estimate"] = float(estimate.monthly_cost_usd_estimate)
+            result["cost_source"] = estimate.cost_source
+            result["confidence"] = estimate.confidence
+            result["assumptions"] = estimate.assumptions
+        else:
+            result["monthly_cost_usd_estimate"] = None
+            result["cost_source"] = cost_estimator.source
+            result["confidence"] = "unknown"
+            result["assumptions"] = ["No cost estimate available for this service"]
 
     return result
+
+
+def _estimate_service_cost(service: str, asset_lookup: dict, cost_estimator: CostEstimator):
+    """Estimate cost for a service by inspecting matching assets."""
+    if not service or service in {"*", "unknown"}:
+        return None
+    best = None
+    for asset in asset_lookup.values():
+        if not asset.asset_type.startswith(f"{service}:"):
+            continue
+        estimate = cost_estimator.estimate(asset)
+        if not estimate:
+            continue
+        if not best or estimate.monthly_cost_usd_estimate > best.monthly_cost_usd_estimate:
+            best = estimate
+    return best

@@ -47,6 +47,7 @@ class AgentEnvelope(BaseSchema):
 class ScanResponse(BaseSchema):
     scan_id: str
     snapshot_id: str
+    status: str
     account_id: str | None = None
     regions: list[str]
     asset_count: int
@@ -241,12 +242,20 @@ class ControlResult(BaseSchema):
     description: str | None = None
 
 
+class DataGap(BaseSchema):
+    control_id: str
+    reason: str
+    required_assets: list[str] | None = None
+    services: list[str] | None = None
+
+
 class ComplyResponse(BaseSchema):
     framework: str
     compliance_score: float
     passing: int
     failing: int
     controls: list[ControlResult]
+    data_gaps: list[DataGap] | None = None
 
 
 class ReportResponse(BaseSchema):

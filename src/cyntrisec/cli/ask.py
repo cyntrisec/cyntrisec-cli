@@ -32,7 +32,7 @@ def ask_cmd(
         None,
         "--snapshot",
         "-s",
-        help="Snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
     format: str | None = typer.Option(
         None,
@@ -286,13 +286,15 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
                 if target_matches or source_matches:
                     relevant_paths.append(p)
         
+        target_display = target or query
+
         # If we found relevant paths, return graph results
         if relevant_paths:
             top_paths = sorted(relevant_paths, key=lambda p: float(p.risk_score), reverse=True)[:5]
             return {
                 "results": {
                     "paths_to_target": len(relevant_paths),
-                    "target": target,
+                    "target": target_display,
                     "top_paths": [
                         {
                             "attack_vector": p.attack_vector,
@@ -317,12 +319,12 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
         
         # No paths found - return helpful response with graph context
         principal_display = principal or "<principal>"
-        resource_display = target or "<resource>"
+        resource_display = target_display
         return {
             "results": {
                 "paths_to_target": 0,
-                "target": target,
-                "message": f"No attack paths found to '{target}' in the graph. Use 'cyntrisec can' for precise access simulation.",
+                "target": target_display,
+                "message": f"No attack paths found to '{target_display}' in the graph.",
             },
             "resolved_query": "graph_access_check",
             "suggested_actions": [

@@ -225,7 +225,7 @@ class TestRemediationTerraformHints:
         mock_result = MagicMock()
         mock_result.remediations = [mock_remediation]
         
-        plan = _build_plan(mock_result)
+        plan = _build_plan(mock_result, graph=None)
         
         assert len(plan) == 1
         assert "terraform" in plan[0]
@@ -259,7 +259,7 @@ class TestRemediationTerraformHints:
         mock_result = MagicMock()
         mock_result.remediations = [mock_remediation]
         
-        plan = _build_plan(mock_result)
+        plan = _build_plan(mock_result, graph=None)
         
         item = plan[0]
         assert "priority" in item

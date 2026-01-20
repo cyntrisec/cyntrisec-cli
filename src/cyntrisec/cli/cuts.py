@@ -52,7 +52,7 @@ def cuts_cmd(
         None,
         "--snapshot",
         "-s",
-        help="Specific snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
     cost_source: str = typer.Option(
         "estimate",
@@ -105,6 +105,7 @@ def cuts_cmd(
         cost_estimator = CostEstimator(source=cost_source)
         payload = _build_payload(result, snapshot, graph, cost_estimator)
         top_rem = result.remediations[0] if result.remediations else None
+        scan_id = storage.resolve_scan_id(snapshot_id)
         followups = suggested_actions(
             [
                 (
@@ -114,8 +115,8 @@ def cuts_cmd(
                     "Verify the highest-priority remediation closes access" if top_rem else "",
                 ),
                 (
-                    f"cyntrisec report --scan {snapshot.id}" if snapshot else "",
-                    "Export a full report for stakeholders" if snapshot else "",
+                    f"cyntrisec report --scan {scan_id}" if scan_id else "",
+                    "Export a full report for stakeholders" if scan_id else "",
                 ),
             ]
         )

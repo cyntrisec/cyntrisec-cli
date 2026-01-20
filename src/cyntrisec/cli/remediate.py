@@ -94,7 +94,7 @@ def remediate_cmd(
     snapshot_id: str | None = typer.Option(
         None,
         "--snapshot",
-        help="Snapshot ID (default: latest)",
+        help="Snapshot UUID (default: latest; scan_id accepted)",
     ),
     format: str | None = typer.Option(
         None,
@@ -136,12 +136,13 @@ def remediate_cmd(
         )
 
     if not paths:
-        console.print("[green]No attack paths found. Nothing to remediate.[/green]")
+        status_console = console if output_format == "table" else Console(stderr=True)
+        status_console.print("[green]No attack paths found. Nothing to remediate.[/green]")
         raise typer.Exit(0)
 
     graph = GraphBuilder().build(assets=assets, relationships=relationships)
     result = MinCutFinder().find_cuts(graph, paths, max_cuts=max_cuts)
-    plan = _build_plan(result)
+    plan = _build_plan(result, graph)
 
     apply_output = None
     mode = "plan"
@@ -168,8 +169,21 @@ def remediate_cmd(
             status = "dry_run"
             applied = False
         elif apply_output:
-            status = "applied"
-            applied = True
+            results = apply_output.get("results") or []
+            failed = any(
+                item.get("status") in {"terraform_failed", "terraform_plan_failed"} for item in results
+            )
+            applied = any(item.get("status") == "terraform_invoked" for item in results)
+            if failed:
+                status = "terraform_failed"
+                applied = False
+            elif mode == "terraform-plan":
+                status = "terraform_plan_ok"
+                applied = False
+            elif applied:
+                status = "applied"
+            else:
+                status = "planned"
         else:
             status = "planned"
             applied = False
@@ -219,12 +233,19 @@ def remediate_cmd(
     raise typer.Exit(0)
 
 
-def _build_plan(result):
+def _build_plan(result, graph):
     """Construct a remediation plan with human + IaC hints."""
     plan = []
     for i, rem in enumerate(result.remediations, 1):
+        source_asset = graph.asset(rem.relationship.source_asset_id) if graph else None
+        target_asset = graph.asset(rem.relationship.target_asset_id) if graph else None
         terraform = _terraform_snippet(
-            rem.action, rem.source_name, rem.target_name, rem.relationship_type
+            rem.action,
+            rem.source_name,
+            rem.target_name,
+            rem.relationship_type,
+            source_arn=source_asset.arn if source_asset else None,
+            target_arn=target_asset.arn if target_asset else None,
         )
         plan.append(
             {
@@ -241,7 +262,15 @@ def _build_plan(result):
     return plan
 
 
-def _terraform_snippet(action: str, source: str, target: str, relationship_type: str) -> str:
+def _terraform_snippet(
+    action: str,
+    source: str,
+    target: str,
+    relationship_type: str,
+    *,
+    source_arn: str | None = None,
+    target_arn: str | None = None,
+) -> str:
     """Generate a minimal Terraform hint for the remediation."""
     if relationship_type == "ALLOWS_TRAFFIC_TO":
         return (
@@ -256,24 +285,37 @@ def _terraform_snippet(action: str, source: str, target: str, relationship_type:
             "}\n"
         )
     if relationship_type == "MAY_ACCESS":
+        resources_line = (
+            f'    resources = ["{target_arn}"]\n' if target_arn else "    resources = []\n"
+        )
         return (
             "# Tighten IAM policy\n"
+            f"# TODO: replace resources for {target} if empty\n"
             'data "aws_iam_policy_document" "restricted" {\n'
             "  statement {\n"
             f'    sid    = "Limit{source}Access"\n'
             '    effect = "Allow"\n'
-            f'    actions   = ["*"]\n'
-            f'    resources = ["arn:aws:*:::{{resource_arn_for_{target}}}"]\n'
+            '    actions   = ["*"]\n'
+            f"{resources_line}"
             "  }\n"
             "}\n"
         )
     if relationship_type == "CAN_ASSUME":
+        identifiers_line = (
+            f'      identifiers = ["{source_arn}"]\n'
+            if source_arn
+            else "      identifiers = []\n"
+        )
         return (
             "# Restrict role trust policy\n"
+            f"# TODO: replace trusted principal for {source} if empty\n"
             'data "aws_iam_policy_document" "assume_role" {\n'
             "  statement {\n"
             '    effect = "Allow"\n'
-            '    principals { type = "AWS" identifiers = ["<trusted-account>"] }\n'
+            "    principals {\n"
+            '      type = "AWS"\n'
+            f"{identifiers_line}"
+            "    }\n"
             '    actions = ["sts:AssumeRole"]\n'
             "  }\n"
             "}\n"
@@ -363,19 +405,21 @@ def _handle_apply_mode(
 
     mode = "apply" if apply else ("terraform-plan" if terraform_plan else "dry_run")
 
-    # Skip confirmation for dry-run since it's safe (no actual changes)
-    if not dry_run and not yes:
+    # Skip confirmation for dry-run and terraform-plan since they are read-only.
+    if not dry_run and not terraform_plan and not yes:
         confirm = typer.confirm(
             "This will write the remediation plan to disk and mark actions as pending. Proceed?",
             default=False,
+            err=True,
         )
         if not confirm:
             raise typer.Exit(1)
 
-    if (execute_terraform or terraform_plan) and not yes:
+    if execute_terraform and not yes:
         confirm_tf = typer.confirm(
             "You requested to run terraform locally. Continue?",
             default=False,
+            err=True,
         )
         if not confirm_tf:
             raise typer.Exit(1)

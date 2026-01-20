@@ -73,6 +73,7 @@ class AwsScanner:
         *,
         role_arn: str | None = None,
         external_id: str | None = None,
+        role_session_name: str | None = None,
         profile: str | None = None,
     ) -> Snapshot:
         """
@@ -94,7 +95,11 @@ class AwsScanner:
         if role_arn:
             log.info("Assuming role: %s", role_arn)
             creds = CredentialProvider(profile=profile, region=regions[0])
-            session = creds.assume_role(role_arn, external_id=external_id)
+            session = creds.assume_role(
+                role_arn,
+                external_id=external_id,
+                session_name=role_session_name or "cyntrisec-scan",
+            )
         else:
             log.info("Using default AWS credentials")
             import boto3

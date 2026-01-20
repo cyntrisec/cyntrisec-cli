@@ -12,6 +12,7 @@ This module runs after all normalizers have completed to wire up cross-service c
 
 from __future__ import annotations
 
+import fnmatch
 import uuid
 
 from cyntrisec.core.schema import Asset, Relationship
@@ -124,21 +125,24 @@ class RelationshipBuilder:
         if not profile_arn:
             return relationships
 
-        profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
-        if not profile_name:
-            return relationships
+        for profile in self._by_type.get("iam:instance-profile", []):
+            if profile.arn == profile_arn or profile.aws_resource_id == profile_arn:
+                role_arns = profile.properties.get("role_arns") or []
+                primary_role = profile.properties.get("role_arn")
+                if primary_role and primary_role not in role_arns:
+                    role_arns.append(primary_role)
 
-        for role in self._by_type.get("iam:role", []):
-            if profile_name in role.name:
-                relationships.append(
-                    Relationship(
-                        snapshot_id=self._snapshot_id,
-                        source_asset_id=instance.id,
-                        target_asset_id=role.id,
-                        relationship_type="CAN_ASSUME",
-                        properties={"via": "instance_profile"},
-                    )
-                )
+                for role in self._by_type.get("iam:role", []):
+                    if role.arn in role_arns:
+                        relationships.append(
+                            Relationship(
+                                snapshot_id=self._snapshot_id,
+                                source_asset_id=instance.id,
+                                target_asset_id=role.id,
+                                relationship_type="CAN_ASSUME",
+                                properties={"via": "instance_profile"},
+                            )
+                        )
         return relationships
 
     def _build_lambda_relationships(self) -> list[Relationship]:
@@ -187,20 +191,73 @@ class RelationshipBuilder:
 
         # Create MAY_ACCESS relationships to sensitive targets
         sensitive_targets = [a for a in assets if a.is_sensitive_target]
+        role_lookup = {role.id: role for role in self._by_type.get("iam:role", [])}
+
         for role_id in compute_roles:
+            role = role_lookup.get(role_id)
+            if not role:
+                continue
+            policy_docs = role.properties.get("policy_documents", [])
+            resources = self._collect_policy_resources(policy_docs)
+            if not resources:
+                continue
+
             for target in sensitive_targets:
-                if role_id != target.id:  # Avoid self-loops
+                target_arn = target.arn or target.aws_resource_id
+                if not target_arn or role_id == target.id:
+                    continue
+                if self._resources_match_target(resources, target_arn):
                     relationships.append(
                         Relationship(
                             snapshot_id=self._snapshot_id,
                             source_asset_id=role_id,
                             target_asset_id=target.id,
                             relationship_type="MAY_ACCESS",
-                            properties={"via": "iam_policy_assumption"},
+                            properties={"via": "iam_policy"},
                         )
                     )
 
         return relationships
+
+    def _collect_policy_resources(self, policy_docs: list[dict]) -> list[str]:
+        """Extract allowed resources from policy documents."""
+        resources: list[str] = []
+        for policy in policy_docs:
+            for statement in self._iter_policy_statements(policy):
+                if statement.get("Effect") != "Allow":
+                    continue
+                for res in self._normalize_resources(statement.get("Resource")):
+                    resources.append(res)
+        return resources
+
+    @staticmethod
+    def _iter_policy_statements(policy: dict) -> list[dict]:
+        """Return policy statements as a list."""
+        statements = policy.get("Statement", [])
+        if isinstance(statements, list):
+            return statements
+        if isinstance(statements, dict):
+            return [statements]
+        return []
+
+    @staticmethod
+    def _normalize_resources(resource_value) -> list[str]:
+        """Normalize Resource field into a list of strings."""
+        if not resource_value:
+            return []
+        if isinstance(resource_value, list):
+            return [r for r in resource_value if isinstance(r, str)]
+        if isinstance(resource_value, str):
+            return [resource_value]
+        return []
+
+    @staticmethod
+    def _resources_match_target(resources: list[str], target_arn: str) -> bool:
+        """Return True when any resource pattern matches the target ARN."""
+        for resource in resources:
+            if resource == "*" or fnmatch.fnmatchcase(target_arn, resource):
+                return True
+        return False
 
     def _collect_compute_roles(self) -> set[uuid.UUID]:
         """Collect IAM roles used by EC2 instances and Lambda functions."""
@@ -210,11 +267,15 @@ class RelationshipBuilder:
         for instance in self._by_type.get("ec2:instance", []):
             profile_arn = instance.properties.get("iam_instance_profile")
             if profile_arn:
-                profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else None
-                if profile_name:
-                    for role in self._by_type.get("iam:role", []):
-                        if profile_name in role.name:
-                            roles.add(role.id)
+                for profile in self._by_type.get("iam:instance-profile", []):
+                    if profile.arn == profile_arn or profile.aws_resource_id == profile_arn:
+                        role_arns = profile.properties.get("role_arns") or []
+                        primary_role = profile.properties.get("role_arn")
+                        if primary_role and primary_role not in role_arns:
+                            role_arns.append(primary_role)
+                        for role in self._by_type.get("iam:role", []):
+                            if role.arn in role_arns:
+                                roles.add(role.id)
 
         # Lambda execution roles
         for func in self._by_type.get("lambda:function", []):

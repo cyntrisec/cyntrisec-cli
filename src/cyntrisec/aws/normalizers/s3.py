@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import json
 from typing import Any
 
 from cyntrisec.core.schema import Asset, Finding, FindingSeverity, Relationship
@@ -128,4 +129,56 @@ class S3Normalizer:
                 )
             )
 
+        # Check bucket policy for public access
+        policy = bucket.get("Policy")
+        if policy:
+            findings.extend(self._analyze_bucket_policy(asset, bucket_name, policy))
+
         return asset, findings
+
+    def _analyze_bucket_policy(
+        self,
+        asset: Asset,
+        bucket_name: str,
+        policy: Any,
+    ) -> list[Finding]:
+        """Analyze bucket policy for public access."""
+        try:
+            policy_doc = json.loads(policy) if isinstance(policy, str) else policy
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+        statements = policy_doc.get("Statement", [])
+        findings: list[Finding] = []
+        for statement in statements if isinstance(statements, list) else [statements]:
+            effect = statement.get("Effect", "")
+            principal = statement.get("Principal", {})
+            if effect != "Allow":
+                continue
+            if self._is_public_principal(principal):
+                findings.append(
+                    Finding(
+                        snapshot_id=self._snapshot_id,
+                        asset_id=asset.id,
+                        finding_type="s3-bucket-public-policy",
+                        severity=FindingSeverity.critical,
+                        title=f"S3 bucket {bucket_name} has public bucket policy",
+                        description="Bucket policy allows public access via Principal: *",
+                        remediation="Review and restrict the bucket policy",
+                        evidence={"statement": statement},
+                    )
+                )
+        return findings
+
+    @staticmethod
+    def _is_public_principal(principal: Any) -> bool:
+        """Return True when Principal implies public access."""
+        if principal == "*":
+            return True
+        if isinstance(principal, dict):
+            aws_principal = principal.get("AWS")
+            if aws_principal == "*" or aws_principal == ["*"]:
+                return True
+            if isinstance(aws_principal, list) and "*" in aws_principal:
+                return True
+        return False

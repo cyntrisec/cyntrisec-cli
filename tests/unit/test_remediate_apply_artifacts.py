@@ -60,7 +60,7 @@ def test_apply_plan_writes_plan_and_terraform(tmp_path: Path):
 
     graph = GraphBuilder().build(assets=[a1, a2], relationships=[rel])
     result = MinCutFinder().find_cuts(graph, [path])
-    plan = _build_plan(result)
+    plan = _build_plan(result, graph)
 
     plan_path = tmp_path / "plan.json"
     tf_dir = tmp_path / "tfmod"

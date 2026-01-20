@@ -127,7 +127,7 @@ def diff_cmd(
                     "Review new attack paths",
                 ),
                 (
-                    f"cyntrisec cuts --snapshot {new_scan_id}",
+                    f"cyntrisec cuts --snapshot {new_snap.id}",
                     "Find fixes for new regressions",
                 ),
             ]

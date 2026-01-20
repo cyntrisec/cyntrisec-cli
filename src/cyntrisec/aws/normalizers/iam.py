@@ -39,6 +39,11 @@ class IamNormalizer:
             relationships.extend(rels)
             findings.extend(role_findings)
 
+        # Normalize instance profiles
+        for profile in data.get("instance_profiles", []):
+            asset = self._normalize_instance_profile(profile)
+            assets.append(asset)
+
         return assets, relationships, findings
 
     def _normalize_user(
@@ -94,6 +99,14 @@ class IamNormalizer:
             kw in role_name.lower() for kw in ["admin", "root", "power", "full-access"]
         )
 
+        attached_policies = role.get("AttachedPolicies", []) or []
+        inline_policies = role.get("InlinePolicies", []) or []
+        policy_documents = [
+            p.get("Document") for p in attached_policies if p.get("Document")
+        ] + [
+            p.get("Document") for p in inline_policies if p.get("Document")
+        ]
+
         asset = Asset(
             snapshot_id=self._snapshot_id,
             asset_type="iam:role",
@@ -105,6 +118,9 @@ class IamNormalizer:
                 "created_date": str(role.get("CreateDate")),
                 "max_session_duration": role.get("MaxSessionDuration"),
                 "description": role.get("Description"),
+                "attached_policies": attached_policies,
+                "inline_policies": inline_policies,
+                "policy_documents": policy_documents,
             },
             is_sensitive_target=is_sensitive,
         )
@@ -140,3 +156,25 @@ class IamNormalizer:
                     )
 
         return asset, relationships, findings
+
+    def _normalize_instance_profile(self, profile: dict[str, Any]) -> Asset:
+        """Normalize an IAM instance profile."""
+        profile_name = profile.get("InstanceProfileName")
+        profile_arn = profile.get("Arn")
+        roles = profile.get("Roles", [])
+        role_arns = [r.get("Arn") for r in roles if r.get("Arn")]
+        role_arn = role_arns[0] if role_arns else None
+
+        return Asset(
+            snapshot_id=self._snapshot_id,
+            asset_type="iam:instance-profile",
+            aws_resource_id=profile_arn or profile_name,
+            arn=profile_arn,
+            name=profile_name or profile_arn or "instance-profile",
+            properties={
+                "instance_profile_id": profile.get("InstanceProfileId"),
+                "created_date": str(profile.get("CreateDate")),
+                "role_arn": role_arn,
+                "role_arns": role_arns,
+            },
+        )

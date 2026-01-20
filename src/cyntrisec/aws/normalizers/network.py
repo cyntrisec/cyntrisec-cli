@@ -155,14 +155,7 @@ class NetworkNormalizer:
                     from_port = rule.get("FromPort", "all")
                     to_port = rule.get("ToPort", "all")
                     protocol = rule.get("IpProtocol", "all")
-
-                    # Determine severity based on port
-                    if from_port in [22, 3389] or to_port in [22, 3389]:
-                        severity = FindingSeverity.critical
-                    elif protocol == "-1":  # All traffic
-                        severity = FindingSeverity.critical
-                    else:
-                        severity = FindingSeverity.high
+                    severity = self._severity_for_open_rule(from_port, to_port, protocol)
 
                     findings.append(
                         Finding(
@@ -176,8 +169,37 @@ class NetworkNormalizer:
                             evidence={"rule": rule, "cidr": cidr},
                         )
                     )
+            for ip_range in rule.get("Ipv6Ranges", []):
+                cidr = ip_range.get("CidrIpv6", "")
+                if cidr == "::/0":
+                    from_port = rule.get("FromPort", "all")
+                    to_port = rule.get("ToPort", "all")
+                    protocol = rule.get("IpProtocol", "all")
+                    severity = self._severity_for_open_rule(from_port, to_port, protocol)
+
+                    findings.append(
+                        Finding(
+                            snapshot_id=self._snapshot_id,
+                            asset_id=asset.id,
+                            finding_type="security-group-open-to-world",
+                            severity=severity,
+                            title=f"Security group {sg_name} allows inbound from ::/0",
+                            description=f"Ingress rule allows traffic from anywhere on port {from_port}-{to_port}",
+                            remediation="Restrict the source IP range to known addresses",
+                            evidence={"rule": rule, "cidr": cidr},
+                        )
+                    )
 
         return asset, findings
+
+    @staticmethod
+    def _severity_for_open_rule(from_port, to_port, protocol) -> FindingSeverity:
+        """Determine severity for an open ingress rule."""
+        if from_port in [22, 3389] or to_port in [22, 3389]:
+            return FindingSeverity.critical
+        if protocol == "-1":
+            return FindingSeverity.critical
+        return FindingSeverity.high
 
     def _normalize_load_balancer(self, lb: dict[str, Any]) -> Asset:
         """Normalize a load balancer."""

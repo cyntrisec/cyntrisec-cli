@@ -36,7 +36,7 @@ class SimulationResult:
         matched_statements: Policy statements that matched
     """
 
-    action: str
+    action: str | None
     resource: str
     decision: SimulationDecision
     decision_details: dict[str, Any] = field(default_factory=dict)
@@ -67,7 +67,7 @@ class CanAccessResult:
 
     principal_arn: str
     target_resource: str
-    action: str
+    action: str | None
     can_access: bool
     simulations: list[SimulationResult] = field(default_factory=list)
     proof: dict[str, Any] = field(default_factory=dict)
@@ -364,7 +364,7 @@ class OfflineSimulator:
         return CanAccessResult(
             principal_arn=principal_arn,
             target_resource=target_resource,
-            action=action or "*",
+            action=action,
             can_access=can_access,
             simulations=[],
             proof=proof,

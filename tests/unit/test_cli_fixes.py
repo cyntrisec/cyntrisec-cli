@@ -134,6 +134,7 @@ class TestScanIdInOutput:
             "scan_id": "2026-01-19_103255_123456789012",
             "snapshot_id": str(uuid.uuid4()),
             "account_id": "123456789012",
+            "status": "success",
             "regions": ["us-east-1"],
             "asset_count": 10,
             "relationship_count": 5,
