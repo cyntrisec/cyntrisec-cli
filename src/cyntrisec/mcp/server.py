@@ -316,24 +316,6 @@ def _register_insight_tools(mcp, session):
         finder = MinCutFinder()
         result = finder.find_cuts(graph, paths, max_cuts=max_cuts)
 
-        return {
-            "total_paths": result.total_paths,
-            "paths_blocked": result.paths_blocked,
-            "coverage": float(result.coverage),
-            "remediations": [
-                {
-                    "source": r.source_name,
-                    "target": r.target_name,
-                    "relationship_type": r.relationship_type,
-                    "paths_blocked": len(r.paths_blocked),
-                    "recommendation": r.description,  # Remediation uses 'description' not 'recommendation'
-                }
-                for r in result.remediations
-            ],
-        }
-
-    @mcp.tool()
-    def get_unused_permissions(
         days_threshold: int = 90, snapshot_id: str | None = None
     ) -> dict[str, Any]:
         """

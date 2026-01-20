@@ -75,6 +75,7 @@ class AwsScanner:
         external_id: str | None = None,
         role_session_name: str | None = None,
         profile: str | None = None,
+        business_config: str | None = None,
     ) -> Snapshot:
         """
         Run a full AWS scan.
@@ -119,6 +120,7 @@ class AwsScanner:
             scan_params={
                 "role_arn": role_arn,
                 "regions": list(regions),
+                "business_config": business_config,
             },
         )
         self._storage.save_snapshot(snapshot)
@@ -258,6 +260,20 @@ class AwsScanner:
         entry_count = len(graph.entry_points())
         target_count = len(graph.sensitive_targets())
         log.info("  Entry points: %d, Sensitive targets: %d", entry_count, target_count)
+
+        if business_config:
+            try:
+                from cyntrisec.core.business_config import BusinessConfig
+                from cyntrisec.core.business_logic import BusinessLogicEngine
+
+                log.info("Loading business config from: %s", business_config)
+                cfg = BusinessConfig.load(business_config)
+                logic = BusinessLogicEngine(graph, cfg)
+                logic.apply_labels()
+            except Exception as e:
+                log.error("Failed to apply business config: %s", e)
+                if collector_errors is not None:
+                    collector_errors.append({"service": "business_logic", "error": str(e)})
 
         paths = PathFinder().find_paths(graph, snapshot.id)
         self._storage.save_attack_paths(paths)

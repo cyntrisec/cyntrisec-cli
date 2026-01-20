@@ -52,6 +52,7 @@ class RelationshipBuilder:
         relationships.extend(self._build_lambda_relationships())
         relationships.extend(self._build_loadbalancer_relationships())
         relationships.extend(self._build_iam_access_relationships(assets))
+        relationships.extend(self._build_pass_role_relationships(assets))
 
         return relationships
 
@@ -198,15 +199,16 @@ class RelationshipBuilder:
             if not role:
                 continue
             policy_docs = role.properties.get("policy_documents", [])
-            resources = self._collect_policy_resources(policy_docs)
-            if not resources:
+            policy_docs = role.properties.get("policy_documents", [])
+            allowed, denied = self._collect_policy_resources(policy_docs)
+            if not allowed:
                 continue
 
             for target in sensitive_targets:
                 target_arn = target.arn or target.aws_resource_id
                 if not target_arn or role_id == target.id:
                     continue
-                if self._resources_match_target(resources, target_arn):
+                if self._resources_match_target(allowed, denied, target_arn):
                     relationships.append(
                         Relationship(
                             snapshot_id=self._snapshot_id,
@@ -219,16 +221,21 @@ class RelationshipBuilder:
 
         return relationships
 
-    def _collect_policy_resources(self, policy_docs: list[dict]) -> list[str]:
-        """Extract allowed resources from policy documents."""
-        resources: list[str] = []
+    def _collect_policy_resources(self, policy_docs: list[dict]) -> tuple[list[str], list[str]]:
+        """Extract allowed and denied resources from policy documents."""
+        allowed: list[str] = []
+        denied: list[str] = []
         for policy in policy_docs:
             for statement in self._iter_policy_statements(policy):
-                if statement.get("Effect") != "Allow":
-                    continue
-                for res in self._normalize_resources(statement.get("Resource")):
-                    resources.append(res)
-        return resources
+                effect = statement.get("Effect", "Allow")
+                resources = self._normalize_resources(statement.get("Resource"))
+                
+                if effect == "Allow":
+                    allowed.extend(resources)
+                elif effect == "Deny":
+                    denied.extend(resources)
+                    
+        return allowed, denied
 
     @staticmethod
     def _iter_policy_statements(policy: dict) -> list[dict]:
@@ -252,9 +259,15 @@ class RelationshipBuilder:
         return []
 
     @staticmethod
-    def _resources_match_target(resources: list[str], target_arn: str) -> bool:
-        """Return True when any resource pattern matches the target ARN."""
-        for resource in resources:
+    def _resources_match_target(allowed: list[str], denied: list[str], target_arn: str) -> bool:
+        """Return True when matches allowed and NOT denied."""
+        # Check explicit deny first
+        for resource in denied:
+            if resource == "*" or fnmatch.fnmatchcase(target_arn, resource):
+                return False
+
+        # Check allow
+        for resource in allowed:
             if resource == "*" or fnmatch.fnmatchcase(target_arn, resource):
                 return True
         return False
@@ -297,3 +310,52 @@ class RelationshipBuilder:
                 if ip_range.get("CidrIpv6") == "::/0":
                     return True
         return False
+
+    def _build_pass_role_relationships(self, assets: list[Asset]) -> list[Relationship]:
+        """Build IAM Role -> Role relationships via PassRole (Privilege Escalation)."""
+        relationships = []
+        roles = [a for a in assets if a.asset_type == "iam:role"]
+        
+        for source_role in roles:
+            policy_docs = source_role.properties.get("policy_documents", [])
+            
+            allowed_resources = []
+            for policy in policy_docs:
+                for statement in self._iter_policy_statements(policy):
+                    if statement.get("Effect") != "Allow":
+                        continue
+                        
+                    actions = statement.get("Action", [])
+                    if isinstance(actions, str): actions = [actions]
+                    
+                    if any(fnmatch.fnmatchcase("iam:PassRole", a) for a in actions):
+                         allowed_resources.extend(self._normalize_resources(statement.get("Resource")))
+
+            if not allowed_resources:
+                continue
+                
+            for target_role in roles:
+                if source_role.id == target_role.id:
+                    continue
+                    
+                target_arn = target_role.arn or target_role.aws_resource_id
+                if not target_arn: continue
+                
+                # Check if source can pass target
+                can_pass = False
+                for res in allowed_resources:
+                    if res == "*" or fnmatch.fnmatchcase(target_arn, res):
+                        can_pass = True
+                        break
+                
+                if can_pass:
+                    relationships.append(
+                        Relationship(
+                            snapshot_id=self._snapshot_id,
+                            source_asset_id=source_role.id,
+                            target_asset_id=target_role.id,
+                            relationship_type="CAN_PASS_TO",
+                            properties={"via": "iam_pass_role"},
+                        )
+                    )
+        return relationships

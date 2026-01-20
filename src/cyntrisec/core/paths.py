@@ -1,15 +1,16 @@
 """
-Attack Path Finder - BFS-based attack path discovery.
+Attack Path Finder - Heuristic-based attack path discovery.
 
 Finds paths from internet-facing entry points to sensitive targets
-through the capability graph.
+through the capability graph. Uses a priority queue (best-first search)
+to prioritize highest-risk paths.
 """
 
 from __future__ import annotations
 
 import hashlib
+import heapq
 import uuid
-from collections import deque
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -30,15 +31,11 @@ class PathFinder:
     """
     Discovers attack paths through the capability graph.
 
-    Uses BFS from entry points to find all paths to sensitive targets.
-    Calculates risk scores based on:
-    - Entry confidence: How accessible is the entry point
-    - Exploitability: How easy is the path to traverse
-    - Impact: How valuable is the target
-
-    Example:
-        finder = PathFinder()
-        paths = finder.find_paths(graph, snapshot_id)
+    Uses Best-First Search (Priority Queue) to find highest-risk paths first.
+    
+    Risk Heuristic:
+    - Prioritizes paths starting from high-confidence entry points.
+    - Penalizes length (shorter paths = higher exploitability).
     """
 
     def __init__(self, config: PathFinderConfig | None = None):
@@ -50,107 +47,133 @@ class PathFinder:
         snapshot_id: uuid.UUID,
     ) -> list[AttackPath]:
         """
-        Find all attack paths in the graph.
-
-        Args:
-            graph: The capability graph to analyze
-            snapshot_id: ID of the current scan snapshot
-
-        Returns:
-            List of AttackPath objects sorted by risk score
+        Find all attack paths in the graph using k-best search.
         """
         entry_points = graph.entry_points()
-        targets = {t.id for t in graph.sensitive_targets()}
+        targets = {t.id: t for t in graph.sensitive_targets()}
 
         if not entry_points or not targets:
             return []
 
-        all_paths: list[AttackPath] = []
-        visited_hashes: set[str] = set()
-        remaining = self._config.max_paths
-
+        # Priority Queue: (-heuristic_score, path_len, current_id, path_assets, path_rels)
+        queue = []
         for entry in entry_points:
-            if remaining <= 0:
-                break
+            # Initial score based on entry confidence alone (length=1)
+            score = self._calculate_heuristic(entry, 1)
+            # Use negative score for max-heap behavior
+            heapq.heappush(queue, (-score, 1, entry.id, [entry.id], []))
 
-            paths = self._bfs_from_entry(
-                graph=graph,
-                snapshot_id=snapshot_id,
-                entry=entry,
-                targets=targets,
-                max_paths=remaining,
-                visited_hashes=visited_hashes,
-            )
-            all_paths.extend(paths)
-            remaining -= len(paths)
+        found_paths: list[AttackPath] = []
+        visited_path_hashes: set[str] = set()
+        
+        # Limit visits per node to prevent explosion while finding alternative paths
+        # (asset_id -> visit_count)
+        node_visits: dict[uuid.UUID, int] = {}
+        MAX_VISITS_PER_NODE = 5
 
-        # Sort by risk score descending
-        all_paths.sort(key=lambda p: float(p.risk_score), reverse=True)
-
-        # Apply min risk filter
-        if self._config.min_risk_score > 0:
-            all_paths = [p for p in all_paths if float(p.risk_score) >= self._config.min_risk_score]
-
-        return all_paths[: self._config.max_paths]
-
-    def _bfs_from_entry(
-        self,
-        *,
-        graph: AwsGraph,
-        snapshot_id: uuid.UUID,
-        entry: Asset,
-        targets: set[uuid.UUID],
-        max_paths: int,
-        visited_hashes: set[str],
-    ) -> list[AttackPath]:
-        """BFS from a single entry point to find paths to targets."""
-        paths: list[AttackPath] = []
-
-        # Queue: (current_id, path_assets, path_rels)
-        queue: deque[tuple[uuid.UUID, list[uuid.UUID], list[uuid.UUID]]] = deque()
-        queue.append((entry.id, [entry.id], []))
-
-        while queue and len(paths) < max_paths:
-            current_id, path_assets, path_rels = queue.popleft()
-
-            # Check depth limit
-            if len(path_rels) >= self._config.max_depth:
+        while queue and len(found_paths) < self._config.max_paths:
+            neg_score, length, current_id, path_assets, path_rels = heapq.heappop(queue)
+            
+            # Pruning
+            if length >= self._config.max_depth:
                 continue
+            
+            # Count visits
+            node_visits[current_id] = node_visits.get(current_id, 0) + 1
+            if node_visits[current_id] > MAX_VISITS_PER_NODE:
+                 # Prun if we've processed this node too many times via different paths
+                 continue
 
-            # Explore neighbors
+            # Check if we reached a target
+            if current_id in targets:
+                # We found a path!
+                # Since we pulled from PQ, this is the "next best" path available.
+                
+                # Check duplication
+                path_hash = self._hash_path(path_assets)
+                if path_hash in visited_path_hashes:
+                    continue
+                visited_path_hashes.add(path_hash)
+
+                attack_path = self._create_path(
+                    graph=graph,
+                    snapshot_id=snapshot_id,
+                    path_assets=path_assets,
+                    path_rels=path_rels,
+                )
+                
+                # Filter low risk
+                if float(attack_path.risk_score) >= self._config.min_risk_score:
+                    found_paths.append(attack_path)
+                    
+                # We don't stop exploring from targets (pivoting through DBs?)
+                # But usually targets are endpoints. Let's continue exploring.
+
+            # Expand neighbors
             for rel in graph.edges_from(current_id):
                 next_id = rel.target_asset_id
 
-                # Avoid cycles
+                # Cycle prevention
                 if next_id in path_assets:
                     continue
 
-                new_path_assets = path_assets + [next_id]
-                new_path_rels = path_rels + [rel.id]
+                new_assets = path_assets + [next_id]
+                new_rels = path_rels + [rel.id]
+                new_len = length + 1
+                
+                # Heuristic: EntryConf * (1 - 0.1 * new_len)
+                # We base heuristic on the Entry Asset (path_assets[0])
+                entry_asset = graph.asset(path_assets[0])
+                new_score = self._calculate_heuristic(entry_asset, new_len)
+                
+                heapq.heappush(queue, (-new_score, new_len, next_id, new_assets, new_rels))
 
-                # Deduplicate paths
-                path_hash = self._hash_path(new_path_assets)
-                if path_hash in visited_hashes:
-                    continue
-                visited_hashes.add(path_hash)
+        return found_paths
 
-                # If we reached a target, create attack path
-                if next_id in targets:
-                    attack_path = self._create_path(
-                        graph=graph,
-                        snapshot_id=snapshot_id,
-                        path_assets=new_path_assets,
-                        path_rels=new_path_rels,
-                    )
-                    paths.append(attack_path)
-
-                    if len(paths) >= max_paths:
-                        break
-
-                # Continue exploring
-                queue.append((next_id, new_path_assets, new_path_rels))
-
+    def find_paths_between(
+        self,
+        graph: AwsGraph,
+        source_id: uuid.UUID,
+        target_id: uuid.UUID,
+        max_depth: int = 5,
+    ) -> list[list[uuid.UUID]]:
+        """
+        Find paths between two specific assets (for Business Logic).
+        Returns list of asset_id lists.
+        """
+        # Simple BFS is usually fine for connectivity checks
+        paths = []
+        queue = deque([(source_id, [source_id])])
+        visited_hashes = set()
+        
+        while queue and len(paths) < 10:
+             curr, path = queue.popleft()
+             if curr == target_id:
+                 paths.append(path)
+                 continue
+             
+             if len(path) >= max_depth:
+                 continue
+                 
+             for rel in graph.edges_from(curr):
+                 nxt = rel.target_asset_id
+                 if nxt not in path:
+                     new_path = path + [nxt]
+                     ph = self._hash_path(new_path)
+                     if ph not in visited_hashes:
+                         visited_hashes.add(ph)
+                         queue.append((nxt, new_path))
         return paths
+
+    def _calculate_heuristic(self, entry_asset: Asset | None, length: int) -> float:
+        """
+        Calculate heuristic score for best-first search.
+        Higher is better (higher risk).
+        """
+        entry_conf = self._entry_confidence(entry_asset)
+        exploitability = self._exploitability(length)
+        # We assume potential impact is 1.0 (unknown) during traversal
+        return entry_conf * exploitability
 
     def _hash_path(self, path_assets: list[uuid.UUID]) -> str:
         """Create a unique hash for a path."""
@@ -234,6 +257,7 @@ class PathFinder:
                 return 1.0
             return 0.85
         elif asset.asset_type == "iam:role":
+            # Roles can be impacts if they are Admin
             name_lower = asset.name.lower()
             if any(kw in name_lower for kw in ["admin", "root"]):
                 return 0.95

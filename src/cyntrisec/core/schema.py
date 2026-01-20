@@ -97,6 +97,7 @@ class Asset(BaseSchema):
     # Properties and tags
     properties: dict[str, Any] = Field(default_factory=dict)
     tags: dict[str, str] = Field(default_factory=dict)
+    labels: set[str] = Field(default_factory=set)
 
     # Cost analysis
     monthly_cost_usd: Decimal | None = None
@@ -127,6 +128,7 @@ class Relationship(BaseSchema):
 
     # Edge properties (ports, protocols, conditions)
     properties: dict[str, Any] = Field(default_factory=dict)
+    labels: set[str] = Field(default_factory=set)
 
     # For attack path analysis
     traversal_cost: float = 1.0  # Lower = easier to traverse

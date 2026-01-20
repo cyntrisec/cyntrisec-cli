@@ -56,6 +56,12 @@ def scan_cmd(
         "-f",
         help="Output format: text, json, agent (defaults to json when piped)",
     ),
+    business_config: str | None = typer.Option(
+        None,
+        "--business-config",
+        "-b",
+        help="Path to business configuration file (yaml/json)",
+    ),
 ):
     """
     Run AWS security scan.
@@ -102,6 +108,7 @@ def scan_cmd(
             external_id=external_id,
             role_session_name=role_session_name,
             profile=profile,
+            business_config=business_config,
         )
     except PermissionError as e:
         raise CyntriError(
