@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/cyntrisec?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/cyntrisec/)
 [![Website](https://img.shields.io/badge/website-cyntrisec.com-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://cyntrisec.com/)
-[![X](https://img.shields.io/badge/X-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
+[![X](https://img.shields.io/badge/-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
 
 AWS capability graph analysis and attack path discovery.
 
