@@ -259,8 +259,10 @@ def test_scan_json_output_validates_schema(monkeypatch, capsys):
         def resolve_scan_id(self, snapshot_id=None):
             return "2026-01-20_000000_123456789012"
 
-    monkeypatch.setattr(scan_mod, "AwsScanner", DummyScanner)
-    monkeypatch.setattr(scan_mod, "FileSystemStorage", DummyStorage)
+    import cyntrisec.aws
+    monkeypatch.setattr(cyntrisec.aws, "AwsScanner", DummyScanner)
+    import cyntrisec.storage
+    monkeypatch.setattr(cyntrisec.storage, "FileSystemStorage", DummyStorage)
     monkeypatch.setattr(scan_mod, "build_artifact_paths", lambda *args, **kwargs: None)
 
     with pytest.raises(typer.Exit):
@@ -735,7 +737,7 @@ def test_may_access_edges_require_policy_evidence():
                         {
                             "Effect": "Allow",
                             "Action": "s3:GetObject",
-                            "Resource": "arn:aws:s3:::sensitive-bucket/*",
+                            "Resource": "arn:aws:s3:::sensitive-bucket",
                         }
                     ]
                 }

@@ -184,7 +184,7 @@ class TestRelationshipBuilder:
                             {
                                 "Effect": "Allow",
                                 "Action": "s3:GetObject",
-                                "Resource": "arn:aws:s3:::secrets/*",
+                                "Resource": "arn:aws:s3:::secrets",
                             }
                         ]
                     }
