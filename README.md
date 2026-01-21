@@ -6,6 +6,8 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-beta-orange?style=flat-square)](https://pypi.org/project/cyntrisec/)
 
+![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)
+
 > [!CAUTION]
 > **Beta Software Disclaimer**: This tool is currently in **BETA**. It is provided "as is", without warranty of any kind.
 > While Cyntrisec is a read-only analysis tool by default, the user assumes all responsibility for any actions taken based on its findings.
