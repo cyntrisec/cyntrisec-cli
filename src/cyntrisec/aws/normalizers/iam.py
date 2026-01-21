@@ -107,6 +107,11 @@ class IamNormalizer:
             p.get("Document") for p in inline_policies if p.get("Document")
         ]
 
+        # Parse and store trust policy
+        trust_policy = role.get("AssumeRolePolicyDocument")
+        if trust_policy and isinstance(trust_policy, str):
+            trust_policy = json.loads(trust_policy)
+
         asset = Asset(
             snapshot_id=self._snapshot_id,
             asset_type="iam:role",
@@ -121,6 +126,7 @@ class IamNormalizer:
                 "attached_policies": attached_policies,
                 "inline_policies": inline_policies,
                 "policy_documents": policy_documents,
+                "trust_policy": trust_policy,
             },
             is_sensitive_target=is_sensitive,
         )
@@ -128,12 +134,8 @@ class IamNormalizer:
         relationships: list[Relationship] = []
         findings: list[Finding] = []
 
-        # Parse trust policy
-        trust_policy = role.get("AssumeRolePolicyDocument")
+        # Check trust policy for security issues (already parsed above)
         if trust_policy:
-            if isinstance(trust_policy, str):
-                trust_policy = json.loads(trust_policy)
-
             for statement in trust_policy.get("Statement", []):
                 if statement.get("Effect") != "Allow":
                     continue

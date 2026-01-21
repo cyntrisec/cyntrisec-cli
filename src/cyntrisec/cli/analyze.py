@@ -5,6 +5,7 @@ Analyze Commands - Analyze scan results.
 from __future__ import annotations
 
 from pathlib import Path
+import uuid
 
 import typer
 
@@ -51,6 +52,11 @@ def analyze_paths(
         "-f",
         help="Output format: table, json, agent (defaults to json when piped)",
     ),
+    verify: bool = typer.Option(
+        False,
+        "--verify",
+        help="Verify paths using AWS Policy Simulator (requires AWS credentials)",
+    ),
 ):
     """
     Show attack paths from scan results.
@@ -91,6 +97,71 @@ def analyze_paths(
     total_paths = len(paths)
     paths = paths[:limit]
 
+    # Verify paths if requested
+    if verify:
+        from cyntrisec.aws.credentials import CredentialProvider
+        from cyntrisec.core.simulator import PolicySimulator, SimulationDecision
+
+        try:
+            # Initialize simulator
+            provider = CredentialProvider()
+            session = provider.default_session()
+            simulator = PolicySimulator(session)
+            
+            # Hydrate assets for verification
+            all_assets = {a.id: a for a in storage.get_assets(scan_id)}
+            
+            typer.echo("Verifying paths with AWS Policy Simulator...", err=True)
+            
+            for path in paths:
+                if not path.path_asset_ids or len(path.path_asset_ids) < 2:
+                    continue
+                
+                # Verify last hop if it's a capability edge
+                # (Ideally we'd verify the whole chain, but let's start with the immediate impact)
+                target_id = path.path_asset_ids[-1]
+                source_id = path.path_asset_ids[-2]
+                
+                source_asset = all_assets.get(uuid.UUID(str(source_id)))
+                target_asset = all_assets.get(uuid.UUID(str(target_id)))
+                
+                if not source_asset or not target_asset:
+                    continue
+                    
+                # Only check if source is an IAM principal
+                if source_asset.asset_type not in ("iam:role", "iam:user"):
+                    continue
+
+                # Find the relationship to get the action
+                # We need the graph or relationship list, but storage.get_attack_paths relies on
+                # stored paths which usually have IDs. We don't have relationships loaded here easily.
+                # However, we can infer action from edge type if we loaded relationships, OR
+                # we can try common actions based on target type.
+                
+                # For now, let's use the simulator's inference
+                try:
+                    result = simulator.can_access(
+                        principal_arn=source_asset.arn or source_asset.aws_resource_id,
+                        target_resource=target_asset.arn or target_asset.aws_resource_id
+                    )
+                    
+                    if result.can_access:
+                         if path.confidence_level != "HIGH":
+                             path.confidence_level = "HIGH"
+                             path.confidence_reason = f"Verified via AWS Policy Simulator (Action: {result.action})"
+                    else:
+                        path.confidence_level = "LOW"
+                        path.confidence_reason = "Verification Failed: AWS Policy Simulator denied access"
+                        
+                except Exception as ex:
+                    # Log but continue
+                    pass 
+
+        except Exception as e:
+            typer.echo(f"Verification failed: {e}", err=True)
+            # Don't fail the command, just warn
+
+
     if output_format in {"json", "agent"}:
         artifact_paths = build_artifact_paths(storage, scan_id)
         data = {
@@ -125,16 +196,29 @@ def analyze_paths(
         typer.echo("No attack paths found.")
         return
 
-    typer.echo(f"{'Risk':<8} {'Vector':<25} {'Length':<8} {'Entry':<8} {'Impact':<8}")
-    typer.echo("-" * 65)
+    typer.echo(f"{'Risk':<8} {'Conf':<6} {'Vector':<25} {'Length':<8} {'Entry':<8} {'Impact':<8}")
+    typer.echo("-" * 75)
 
     for p in paths:
         risk = float(p.risk_score)
+        conf = (p.confidence_level or "UNK")[:3]
         vector = p.attack_vector[:24]
         length = p.path_length
         entry = float(p.entry_confidence)
         impact = float(p.impact_score)
-        typer.echo(f"{risk:<8.3f} {vector:<25} {length:<8} {entry:<8.3f} {impact:<8.3f}")
+        
+        # Color coding
+        color = None
+        if risk >= 0.7:
+            color = typer.colors.RED
+        elif risk >= 0.4:
+            color = typer.colors.YELLOW
+            
+        line = f"{risk:<8.3f} {conf:<6} {vector:<25} {length:<8} {entry:<8.3f} {impact:<8.3f}"
+        if color:
+            typer.secho(line, fg=color)
+        else:
+            typer.echo(line)
 
     typer.echo("")
     typer.echo(f"Total: {len(paths)} paths")

@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from cyntrisec.core.schema import Asset, Relationship
+from cyntrisec.core.schema import Asset, Relationship, INTERNET_ASSET_ID, EdgeKind
 
 
 @dataclass(frozen=True)
@@ -80,13 +80,27 @@ class AwsGraph:
         """
         Get all internet-facing entry points.
 
-        Entry points are assets marked as internet_facing or
-        have specific types (public IPs, load balancers, etc.)
+        Includes:
+        1. Assets reachable via CAN_REACH edges from the Internet (preferred)
+        2. Assets marked as internet_facing (fallback/legacy)
         """
-        entries = []
+        entries: dict[uuid.UUID, Asset] = {}
+
+        # 1. CAN_REACH from Internet
+        if INTERNET_ASSET_ID in self.outgoing:
+            for rel in self.outgoing[INTERNET_ASSET_ID]:
+                if rel.relationship_type == "CAN_REACH":
+                    asset = self.assets_by_id.get(rel.target_asset_id)
+                    if asset:
+                        entries[asset.id] = asset
+
+        # 2. Legacy/Attribute-based checks
         for asset in self.assets_by_id.values():
+            if asset.id in entries:
+                continue
+
             if asset.is_internet_facing:
-                entries.append(asset)
+                entries[asset.id] = asset
             elif asset.asset_type in [
                 "ec2:elastic-ip",
                 "elbv2:load-balancer",
@@ -95,10 +109,11 @@ class AwsGraph:
                 "apigateway:rest-api",
             ]:
                 if asset.properties.get("scheme") == "internet-facing":
-                    entries.append(asset)
+                    entries[asset.id] = asset
                 elif asset.properties.get("public_ip"):
-                    entries.append(asset)
-        return entries
+                    entries[asset.id] = asset
+                    
+        return list(entries.values())
 
     def sensitive_targets(self) -> list[Asset]:
         """
@@ -160,6 +175,22 @@ class GraphBuilder:
                 continue
             if rel.target_asset_id not in assets_by_id:
                 continue
+
+            # Task 11.1: Edge Kind Inference for Legacy Data
+            # Create a copy if we need to infer edge_kind to avoid mutating input
+            if rel.edge_kind == EdgeKind.UNKNOWN:
+                rtype = rel.relationship_type.upper()
+                inferred_kind = EdgeKind.UNKNOWN
+
+                # Structural Edges
+                if rtype in ["CONTAINS", "USES", "ALLOWS_TRAFFIC_TO", "ATTACHED_TO", "TRUSTS"]:
+                    inferred_kind = EdgeKind.STRUCTURAL
+                # Capability Edges
+                elif rtype.startswith("CAN_") or rtype.startswith("MAY_") or rtype in ["ROUTES_TO", "EXPOSES", "INVOKES", "CONNECTS_TO"]:
+                    inferred_kind = EdgeKind.CAPABILITY
+
+                if inferred_kind != EdgeKind.UNKNOWN:
+                    rel = rel.model_copy(update={"edge_kind": inferred_kind})
 
             outgoing.setdefault(rel.source_asset_id, []).append(rel)
             incoming.setdefault(rel.target_asset_id, []).append(rel)

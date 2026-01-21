@@ -19,6 +19,9 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+INTERNET_ASSET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+
 class SnapshotStatus(str, Enum):
     """Status of a scan snapshot."""
 
@@ -38,6 +41,45 @@ class FindingSeverity(str, Enum):
     info = "info"
 
 
+class EdgeKind(str, Enum):
+    """Classification of relationship edges.
+    
+    - STRUCTURAL: Context only (CONTAINS, USES) - not traversed during attack path discovery
+    - CAPABILITY: Attacker movement (CAN_ASSUME, MAY_*) - traversed during attack path discovery
+    - UNKNOWN: Unclassified - not traversed by default
+    """
+
+    STRUCTURAL = "structural"
+    CAPABILITY = "capability"
+    UNKNOWN = "unknown"
+
+
+class ConditionResult(str, Enum):
+    """Tri-state result for IAM condition evaluation.
+    
+    - TRUE: Condition satisfied
+    - FALSE: Condition not satisfied
+    - UNKNOWN: Cannot evaluate locally
+    """
+
+    TRUE = "true"
+    FALSE = "false"
+    UNKNOWN = "unknown"
+
+
+class ConfidenceLevel(str, Enum):
+    """Confidence that an attack path is exploitable.
+    
+    - HIGH: All preconditions verified
+    - MED: Some conditions unknown or explicit deny detected
+    - LOW: Missing motif components or many unknowns
+    """
+
+    HIGH = "high"
+    MED = "med"
+    LOW = "low"
+
+
 class BaseSchema(BaseModel):
     """Base configuration for all models."""
 
@@ -46,6 +88,22 @@ class BaseSchema(BaseModel):
         use_enum_values=True,
         str_strip_whitespace=True,
     )
+
+
+class EdgeEvidence(BaseSchema):
+    """Provenance data explaining why an edge exists.
+    
+    Every capability edge should include evidence explaining why it exists,
+    so that security analysts can verify and understand attack paths.
+    """
+
+    policy_sid: str | None = None
+    policy_arn: str | None = None
+    rule_id: str | None = None
+    source_arn: str | None = None
+    target_arn: str | None = None
+    permission: str | None = None
+    raw_statement: dict[str, Any] | None = None
 
 
 class Snapshot(BaseSchema):
@@ -117,6 +175,11 @@ class Relationship(BaseSchema):
     - ROUTES_TO: Route table entries, LB targets
     - ATTACHED_TO: ENIs, EBS volumes, instance profiles
     - CONTAINS: VPC → Subnet, Subnet → Instance
+    
+    Edge kinds:
+    - STRUCTURAL: Context only (CONTAINS, USES) - not traversed during attack path discovery
+    - CAPABILITY: Attacker movement (CAN_ASSUME, MAY_*) - traversed during attack path discovery
+    - UNKNOWN: Unclassified - not traversed by default
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -126,12 +189,25 @@ class Relationship(BaseSchema):
     target_asset_id: uuid.UUID
     relationship_type: str = Field(..., min_length=1, max_length=50)
 
+    # Edge classification
+    edge_kind: EdgeKind = EdgeKind.UNKNOWN
+
     # Edge properties (ports, protocols, conditions)
     properties: dict[str, Any] = Field(default_factory=dict)
     labels: set[str] = Field(default_factory=set)
 
+    # Evidence for capability edges
+    evidence: EdgeEvidence | None = None
+
+    # Condition evaluation result
+    conditions_evaluated: bool = True
+    condition_result: ConditionResult = ConditionResult.TRUE
+
     # For attack path analysis
     traversal_cost: float = 1.0  # Lower = easier to traverse
+
+    # Edge weight for scoring
+    edge_weight: float = 1.0
 
 
 class Finding(BaseSchema):
@@ -170,6 +246,11 @@ class AttackPath(BaseSchema):
     - exploitability: Difficulty of traversing the path (higher = easier)
     - impact: Value of the target (higher = more valuable)
     - risk_score: Combined score (entry * exploit * impact)
+    
+    Path structure:
+    - attack_chain_relationship_ids: Capability edges only (attack steps)
+    - context_relationship_ids: Structural edges for explanation
+    - path_relationship_ids: Legacy alias for backward compatibility
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -183,6 +264,12 @@ class AttackPath(BaseSchema):
     path_asset_ids: list[uuid.UUID] = Field(..., min_length=2)
     path_relationship_ids: list[uuid.UUID] = Field(..., min_length=1)
 
+    # Capability edges only (attack steps)
+    attack_chain_relationship_ids: list[uuid.UUID] = Field(default_factory=list)
+
+    # Structural edges for context (explanation)
+    context_relationship_ids: list[uuid.UUID] = Field(default_factory=list)
+
     # Classification
     attack_vector: str = Field(..., min_length=1, max_length=100)
     path_length: int = Field(..., ge=1)
@@ -192,6 +279,10 @@ class AttackPath(BaseSchema):
     exploitability_score: Decimal = Field(..., ge=Decimal("0"))
     impact_score: Decimal = Field(..., ge=Decimal("0"))
     risk_score: Decimal = Field(..., ge=Decimal("0"))
+
+    # Confidence level and reason
+    confidence_level: ConfidenceLevel = ConfidenceLevel.HIGH
+    confidence_reason: str = ""
 
     # Proof chain - evidence for why this path exists
     proof: dict[str, Any] = Field(default_factory=dict)

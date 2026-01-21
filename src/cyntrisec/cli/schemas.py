@@ -70,6 +70,10 @@ class AttackPathOut(BaseSchema):
     exploitability_score: float
     impact_score: float
     risk_score: float
+    confidence_level: str | None = None
+    confidence_reason: str | None = None
+    attack_chain_relationship_ids: list[str] | None = None
+    context_relationship_ids: list[str] | None = None
     proof: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="allow")

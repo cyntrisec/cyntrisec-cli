@@ -771,11 +771,11 @@ def test_may_access_edges_require_policy_evidence():
 
     builder = RelationshipBuilder(snapshot_id)
     rels = builder.build([role, instance_profile, instance, target])
-    assert any(r.relationship_type == "MAY_ACCESS" for r in rels)
+    assert any(r.relationship_type == "MAY_READ_S3_OBJECT" for r in rels)
 
     role.properties["policy_documents"] = []
     rels = RelationshipBuilder(snapshot_id).build([role, instance_profile, instance, target])
-    assert not any(r.relationship_type == "MAY_ACCESS" for r in rels)
+    assert not any(r.relationship_type == "MAY_READ_S3_OBJECT" for r in rels)
 
 
 def test_cost_estimator_region_fallback_note():
