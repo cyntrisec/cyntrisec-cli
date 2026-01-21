@@ -1,5 +1,19 @@
 [
   {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000a1",
+    "asset_type": "pseudo:internet",
+    "aws_region": null,
+    "aws_resource_id": "internet",
+    "arn": null,
+    "name": "Internet",
+    "properties": {},
+    "tags": {},
+    "monthly_cost_usd": null,
+    "is_internet_facing": true,
+    "is_sensitive_target": false
+  },
+  {
     "id": "22222222-2222-2222-2222-222222222222",
     "snapshot_id": "00000000-0000-0000-0000-0000000000a1",
     "asset_type": "ec2:security-group",

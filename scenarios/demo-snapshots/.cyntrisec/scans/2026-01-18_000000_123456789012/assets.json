@@ -1,5 +1,19 @@
 [
   {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
+    "asset_type": "pseudo:internet",
+    "aws_region": null,
+    "aws_resource_id": "internet",
+    "arn": null,
+    "name": "Internet",
+    "properties": {},
+    "tags": {},
+    "monthly_cost_usd": null,
+    "is_internet_facing": true,
+    "is_sensitive_target": false
+  },
+  {
     "id": "22222222-2222-2222-2222-222222222222",
     "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
     "asset_type": "ec2:security-group",
@@ -15,7 +29,10 @@
               "CidrIp": "0.0.0.0/0"
             }
           ],
-          "Ipv6Ranges": []
+          "Ipv6Ranges": [],
+          "FromPort": 22,
+          "ToPort": 443,
+          "IpProtocol": "tcp"
         }
       ]
     },
@@ -57,7 +74,11 @@
     "aws_resource_id": "AdminRole",
     "arn": "arn:aws:iam::123456789012:role/AdminRole",
     "name": "AdminRole",
-    "properties": {},
+    "properties": {
+      "attached_policies": [
+        "arn:aws:iam::123456789012:policy/AdminRolePolicy"
+      ]
+    },
     "tags": {
       "Owner": "security"
     },
@@ -68,20 +89,19 @@
   {
     "id": "44444444-4444-4444-4444-444444444444",
     "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-    "asset_type": "rds:db-instance",
+    "asset_type": "secretsmanager:secret",
     "aws_region": "us-east-1",
-    "aws_resource_id": "prod-database",
-    "arn": "arn:aws:rds:us-east-1:123456789012:db:prod-database",
-    "name": "prod-database",
+    "aws_resource_id": "prod-database-creds",
+    "arn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prod-database-creds",
+    "name": "prod-database-creds",
     "properties": {
-      "engine": "postgres",
-      "encrypted": true
+      "rotation_enabled": false
     },
     "tags": {
       "Environment": "prod",
       "Critical": "true"
     },
-    "monthly_cost_usd": "200.00",
+    "monthly_cost_usd": "0.40",
     "is_internet_facing": false,
     "is_sensitive_target": true
   },

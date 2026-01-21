@@ -548,10 +548,10 @@ def _safe_output(text: str, limit: int = 4096) -> str:
     if not text:
         return ""
 
-    text = re.sub(r"(?i)\\b(AKIA|ASIA)[0-9A-Z]{16}\\b", "[REDACTED_AWS_ACCESS_KEY_ID]", text)
+    text = re.sub(r"(?i)\b(AKIA|ASIA)[0-9A-Z]{16}\b", "[REDACTED_AWS_ACCESS_KEY_ID]", text)
     text = re.sub(
-        r'(?i)(\"?(?:aws_secret_access_key|aws_session_token|secret_access_key|password|secret|token)\"?\\s*[:=]\\s*)\"?[^\\s\",]+\"?',
-        r"\\1[REDACTED]",
+        r'(?i)(\"?(?:aws_secret_access_key|aws_session_token|secret_access_key|password|secret|token)\"?\s*[:=]\s*)\"?[^\s\",]+\"?',
+        r"\1[REDACTED]",
         text,
     )
      

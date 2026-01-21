@@ -48,7 +48,22 @@ cyntrisec-remediation-tf/
 Thumbs.db
 
 .kiro
+.claude
 cyntrisec_v0.1.3_issue_reports
 audit_debug.txt
 scan_output.txt
 test_output.log
+*.log
+
+# Debug
+debug_*.py
+
+# Generated Reports & Output
+report.html
+scan.json
+role.tf
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup

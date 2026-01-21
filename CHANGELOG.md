@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.5] - 2026-01-21
+### Added
+- **Capability Graph Algorithm Upgrade**:
+  - **Edge Kind Classification**: Added `EdgeKind` enum (STRUCTURAL, CAPABILITY, UNKNOWN) to distinguish traversable capability edges from structural context
+  - **EdgeEvidence Model**: Track policy provenance (policy_sid, policy_arn, permission, raw_statement) for audit trails
+  - **Action-Specific IAM Edges**: Replaced generic `MAY_ACCESS` with specific edge types:
+    - `MAY_READ_SECRET` (secretsmanager:GetSecretValue)
+    - `MAY_READ_PARAMETER` (ssm:GetParameter*)
+    - `MAY_DECRYPT` (kms:Decrypt)
+    - `MAY_READ_S3_OBJECT` (s3:GetObject)
+    - `MAY_CREATE_LAMBDA` (lambda:CreateFunction)
+  - **Network Reachability Modeling**: Added `CAN_REACH` edges for:
+    - Internet-facing assets (0.0.0.0/0, ::/0 ingress rules)
+    - SG-to-SG lateral movement (UserIdGroupPairs)
+    - CIDR containment inference for subnet reachability
+  - **Condition Evaluation**: Added `ConditionEvaluator` with tri-state results (TRUE, FALSE, UNKNOWN) for IAM conditions
+  - **Explicit Deny Awareness**: Detect permission boundaries, SCPs, and identity policy denies that may block access
+
+- **Two-Phase Path Discovery**:
+  - **Phase A (Discovery)**: Capability-only traversal using `AttackerState` (principals, network_identity, compromised_assets)
+  - **Phase B (Validation)**: `PathValidator` verifies network preconditions and IAM motifs
+  - **Confidence Scoring**: `ConfidenceLevel` (HIGH, MED, LOW) with specific `confidence_reason` explanations:
+    - HIGH: All preconditions verified
+    - MED: Some conditions UNKNOWN or explicit deny detected
+    - LOW: PassRole motif incomplete or multiple unknowns
+
+- **PassRole Privilege Escalation Detection**:
+  - `CAN_PASS_TO` edge creation for iam:PassRole permissions
+  - PassRole motif validation (role → PassRole → Lambda trust policy)
+  - Confidence adjustment when target trust policy doesn't allow lambda.amazonaws.com
+
+- **MCP Server - 6 New Tools**: Expanded MCP toolset from 9 to 15 tools:
+  - `get_findings`: Security findings with severity filtering
+  - `get_assets`: Assets with type/name filtering
+  - `get_relationships`: Relationships between assets with filtering
+  - `explain_path`: Detailed hop-by-hop attack path breakdown
+  - `explain_finding`: Detailed finding explanation with remediation
+  - `get_terraform_snippet`: Generate Terraform code for remediations
+
+### Changed
+- **PathFinder**: Now traverses only CAPABILITY edges (ignores STRUCTURAL for attack path discovery)
+- **Entry Point Computation**: Uses `CAN_REACH` edges from "world" with port-based confidence (web=0.9, admin=0.7, db=0.6)
+- **Risk Scoring**: Combined edge weights with confidence multipliers for more accurate risk assessment
+- **CLI `analyze paths`**: Now displays confidence_level and confidence_reason, color-coded by confidence
+- **JSON Output Schema**: Includes `attack_chain_relationship_ids`, `context_relationship_ids`, `confidence_level`, `confidence_reason`, and edge evidence
+- **Backward Compatibility**: Added edge_kind inference for legacy scan data via `--include-unknown` flag
+- **`get_attack_paths` MCP**: Enhanced with `min_risk` filter, `confidence_level`, path length, and resolved asset names
+- **`list_tools` MCP**: Now returns all 15 tools organized by category
+
+### Documentation
+- Updated README MCP section with complete tool table organized by category
+
 ## [0.1.4] - 2026-01-20
 ### Added
 - **Cost-Aware Graph**: Added `CostEstimator` with static pricing for AWS resources (NAT, ALB, RDS, EBS, etc.)

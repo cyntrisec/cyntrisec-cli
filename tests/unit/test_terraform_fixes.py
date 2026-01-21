@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
-from cyntrisec.cli.remediate import _run_terraform, _run_terraform_plan
+from cyntrisec.cli.remediate import _run_terraform, _run_terraform_plan, _safe_output
 
 
 class TestTerraformArgumentFormat:
@@ -360,3 +360,88 @@ class TestApplyPlanStatusIntegration:
         assert len(terraform_called) == 0, "Terraform should not be called in dry_run mode"
         assert all(item["status"] == "pending_dry_run" for item in items), \
             f"Status should be pending_dry_run, got: {[item['status'] for item in items]}"
+
+
+class TestSafeOutputSecretRedaction:
+    """
+    Tests for _safe_output function secret redaction.
+
+    Ensures AWS credentials and other secrets are properly redacted from
+    terraform output to prevent leakage in logs or responses.
+    """
+
+    def test_redacts_aws_access_key_id_akia(self):
+        """Test that AWS access key IDs starting with AKIA are redacted."""
+        text = "aws_access_key_id = AKIAIOSFODNN7EXAMPLE"
+        result = _safe_output(text)
+        assert "AKIAIOSFODNN7EXAMPLE" not in result
+        assert "[REDACTED_AWS_ACCESS_KEY_ID]" in result
+
+    def test_redacts_aws_access_key_id_asia(self):
+        """Test that AWS access key IDs starting with ASIA are redacted."""
+        text = "ASIAIOSFODNN7TESTKEY in the output"
+        result = _safe_output(text)
+        assert "ASIAIOSFODNN7TESTKEY" not in result
+        assert "[REDACTED_AWS_ACCESS_KEY_ID]" in result
+
+    def test_redacts_secret_access_key(self):
+        """Test that AWS secret access keys are redacted."""
+        text = "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        result = _safe_output(text)
+        assert "wJalrXUtnFEMI" not in result
+        assert "[REDACTED]" in result
+
+    def test_redacts_session_token(self):
+        """Test that session tokens are redacted."""
+        text = "aws_session_token = FwoGZXIvYXdzEBYaDK..."
+        result = _safe_output(text)
+        assert "FwoGZXIvYXdzEBYaDK" not in result
+        assert "[REDACTED]" in result
+
+    def test_redacts_password(self):
+        """Test that passwords are redacted."""
+        text = 'password: "hunter2"'
+        result = _safe_output(text)
+        assert "hunter2" not in result
+        assert "[REDACTED]" in result
+
+    def test_redacts_token(self):
+        """Test that tokens are redacted."""
+        text = "token = mysupersecrettoken123"
+        result = _safe_output(text)
+        assert "mysupersecrettoken123" not in result
+        assert "[REDACTED]" in result
+
+    def test_redacts_secret(self):
+        """Test that secrets are redacted."""
+        text = "secret: topsecretvalue"
+        result = _safe_output(text)
+        assert "topsecretvalue" not in result
+        assert "[REDACTED]" in result
+
+    def test_preserves_non_secret_text(self):
+        """Test that non-secret text is preserved."""
+        text = "This is normal terraform output with no secrets"
+        result = _safe_output(text)
+        assert result == text
+
+    def test_truncates_long_output(self):
+        """Test that output longer than limit is truncated."""
+        text = "x" * 5000
+        result = _safe_output(text, limit=1000)
+        assert len(result) < 5000
+        assert "truncated" in result
+
+    def test_handles_empty_input(self):
+        """Test that empty input returns empty output."""
+        assert _safe_output("") == ""
+        assert _safe_output(None) == ""
+
+    @given(st.text(min_size=20, max_size=20, alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+    @settings(max_examples=50)
+    def test_redacts_any_valid_access_key_format(self, key_suffix):
+        """Property test: Any valid AWS access key format should be redacted."""
+        # Valid AKIA key (4 char prefix + 16 char suffix)
+        text = f"key=AKIA{key_suffix[:16]}"
+        result = _safe_output(text)
+        assert f"AKIA{key_suffix[:16]}" not in result

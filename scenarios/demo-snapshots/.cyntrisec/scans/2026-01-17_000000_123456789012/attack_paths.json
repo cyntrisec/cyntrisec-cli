@@ -2,18 +2,26 @@
   {
     "id": "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     "snapshot_id": "00000000-0000-0000-0000-0000000000a1",
-    "source_asset_id": "22222222-2222-2222-2222-222222222222",
+    "source_asset_id": "00000000-0000-0000-0000-000000000000",
     "target_asset_id": "44444444-4444-4444-4444-444444444444",
     "path_asset_ids": [
-      "22222222-2222-2222-2222-222222222222",
+      "00000000-0000-0000-0000-000000000000",
       "11111111-1111-1111-1111-111111111111",
       "33333333-3333-3333-3333-333333333333",
       "44444444-4444-4444-4444-444444444444"
     ],
     "path_relationship_ids": [
-      "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    ],
+    "attack_chain_relationship_ids": [
+      "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    ],
+    "context_relationship_ids": [
+      "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     ],
     "attack_vector": "instance-compromise",
     "path_length": 3,
@@ -21,20 +29,14 @@
     "exploitability_score": 0.8,
     "impact_score": 0.9,
     "risk_score": 0.65,
+    "confidence_level": "med",
+    "confidence_reason": "MAY_ACCESS edge uses generic permission (action-specific edge not available)",
     "proof": {
       "steps": [
-        {
-          "name": "sg-web"
-        },
-        {
-          "name": "entry-instance"
-        },
-        {
-          "name": "AdminRole"
-        },
-        {
-          "name": "prod-database"
-        }
+        {"name": "Internet", "asset_type": "pseudo:internet"},
+        {"name": "entry-instance", "asset_type": "ec2:instance"},
+        {"name": "AdminRole", "asset_type": "iam:role"},
+        {"name": "prod-database", "asset_type": "rds:db-instance"}
       ]
     }
   }

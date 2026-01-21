@@ -5,8 +5,8 @@
     "us-east-1"
   ],
   "status": "completed",
-  "asset_count": 6,
-  "relationship_count": 5,
+  "asset_count": 7,
+  "relationship_count": 6,
   "finding_count": 1,
   "path_count": 1,
   "scan_params": {

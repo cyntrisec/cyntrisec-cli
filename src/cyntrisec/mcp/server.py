@@ -23,6 +23,7 @@ except ImportError:
     HAS_MCP = False
     FastMCP = None
 
+from cyntrisec.cli.remediate import _terraform_snippet
 from cyntrisec.core.compliance import ComplianceChecker, Framework
 from cyntrisec.core.cuts import MinCutFinder
 from cyntrisec.core.diff import SnapshotDiff
@@ -145,6 +146,187 @@ def _register_session_tools(mcp, session):
     """Register session and summary tools."""
 
     @mcp.tool()
+    def get_findings(
+        severity: str | None = None,
+        max_findings: int = 20,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get security findings from the scan.
+
+        Args:
+            severity: Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)
+            max_findings: Maximum number of findings to return (default: 20)
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            List of security findings with severity and descriptions.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        findings = session.get_findings(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Filter by severity if specified
+        if severity:
+            severity_upper = severity.upper()
+            findings = [f for f in findings if f.severity.upper() == severity_upper]
+
+        return {
+            "total": len(findings),
+            "findings": [
+                {
+                    "id": str(f.id),
+                    "title": f.title,
+                    "severity": f.severity,
+                    "resource_type": f.resource_type,
+                    "resource_name": f.resource_name,
+                    "description": f.description,
+                    "recommendation": f.recommendation,
+                }
+                for f in findings[:max_findings]
+            ],
+        }
+
+    @mcp.tool()
+    def get_assets(
+        asset_type: str | None = None,
+        search: str | None = None,
+        max_assets: int = 50,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get assets from the scan with optional filtering.
+
+        Args:
+            asset_type: Filter by type (e.g., "iam:role", "ec2:instance", "s3:bucket")
+            search: Search by name or ARN (case-insensitive)
+            max_assets: Maximum number of assets to return (default: 50)
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            List of assets with their properties.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        assets = session.get_assets(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Filter by type if specified
+        if asset_type:
+            assets = [a for a in assets if a.asset_type.lower() == asset_type.lower()]
+
+        # Search by name or ARN
+        if search:
+            search_lower = search.lower()
+            assets = [
+                a for a in assets
+                if search_lower in (a.name or "").lower()
+                or search_lower in (a.arn or "").lower()
+            ]
+
+        return {
+            "total": len(assets),
+            "assets": [
+                {
+                    "id": str(a.id),
+                    "type": a.asset_type,
+                    "name": a.name,
+                    "arn": a.arn,
+                    "region": a.region,
+                    "is_entry_point": a.is_entry_point,
+                    "is_sensitive_target": a.is_sensitive_target,
+                }
+                for a in assets[:max_assets]
+            ],
+        }
+
+    @mcp.tool()
+    def get_relationships(
+        relationship_type: str | None = None,
+        source_name: str | None = None,
+        target_name: str | None = None,
+        max_relationships: int = 50,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get relationships between assets with optional filtering.
+
+        Args:
+            relationship_type: Filter by type (e.g., "CAN_ASSUME", "CAN_REACH", "MAY_ACCESS")
+            source_name: Filter by source asset name
+            target_name: Filter by target asset name
+            max_relationships: Maximum number to return (default: 50)
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            List of relationships with source, target, and type.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        relationships = session.get_relationships(snapshot_id)
+        assets = session.get_assets(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Build asset lookup for names
+        asset_map = {str(a.id): a for a in assets}
+
+        # Filter by relationship type
+        if relationship_type:
+            relationships = [
+                r for r in relationships
+                if r.relationship_type.upper() == relationship_type.upper()
+            ]
+
+        # Filter by source name
+        if source_name:
+            source_lower = source_name.lower()
+            relationships = [
+                r for r in relationships
+                if source_lower in (asset_map.get(str(r.source_asset_id), None) and
+                                    asset_map[str(r.source_asset_id)].name or "").lower()
+            ]
+
+        # Filter by target name
+        if target_name:
+            target_lower = target_name.lower()
+            relationships = [
+                r for r in relationships
+                if target_lower in (asset_map.get(str(r.target_asset_id), None) and
+                                    asset_map[str(r.target_asset_id)].name or "").lower()
+            ]
+
+        return {
+            "total": len(relationships),
+            "relationships": [
+                {
+                    "id": str(r.id),
+                    "type": r.relationship_type,
+                    "source_id": str(r.source_asset_id),
+                    "source_name": asset_map.get(str(r.source_asset_id), None) and
+                                   asset_map[str(r.source_asset_id)].name,
+                    "target_id": str(r.target_asset_id),
+                    "target_name": asset_map.get(str(r.target_asset_id), None) and
+                                   asset_map[str(r.target_asset_id)].name,
+                    "edge_kind": r.edge_kind.value if r.edge_kind else None,
+                }
+                for r in relationships[:max_relationships]
+            ],
+        }
+
+    @mcp.tool()
     def get_scan_summary(snapshot_id: str | None = None) -> dict[str, Any]:
         """
         Get summary of the latest AWS scan.
@@ -197,13 +379,25 @@ def _register_session_tools(mcp, session):
         """
         return {
             "tools": [
+                # Discovery & Session
                 {"name": "list_tools", "description": "List all available Cyntrisec tools"},
                 {"name": "set_session_snapshot", "description": "Set active snapshot for session"},
                 {"name": "get_scan_summary", "description": "Get summary of latest AWS scan"},
-                {"name": "get_attack_paths", "description": "Get discovered attack paths"},
+                # Assets & Relationships
+                {"name": "get_assets", "description": "Get assets with optional type/name filtering"},
+                {"name": "get_relationships", "description": "Get relationships between assets"},
+                {"name": "get_findings", "description": "Get security findings with severity filtering"},
+                # Attack Paths
+                {"name": "get_attack_paths", "description": "Get discovered attack paths with risk scores"},
+                {"name": "explain_path", "description": "Get detailed breakdown of an attack path"},
+                {"name": "explain_finding", "description": "Get detailed explanation of a security finding"},
+                # Remediation
                 {"name": "get_remediations", "description": "Find optimal fixes for attack paths"},
+                {"name": "get_terraform_snippet", "description": "Get Terraform code for a remediation"},
+                # Access & Permissions
                 {"name": "check_access", "description": "Test if principal can access resource"},
                 {"name": "get_unused_permissions", "description": "Find unused IAM permissions"},
+                # Compliance & Diff
                 {"name": "check_compliance", "description": "Check CIS AWS or SOC 2 compliance"},
                 {"name": "compare_scans", "description": "Compare latest scan to previous"},
             ]
@@ -214,15 +408,21 @@ def _register_graph_tools(mcp, session):
     """Register graph analysis tools."""
 
     @mcp.tool()
-    def get_attack_paths(max_paths: int = 10, snapshot_id: str | None = None) -> dict[str, Any]:
+    def get_attack_paths(
+        max_paths: int = 10,
+        min_risk: float = 0.0,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Get discovered attack paths from the latest scan.
 
         Args:
             max_paths: Maximum number of paths to return (default: 10)
+            min_risk: Minimum risk score filter (0.0-1.0, default: 0.0)
+            snapshot_id: Optional snapshot ID (default: latest)
 
         Returns:
-            List of attack paths with risk scores and vectors.
+            List of attack paths with risk scores, confidence, and traversed assets.
         """
         snapshot = session.get_snapshot(snapshot_id)
         if not snapshot:
@@ -231,7 +431,21 @@ def _register_graph_tools(mcp, session):
             )
 
         paths = session.get_paths(snapshot_id)
+        assets = session.get_assets(snapshot_id)
         session.set_snapshot(snapshot_id)
+
+        # Build asset lookup
+        asset_map = {str(a.id): a for a in assets}
+
+        # Filter by min risk
+        if min_risk > 0:
+            paths = [p for p in paths if p.risk_score >= min_risk]
+
+        def get_asset_name(asset_id):
+            if not asset_id:
+                return None
+            asset = asset_map.get(str(asset_id))
+            return asset.name if asset else str(asset_id)
 
         return {
             "total": len(paths),
@@ -240,11 +454,128 @@ def _register_graph_tools(mcp, session):
                     "id": str(p.id),
                     "attack_vector": p.attack_vector,
                     "risk_score": float(p.risk_score),
-                    "source": p.source_asset_id and str(p.source_asset_id),
-                    "target": p.target_asset_id and str(p.target_asset_id),
+                    "confidence_level": p.confidence_level.value if p.confidence_level else None,
+                    "source_name": get_asset_name(p.source_asset_id),
+                    "target_name": get_asset_name(p.target_asset_id),
+                    "path_length": len(p.path_asset_ids) if p.path_asset_ids else 0,
+                    "path_assets": [get_asset_name(aid) for aid in (p.path_asset_ids or [])],
                 }
                 for p in paths[:max_paths]
             ],
+        }
+
+    @mcp.tool()
+    def explain_path(path_id: str, snapshot_id: str | None = None) -> dict[str, Any]:
+        """
+        Get detailed explanation of an attack path.
+
+        Args:
+            path_id: The attack path ID to explain
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            Detailed breakdown of the attack path with each hop explained.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        paths = session.get_paths(snapshot_id)
+        assets = session.get_assets(snapshot_id)
+        relationships = session.get_relationships(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Find the path
+        target_path = None
+        for p in paths:
+            if str(p.id) == path_id:
+                target_path = p
+                break
+
+        if not target_path:
+            return mcp_error("PATH_NOT_FOUND", f"Attack path {path_id} not found.")
+
+        # Build lookups
+        asset_map = {str(a.id): a for a in assets}
+        rel_map = {str(r.id): r for r in relationships}
+
+        # Build path explanation
+        hops = []
+        path_asset_ids = target_path.path_asset_ids or []
+        path_rel_ids = target_path.attack_chain_relationship_ids or []
+
+        for i, asset_id in enumerate(path_asset_ids):
+            asset = asset_map.get(str(asset_id))
+            hop = {
+                "step": i + 1,
+                "asset_name": asset.name if asset else str(asset_id),
+                "asset_type": asset.asset_type if asset else None,
+                "asset_arn": asset.arn if asset else None,
+            }
+
+            # Add relationship to next hop if exists
+            if i < len(path_rel_ids):
+                rel = rel_map.get(str(path_rel_ids[i]))
+                if rel:
+                    hop["next_via"] = rel.relationship_type
+                    if rel.evidence and rel.evidence.permission:
+                        hop["permission"] = rel.evidence.permission
+
+            hops.append(hop)
+
+        return {
+            "path_id": path_id,
+            "attack_vector": target_path.attack_vector,
+            "risk_score": float(target_path.risk_score),
+            "confidence_level": target_path.confidence_level.value if target_path.confidence_level else None,
+            "summary": f"Attack path from {hops[0]['asset_name'] if hops else 'unknown'} to {hops[-1]['asset_name'] if hops else 'unknown'} via {len(hops)} hops",
+            "hops": hops,
+        }
+
+    @mcp.tool()
+    def explain_finding(finding_id: str, snapshot_id: str | None = None) -> dict[str, Any]:
+        """
+        Get detailed explanation of a security finding.
+
+        Args:
+            finding_id: The finding ID to explain
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            Detailed explanation with context, impact, and remediation steps.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        findings = session.get_findings(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Find the finding
+        target_finding = None
+        for f in findings:
+            if str(f.id) == finding_id:
+                target_finding = f
+                break
+
+        if not target_finding:
+            return mcp_error("FINDING_NOT_FOUND", f"Finding {finding_id} not found.")
+
+        return {
+            "finding_id": finding_id,
+            "title": target_finding.title,
+            "severity": target_finding.severity,
+            "resource_type": target_finding.resource_type,
+            "resource_name": target_finding.resource_name,
+            "resource_arn": target_finding.resource_arn,
+            "description": target_finding.description,
+            "impact": f"This {target_finding.severity} severity finding affects {target_finding.resource_name}",
+            "recommendation": target_finding.recommendation,
+            "compliance_frameworks": target_finding.compliance_frameworks if hasattr(target_finding, 'compliance_frameworks') else [],
         }
 
     @mcp.tool()
@@ -332,6 +663,60 @@ def _register_insight_tools(mcp, session):
                 }
                 for r in result.remediations
             ],
+        }
+
+    @mcp.tool()
+    def get_terraform_snippet(
+        source_name: str,
+        target_name: str,
+        relationship_type: str,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Get Terraform code snippet for a specific remediation.
+
+        Args:
+            source_name: Name of the source asset
+            target_name: Name of the target asset
+            relationship_type: Type of relationship (e.g., "CAN_ASSUME", "ALLOWS_TRAFFIC_TO")
+            snapshot_id: Optional snapshot ID (default: latest)
+
+        Returns:
+            Terraform HCL code snippet for the remediation.
+        """
+        snapshot = session.get_snapshot(snapshot_id)
+        if not snapshot:
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "No scan data found. Run 'cyntrisec scan' first."
+            )
+
+        assets = session.get_assets(snapshot_id)
+        session.set_snapshot(snapshot_id)
+
+        # Find source and target assets to get ARNs
+        source_asset = None
+        target_asset = None
+        for a in assets:
+            if a.name and source_name.lower() in a.name.lower():
+                source_asset = a
+            if a.name and target_name.lower() in a.name.lower():
+                target_asset = a
+
+        terraform_code = _terraform_snippet(
+            action="restrict",
+            source=source_name,
+            target=target_name,
+            relationship_type=relationship_type.upper(),
+            source_arn=source_asset.arn if source_asset else None,
+            target_arn=target_asset.arn if target_asset else None,
+        )
+
+        return {
+            "source": source_name,
+            "target": target_name,
+            "relationship_type": relationship_type,
+            "terraform": terraform_code,
+            "note": "Review and customize this snippet before applying. This is a starting point.",
         }
 
     @mcp.tool()

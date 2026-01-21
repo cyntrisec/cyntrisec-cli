@@ -3,6 +3,13 @@
 [![PyPI](https://img.shields.io/pypi/v/cyntrisec?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/cyntrisec/)
 [![Website](https://img.shields.io/badge/website-cyntrisec.com-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://cyntrisec.com/)
 [![X](https://img.shields.io/badge/-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/status-beta-orange?style=flat-square)](https://pypi.org/project/cyntrisec/)
+
+> [!CAUTION]
+> **Beta Software Disclaimer**: This tool is currently in **BETA**. It is provided "as is", without warranty of any kind.
+> While Cyntrisec is a read-only analysis tool by default, the user assumes all responsibility for any actions taken based on its findings.
+> **Always review** generated remediation plans and Terraform code before application.
 
 AWS capability graph analysis and attack path discovery.
 
@@ -162,6 +169,8 @@ $env:PATH += ";$env:APPDATA\Python\Python311\Scripts"
 
 ## Quick Start
 
+> **Prerequisite**: Ensure you have [AWS CLI](https://aws.amazon.com/cli/) installed and configured with credentials (e.g., `aws configure`) or environment variables set. `terraform` is required for the setup step.
+
 ```bash
 # 1. Create the read-only IAM role in your account
 cyntrisec setup iam 123456789012 --output role.tf
@@ -241,7 +250,25 @@ cyntrisec serve              # Start stdio server
 cyntrisec serve --list-tools # List available tools
 ```
 
-**MCP Tools:** `get_scan_summary`, `get_attack_paths`, `get_remediations`, `check_access`, `get_unused_permissions`, `check_compliance`, `compare_scans`
+### MCP Tools (15)
+
+| Category | Tool | Description |
+|----------|------|-------------|
+| **Discovery** | `list_tools` | List all available tools |
+| | `set_session_snapshot` | Set active snapshot for session |
+| | `get_scan_summary` | Get summary of latest AWS scan |
+| **Assets** | `get_assets` | Get assets with type/name filtering |
+| | `get_relationships` | Get relationships between assets |
+| | `get_findings` | Get security findings with severity filtering |
+| **Attack Paths** | `get_attack_paths` | Get attack paths with risk scores |
+| | `explain_path` | Detailed hop-by-hop path breakdown |
+| | `explain_finding` | Detailed finding explanation |
+| **Remediation** | `get_remediations` | Find optimal fixes for attack paths |
+| | `get_terraform_snippet` | Generate Terraform code for remediation |
+| **Access** | `check_access` | Test if principal can access resource |
+| | `get_unused_permissions` | Find unused IAM permissions |
+| **Compliance** | `check_compliance` | Check CIS AWS or SOC 2 compliance |
+| | `compare_scans` | Compare scan snapshots |
 
 ### Claude Desktop
 
