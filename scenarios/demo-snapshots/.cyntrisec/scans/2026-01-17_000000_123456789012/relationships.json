@@ -9,7 +9,11 @@
     "properties": {
       "open_to_world": true
     },
-    "traversal_cost": 1.0
+    "traversal_cost": 1.0,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   },
   {
     "id": "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -19,11 +23,19 @@
     "relationship_type": "CAN_REACH",
     "edge_kind": "capability",
     "properties": {
-      "ports": [22, 80, 443],
+      "ports": [
+        22,
+        80,
+        443
+      ],
       "protocol": "tcp",
       "source": "0.0.0.0/0"
     },
-    "traversal_cost": 0.5
+    "traversal_cost": 0.5,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   },
   {
     "id": "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -38,9 +50,17 @@
     "evidence": {
       "policy_sid": "AllowAssumeRole",
       "policy_arn": "arn:aws:iam::123456789012:instance-profile/web-instance-profile",
-      "permission": "sts:AssumeRole"
+      "permission": "sts:AssumeRole",
+      "rule_id": null,
+      "source_arn": null,
+      "target_arn": null,
+      "raw_statement": null
     },
-    "traversal_cost": 1.0
+    "traversal_cost": 1.0,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   },
   {
     "id": "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -50,7 +70,11 @@
     "relationship_type": "MAY_ACCESS",
     "edge_kind": "capability",
     "properties": {},
-    "traversal_cost": 1.0
+    "traversal_cost": 1.0,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   },
   {
     "id": "aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -60,7 +84,11 @@
     "relationship_type": "MAY_ACCESS",
     "edge_kind": "capability",
     "properties": {},
-    "traversal_cost": 1.0
+    "traversal_cost": 1.0,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   },
   {
     "id": "aaaaaaa5-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -72,6 +100,10 @@
     "properties": {
       "via": "execution_role"
     },
-    "traversal_cost": 1.0
+    "traversal_cost": 1.0,
+    "labels": [],
+    "conditions_evaluated": true,
+    "condition_result": "true",
+    "edge_weight": 1.0
   }
 ]
