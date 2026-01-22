@@ -18,7 +18,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 INTERNET_ASSET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 

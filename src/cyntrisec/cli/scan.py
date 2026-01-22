@@ -131,7 +131,7 @@ def scan_cmd(
     typer.echo(f"  Relationships: {snapshot.relationship_count}", err=True)
     typer.echo(f"  Findings: {snapshot.finding_count}", err=True)
     typer.echo(f"  Attack paths: {snapshot.path_count}", err=True)
-    
+
     # Print warnings if there were partial failures
     if snapshot.errors:
         typer.echo("", err=True)
@@ -144,7 +144,7 @@ def scan_cmd(
                 typer.echo(f"  - Failed to collect {service} in {region}: {error_msg}", err=True)
             else:
                 typer.echo(f"  - Failed to collect {service}: {error_msg}", err=True)
-    
+
     typer.echo("", err=True)
     typer.echo("Run 'cyntrisec analyze paths' to view attack paths", err=True)
     typer.echo("Run 'cyntrisec report' to generate HTML report", err=True)
@@ -152,7 +152,7 @@ def scan_cmd(
     # Get the scan_id (directory name) for use in suggested actions
     scan_id = storage.resolve_scan_id(None)  # Get latest scan_id
     artifact_paths = build_artifact_paths(storage, scan_id)
-    
+
     # Build warnings from snapshot errors
     warnings = None
     if snapshot.errors:
@@ -162,10 +162,10 @@ def scan_cmd(
             + f": {err.get('error', 'unknown error')}"
             for err in snapshot.errors
         ]
-    
+
     # Determine status based on errors
     status = "completed_with_errors" if snapshot.errors else "success"
-    
+
     summary = {
         "scan_id": scan_id,
         "snapshot_id": str(snapshot.id),

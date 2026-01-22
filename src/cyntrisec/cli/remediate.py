@@ -7,9 +7,9 @@ and minimal cut analysis. Apply is a stub that requires explicit enablement.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
-import re
 from pathlib import Path
 
 import typer
@@ -554,11 +554,11 @@ def _safe_output(text: str, limit: int = 4096) -> str:
         r"\1[REDACTED]",
         text,
     )
-     
+
     # Truncate if too long
     if len(text) > limit:
         text = text[:limit] + f"\n...[truncated {len(text)-limit} chars]..."
-         
+
     return text
 
 

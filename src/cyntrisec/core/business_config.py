@@ -73,7 +73,7 @@ class BusinessConfig(BaseConfig):
         """Load configuration from a JSON or YAML file."""
         import json
         from pathlib import Path
-         
+
         path_obj = Path(path)
         text = path_obj.read_text(encoding="utf-8")
 

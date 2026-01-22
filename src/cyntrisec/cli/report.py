@@ -70,12 +70,12 @@ def report_cmd(
 
     storage = FileSystemStorage()
     snapshot = storage.get_snapshot(scan_id)
-    
+
     # Infer format from output file extension if not explicitly specified
     inferred_format = format
     if inferred_format is None:
         inferred_format = _infer_format_from_extension(output)
-    
+
     output_format = resolve_format(
         inferred_format,
         default_tty="html",
@@ -189,12 +189,12 @@ def _generate_html(data: dict, title: str) -> str:
             length = p.get("path_length", 0)
             entry = to_float(p.get("entry_confidence", 0))
             impact = to_float(p.get("impact_score", 0))
-             
+
             # Colorize Risk
             risk_class = "risk-low"
             if risk >= 0.7: risk_class = "risk-critical"
             elif risk >= 0.4: risk_class = "risk-high"
-             
+
             rows.append(render_row([
                 SafeHtml(f'<span class="{risk_class}">{risk:.3f}</span>'),
                 vector,
@@ -202,7 +202,7 @@ def _generate_html(data: dict, title: str) -> str:
                 f"{entry:.2f}",
                 f"{impact:.2f}"
             ]))
-             
+
         paths_section = f"""
         <table class="cli-table">
             <thead>{render_row(["RISK", "VECTOR", "LEN", "ENTRY", "IMPACT"], header=True)}</thead>
@@ -224,7 +224,7 @@ def _generate_html(data: dict, title: str) -> str:
                 ftype,
                 ftitle
             ]))
-             
+
         findings_section = f"""
         <table class="cli-table">
             <thead>{render_row(["SEVERITY", "TYPE", "TITLE"], header=True)}</thead>

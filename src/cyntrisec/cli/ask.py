@@ -243,11 +243,11 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
             if entities.get("arns")
             else (entities["buckets"][0] if entities.get("buckets") else None)
         )
-        
+
         # Query graph data for access-related information
         paths = storage.get_attack_paths(snapshot_id)
         assets = storage.get_assets(snapshot_id)
-        
+
         # Build asset lookup for matching targets
         asset_lookup = {}
         for a in assets:
@@ -258,7 +258,7 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
                 asset_lookup[a.name.lower()] = a
             if a.aws_resource_id:
                 asset_lookup[a.aws_resource_id.lower()] = a
-        
+
         # Find paths to/from the target
         relevant_paths = []
         if target:
@@ -266,7 +266,7 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
             for p in paths:
                 target_asset = asset_lookup.get(str(p.target_asset_id))
                 source_asset = asset_lookup.get(str(p.source_asset_id))
-                
+
                 # Check if target matches the path's target or source
                 target_matches = (
                     target_asset and (
@@ -282,10 +282,10 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
                         target_lower in (source_asset.aws_resource_id or "").lower()
                     )
                 )
-                
+
                 if target_matches or source_matches:
                     relevant_paths.append(p)
-        
+
         target_display = target or query
 
         # If we found relevant paths, return graph results
@@ -316,7 +316,7 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
                     ),
                 ],
             }
-        
+
         # No paths found - return helpful response with graph context
         principal_display = principal or "<principal>"
         resource_display = target_display

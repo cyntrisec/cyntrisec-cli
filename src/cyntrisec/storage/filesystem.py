@@ -108,35 +108,35 @@ class FileSystemStorage(StorageBackend):
         # but here we generally expect to create or read it.
         # We construct it simply first.
         candidate = (base / scan_id).resolve()
-        
+
         # Security check: must be inside base
         # python 3.9+ has is_relative_to
         if not candidate.is_relative_to(base) or candidate == base:
             raise ValueError(f"Scan dir escapes base dir: {scan_id}")
-            
+
         return candidate
 
     def _get_scan_dir(self, scan_id: str | None = None) -> Path:
         """Get the directory for a scan ID."""
         if scan_id:
             return self._safe_join_scan_dir(scan_id)
-            
+
         if self._current_dir:
             return self._current_dir
 
         # Try to get latest
         latest_link = self._base / "latest"
         target_id = None
-        
+
         if latest_link.is_symlink():
             target_id = os.readlink(latest_link)
         elif latest_link.exists() and latest_link.is_file():
             # Windows fallback: file contains directory name
             target_id = latest_link.read_text().strip()
-            
+
         if target_id:
             return self._safe_join_scan_dir(target_id)
-            
+
         raise ValueError("No scan specified and no latest scan found")
 
     def _write_json(self, path: Path, data: any) -> None:
@@ -285,7 +285,7 @@ class FileSystemStorage(StorageBackend):
             elif latest_link.exists() and latest_link.is_file():
                 # Windows fallback: file contains directory name
                 target = latest_link.read_text().strip()
-            
+
             if target:
                 try:
                     # Validate that the latest target is a safe ID
@@ -327,7 +327,7 @@ class FileSystemStorage(StorageBackend):
         """List all available snapshots, sorted by date (most recent first)."""
         snapshots = []
         for scan_id in self.list_scans():
-            # list_scans returns directory names, so they should be safe, 
+            # list_scans returns directory names, so they should be safe,
             # but using get_snapshot calls resolve_scan_id again which is safe.
             snapshot = self.get_snapshot(scan_id)
             if snapshot:

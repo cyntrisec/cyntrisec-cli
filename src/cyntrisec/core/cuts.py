@@ -20,7 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from cyntrisec.core.cost_estimator import CostEstimator, CostEstimate
+from cyntrisec.core.cost_estimator import CostEstimator
 from cyntrisec.core.graph import AwsGraph
 from cyntrisec.core.schema import AttackPath, CostCutCandidate, Relationship
 
@@ -89,7 +89,7 @@ class MinCutFinder:
     ROI = (Paths_Blocked * 1.0) + (Monthly_Savings * 0.1)
     This rewards high-security impact AND cost savings.
     """
-    
+
     def __init__(self, cost_estimator: CostEstimator | None = None):
         self.cost_estimator = cost_estimator or CostEstimator()
 
@@ -137,8 +137,9 @@ class MinCutFinder:
         # Alternative: At each greedy step, pick Best(ROI) instead of Best(Coverage).
         # This might result in MORE cuts needed, but they are cheaper.
         # For Phase 2 MVP: We perform standard set cover, THEN rank the resulting independent cuts.
-        # (Assuming the cuts found are roughly independent, which isn't always true but works for list output).
-        
+        # (Assuming the cuts found are roughly independent, which isn't always true but works
+        # for list output).
+
         while remaining_paths and len(remediations) < max_cuts:
             # Modified Greedy: Score edges by (Coverage + Cost_Weight)
             best_edge_id, best_coverage = self._find_best_edge_roi(
@@ -165,7 +166,7 @@ class MinCutFinder:
 
         total_paths = len(paths)
         blocked = total_paths - len(remaining_paths)
-        
+
         # Sort final list by ROI just to be sure presentation is optimal
         remediations.sort(key=lambda x: x.roi_score, reverse=True)
 
@@ -202,7 +203,7 @@ class MinCutFinder:
         relationship_types: set[str] | None,
     ) -> tuple[uuid.UUID | None, set[uuid.UUID]]:
         """Find the edge with best ROI (Coverage + Cost)."""
-        
+
         best_edge_id: uuid.UUID | None = None
         best_coverage: set[uuid.UUID] = set()
         best_score: float = -1.0 # ROI score
@@ -222,7 +223,7 @@ class MinCutFinder:
 
             # Calculate Score
             security_score = len(coverage)
-            
+
             # Cost Savings
             # We assume cutting an edge might allow removing the Target Asset?
             # Or is the edge associated with a cost (e.g. NAT Gateway)?
@@ -233,12 +234,12 @@ class MinCutFinder:
                 est = self.cost_estimator.estimate(target)
                 if est:
                     savings = est.monthly_cost_usd_estimate
-            
+
             # ROI Formula: Paths + (Savings * 0.1)
             # e.g. 5 paths + $50 * 0.1 = 10 score
             # e.g. 1 path + $100 * 0.1 = 11 score (Cost wins)
-            roi = float(security_score) + (float(savings) * 0.05) 
-            
+            roi = float(security_score) + (float(savings) * 0.05)
+
             if roi > best_score:
                 best_edge_id = edge_id
                 best_coverage = coverage
@@ -252,13 +253,13 @@ class MinCutFinder:
         """Create a Remediation object from a relationship."""
         source = graph.asset(rel.source_asset_id)
         target = graph.asset(rel.target_asset_id)
-        
+
         savings = Decimal("0")
         if target:
             est = self.cost_estimator.estimate(target)
             if est:
                 savings = est.monthly_cost_usd_estimate
-                
+
         roi = float(len(paths_blocked)) + (float(savings) * 0.05)
 
         return Remediation(

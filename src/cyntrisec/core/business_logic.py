@@ -4,13 +4,12 @@ Business Logic Engine - Apply business context to the capability graph.
 
 from __future__ import annotations
 
-import logging
 import fnmatch
-from typing import Any
+import logging
 
 from cyntrisec.core.business_config import BusinessConfig
 from cyntrisec.core.graph import AwsGraph
-from cyntrisec.core.schema import Asset, AttackPath, Relationship
+from cyntrisec.core.schema import Asset, AttackPath
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class BusinessLogicEngine:
                 asset.labels.add(self.LABEL_BUSINESS)
                 asset.labels.add(self.LABEL_ENTRYPOINT)
                 count += 1
-            
+
             # 2. Global Allowlist
             if self._matches_allowlist(asset):
                 asset.labels.add(self.LABEL_BUSINESS)
@@ -55,7 +54,7 @@ class BusinessLogicEngine:
         # 3. Critical Flows
         # TODO: Requires PathFinder to trace paths between source/target
         # Will be implemented in Pathfinding Upgrades phase
-        
+
         log.info("Labeled %d assets as business-critical", count)
 
     def compute_delta(self, attack_paths: list[AttackPath]) -> list[AttackPath]:
@@ -73,27 +72,27 @@ class BusinessLogicEngine:
         for path in attack_paths:
             if not self._is_path_legitimate(path):
                 delta_paths.append(path)
-        
+
         return delta_paths
 
     def _is_entrypoint(self, asset: Asset) -> bool:
         """Check if asset matches entrypoint criteria."""
         criteria = self.config.entrypoints
-        
+
         # By ID
         if asset.aws_resource_id in criteria.by_id or asset.id in criteria.by_id:
             return True
-            
+
         # By Type
         if asset.asset_type in criteria.by_type:
             return True
-            
+
         # By Tags
         for tag_key, tag_pattern in criteria.by_tags.items():
             val = asset.tags.get(tag_key)
             if val and fnmatch.fnmatch(val, tag_pattern):
                 return True
-                
+
         return False
 
     def _matches_allowlist(self, asset: Asset) -> bool:
@@ -114,19 +113,19 @@ class BusinessLogicEngine:
         """
         # Optimized: Check if the *target* is authorized (e.g. "It's okay to access this DB")
         # OR if the *source* is an authorized entrypoint AND the flow is business_required.
-        
+
         # For Phase 1, we'll check if the path consists of marked assets.
         # Note: We need to check Edges too eventually.
-        
+
         for asset_id in path.path_asset_ids:
             asset = self.graph.asset(asset_id)
             if not asset: continue
-            
+
             # If any node in the chain is NOT business-required, the path is suspect.
             # Exception: Maybe we allow traversal through unmarked nodes if the flow itself is marked?
             # That requires Critical Flow labeling (Edge labeling).
-            
+
             if self.LABEL_BUSINESS not in asset.labels:
                  return False
-                 
+
         return True

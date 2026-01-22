@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from cyntrisec.core.schema import Asset, Relationship, INTERNET_ASSET_ID, EdgeKind
+from cyntrisec.core.schema import INTERNET_ASSET_ID, Asset, EdgeKind, Relationship
 
 
 @dataclass(frozen=True)
@@ -112,7 +112,7 @@ class AwsGraph:
                     entries[asset.id] = asset
                 elif asset.properties.get("public_ip"):
                     entries[asset.id] = asset
-                    
+
         return list(entries.values())
 
     def sensitive_targets(self) -> list[Asset]:

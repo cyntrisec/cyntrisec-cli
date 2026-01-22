@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
+## [0.1.7] - 2026-01-22
+### Fixed
+- **MCP Server Crash**: Fixed `AttributeError: 'str' object has no attribute 'value'` when serializing `confidence_level` (and previously `edge_kind`) enums. Added graceful fallback to handle both Enum objects and raw strings.
+- **Compare Scans Error**: Fixed logic error in `compare_scans` where `asset_map` lookups could fail if `snapshot.id` was missing. Added null safety checks for snapshot usage in cache keys.
 
 ## [0.1.6] - 2026-01-22
 ### Fixed

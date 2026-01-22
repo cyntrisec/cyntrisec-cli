@@ -37,19 +37,19 @@ class EvaluationContext:
     Contains information about the source principal and network context
     that can be used to evaluate IAM conditions.
     """
-    
+
     # VPC endpoint ID if the request comes through a VPC endpoint
     source_vpce: str | None = None
-    
+
     # VPC ID of the source
     source_vpc_id: str | None = None
-    
+
     # Principal tags (key -> value)
     principal_tags: dict[str, str] = field(default_factory=dict)
-    
+
     # Source IP address or CIDR
     source_ip: str | None = None
-    
+
     # AWS account ID
     account_id: str | None = None
 
@@ -69,7 +69,7 @@ class ConditionEvaluator:
     
     All other conditions return UNKNOWN.
     """
-    
+
     # Set of condition keys we can evaluate
     SUPPORTED_CONDITIONS: set[str] = {
         "aws:SourceVpce",
@@ -77,7 +77,7 @@ class ConditionEvaluator:
         "aws:PrincipalTag",
         "aws:principaltag",
     }
-    
+
     def evaluate(
         self,
         conditions: dict[str, Any],
@@ -97,26 +97,26 @@ class ConditionEvaluator:
         """
         if not conditions:
             return ConditionResult.TRUE
-        
+
         has_unknown = False
-        
+
         for operator, condition_block in conditions.items():
             if not isinstance(condition_block, dict):
                 has_unknown = True
                 continue
-                
+
             for condition_key, condition_value in condition_block.items():
                 result = self._evaluate_single_condition(
                     operator, condition_key, condition_value, context
                 )
-                
+
                 if result == ConditionResult.FALSE:
                     return ConditionResult.FALSE
                 elif result == ConditionResult.UNKNOWN:
                     has_unknown = True
-        
+
         return ConditionResult.UNKNOWN if has_unknown else ConditionResult.TRUE
-    
+
     def _evaluate_single_condition(
         self,
         operator: str,
@@ -127,19 +127,19 @@ class ConditionEvaluator:
         """Evaluate a single condition."""
         # Normalize condition key for comparison
         key_lower = condition_key.lower()
-        
+
         # Handle aws:SourceVpce
         if key_lower == "aws:sourcevpce":
             return self.evaluate_source_vpce(operator, condition_value, context)
-        
+
         # Handle aws:PrincipalTag/*
         if key_lower.startswith("aws:principaltag/"):
             tag_key = condition_key.split("/", 1)[1] if "/" in condition_key else ""
             return self.evaluate_principal_tag(operator, tag_key, condition_value, context)
-        
+
         # Unsupported condition - return UNKNOWN
         return ConditionResult.UNKNOWN
-    
+
     def evaluate_source_vpce(
         self,
         operator: str,
@@ -161,42 +161,42 @@ class ConditionEvaluator:
         """
         if context.source_vpce is None:
             return ConditionResult.UNKNOWN
-        
+
         # Normalize condition value to list
         expected_values = self._normalize_condition_value(condition_value)
-        
+
         # Handle different operators
         operator_lower = operator.lower()
-        
+
         if operator_lower in ("stringequals", "stringequalsifexists"):
             # Exact match
             if context.source_vpce in expected_values:
                 return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringnotequals", "stringnotequalsifexists"):
             # Not equal
             if context.source_vpce not in expected_values:
                 return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringlike", "stringlikeifexists"):
             # Wildcard match
             for pattern in expected_values:
                 if fnmatch.fnmatch(context.source_vpce, pattern):
                     return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringnotlike", "stringnotlikeifexists"):
             # Not like (wildcard)
             for pattern in expected_values:
                 if fnmatch.fnmatch(context.source_vpce, pattern):
                     return ConditionResult.FALSE
             return ConditionResult.TRUE
-        
+
         # Unsupported operator
         return ConditionResult.UNKNOWN
-    
+
     def evaluate_principal_tag(
         self,
         operator: str,
@@ -220,48 +220,48 @@ class ConditionEvaluator:
         """
         if not context.principal_tags:
             return ConditionResult.UNKNOWN
-        
+
         # Get the actual tag value from context
         actual_value = context.principal_tags.get(tag_key)
-        
+
         if actual_value is None:
             # Tag doesn't exist - for IfExists operators, this is TRUE
             operator_lower = operator.lower()
             if "ifexists" in operator_lower:
                 return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         # Normalize condition value to list
         expected_values = self._normalize_condition_value(condition_value)
-        
+
         # Handle different operators
         operator_lower = operator.lower()
-        
+
         if operator_lower in ("stringequals", "stringequalsifexists"):
             if actual_value in expected_values:
                 return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringnotequals", "stringnotequalsifexists"):
             if actual_value not in expected_values:
                 return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringlike", "stringlikeifexists"):
             for pattern in expected_values:
                 if fnmatch.fnmatch(actual_value, pattern):
                     return ConditionResult.TRUE
             return ConditionResult.FALSE
-        
+
         elif operator_lower in ("stringnotlike", "stringnotlikeifexists"):
             for pattern in expected_values:
                 if fnmatch.fnmatch(actual_value, pattern):
                     return ConditionResult.FALSE
             return ConditionResult.TRUE
-        
+
         # Unsupported operator
         return ConditionResult.UNKNOWN
-    
+
     def _normalize_condition_value(self, value: Any) -> list[str]:
         """Normalize condition value to a list of strings."""
         if isinstance(value, str):
@@ -299,38 +299,38 @@ class ConditionEvaluator:
             - reason: Specific explanation of what couldn't be fully evaluated
         """
         reasons: list[str] = []
-        
+
         # Check identity policy denies
         policy_docs = role.properties.get("policy_documents", [])
         for policy in policy_docs:
             if self._has_deny_statement(policy, target_arn, action):
                 reasons.append("identity policy Deny statement present")
                 break
-        
+
         # Check permission boundary presence
         permission_boundary = role.properties.get("permission_boundary")
         if permission_boundary:
             reasons.append("permission boundary attached")
-        
+
         # Check SCP presence (if we have org data)
         scp_present = role.properties.get("scp_present")
         if scp_present:
             reasons.append("SCP may apply")
-        
+
         # Check for inline policy denies
         inline_policies = role.properties.get("inline_policies", [])
         for policy in inline_policies:
             if self._has_deny_statement(policy, target_arn, action):
                 reasons.append("inline policy Deny statement present")
                 break
-        
+
         # Check attached managed policy denies
         attached_policies = role.properties.get("attached_policy_documents", [])
         for policy in attached_policies:
             if self._has_deny_statement(policy, target_arn, action):
                 reasons.append("attached managed policy Deny statement present")
                 break
-        
+
         if reasons:
             return True, "possible explicit deny not fully evaluated: " + ", ".join(reasons)
         return False, ""
@@ -355,38 +355,38 @@ class ConditionEvaluator:
         statements = policy.get("Statement", [])
         if isinstance(statements, dict):
             statements = [statements]
-        
+
         for statement in statements:
             if not isinstance(statement, dict):
                 continue
-            
+
             effect = statement.get("Effect", "Allow")
             if effect != "Deny":
                 continue
-            
+
             # Check if action matches
             stmt_actions = statement.get("Action", [])
             if isinstance(stmt_actions, str):
                 stmt_actions = [stmt_actions]
-            
+
             action_matches = False
             for stmt_action in stmt_actions:
                 if stmt_action == "*" or fnmatch.fnmatch(action.lower(), stmt_action.lower()):
                     action_matches = True
                     break
-            
+
             if not action_matches:
                 continue
-            
+
             # Check if resource matches
             stmt_resources = statement.get("Resource", [])
             if isinstance(stmt_resources, str):
                 stmt_resources = [stmt_resources]
-            
+
             for stmt_resource in stmt_resources:
                 if stmt_resource == "*" or fnmatch.fnmatch(target_arn, stmt_resource):
                     return True
-        
+
         return False
 
 
@@ -432,9 +432,9 @@ class ActionParser:
         """
         actions = self._normalize_actions(statement.get("Action", []))
         not_actions = self._normalize_actions(statement.get("NotAction", []))
-        
+
         matched: set[str] = set()
-        
+
         # Case 1: Statement has Action field
         if actions:
             for capability_action in self.CAPABILITY_ACTIONS:
@@ -443,14 +443,14 @@ class ActionParser:
                     # Check it's not excluded by NotAction (if both are present)
                     if not not_actions or not self._any_pattern_matches(not_actions, capability_action):
                         matched.add(capability_action)
-        
+
         # Case 2: Statement has only NotAction field (no Action)
         # For NotAction: capability is allowed unless it matches NotAction pattern
         elif not_actions:
             for capability_action in self.CAPABILITY_ACTIONS:
                 if not self._any_pattern_matches(not_actions, capability_action):
                     matched.add(capability_action)
-        
+
         return matched
 
     def get_edge_type_for_action(self, action: str) -> str | None:
@@ -486,7 +486,7 @@ class ActionParser:
             # IAM actions are case-insensitive, but we normalize to lowercase for matching
             pattern_lower = pattern.lower()
             action_lower = action.lower()
-            
+
             if fnmatch.fnmatch(action_lower, pattern_lower):
                 return True
         return False
@@ -583,7 +583,7 @@ class RelationshipBuilder:
         for asset in assets:
             if asset.id == INTERNET_ASSET_ID:
                 return
-        
+
         internet = Asset(
             id=INTERNET_ASSET_ID,
             snapshot_id=self._snapshot_id,
@@ -598,7 +598,7 @@ class RelationshipBuilder:
     def _build_network_reachability_relationships(self) -> list[Relationship]:
         """Build CAN_REACH edges based on network accessibility."""
         relationships: list[Relationship] = []
-        
+
         # Iterate over all security groups
         for sg in self._sg_by_id.values():
             targets = self._assets_by_sg.get(sg.aws_resource_id, [])
@@ -606,7 +606,7 @@ class RelationshipBuilder:
                 continue
 
             ingress_rules = sg.properties.get("ingress_rules", [])
-            
+
             for rule in ingress_rules:
                 # 6.1 Internet Reachability (0.0.0.0/0)
                 for ip_range in rule.get("IpRanges", []):
@@ -671,7 +671,7 @@ class RelationshipBuilder:
                                     source_label=source_sg.name
                                 )
                             )
-        
+
         return relationships
 
     def _create_can_reach_edge(
@@ -719,7 +719,7 @@ class RelationshipBuilder:
         originating from that SG.
         """
         relationships: list[Relationship] = []
-        
+
         for sg_id, sg_asset in self._sg_by_id.items():
             members = self._assets_by_sg.get(sg_id, [])
             for member in members:
@@ -887,35 +887,35 @@ class RelationshipBuilder:
             role = role_lookup.get(role_id)
             if not role:
                 continue
-            
+
             policy_docs = role.properties.get("policy_documents", [])
-            
+
             for target in sensitive_targets:
                 target_arn = target.arn or target.aws_resource_id
                 if not target_arn or role_id == target.id:
                     continue
-                
+
                 # Get relevant actions for this target type
                 relevant_actions = target_type_to_actions.get(target.asset_type, [])
                 if not relevant_actions:
                     continue
-                
+
                 # Check each policy document for matching capabilities
                 for policy in policy_docs:
                     policy_arn = policy.get("PolicyArn") or policy.get("Arn")
-                    
+
                     for statement in self._iter_policy_statements(policy):
                         if statement.get("Effect") != "Allow":
                             continue
-                        
+
                         # Check if statement resources match target
                         resources = self._normalize_resources(statement.get("Resource"))
                         if not self._resources_match_target(resources, [], target_arn):
                             continue
-                        
+
                         # Get matched capabilities from this statement
                         matched_capabilities = action_parser.get_matched_capabilities(statement)
-                        
+
                         # Create edges for relevant matched capabilities
                         for capability_action in matched_capabilities:
                             if capability_action in relevant_actions:
@@ -930,7 +930,7 @@ class RelationshipBuilder:
                                         permission=capability_action,
                                         raw_statement=statement,
                                     )
-                                    
+
                                     relationships.append(
                                         Relationship(
                                             snapshot_id=self._snapshot_id,
@@ -956,12 +956,12 @@ class RelationshipBuilder:
             for statement in self._iter_policy_statements(policy):
                 effect = statement.get("Effect", "Allow")
                 resources = self._normalize_resources(statement.get("Resource"))
-                
+
                 if effect == "Allow":
                     allowed.extend(resources)
                 elif effect == "Deny":
                     denied.extend(resources)
-                    
+
         return allowed, denied
 
     @staticmethod
@@ -1046,10 +1046,10 @@ class RelationshipBuilder:
         """
         relationships = []
         roles = [a for a in assets if a.asset_type == "iam:role"]
-        
+
         for source_role in roles:
             policy_docs = source_role.properties.get("policy_documents", [])
-            
+
             # Collect statements that grant PassRole
             passrole_statements: list[tuple[dict, str | None, dict]] = []  # (statement, policy_arn, policy)
             for policy in policy_docs:
@@ -1057,7 +1057,7 @@ class RelationshipBuilder:
                 for statement in self._iter_policy_statements(policy):
                     if statement.get("Effect") != "Allow":
                         continue
-                        
+
                     actions = statement.get("Action", [])
                     if isinstance(actions, str):
                         actions = [actions]
@@ -1067,15 +1067,15 @@ class RelationshipBuilder:
 
             if not passrole_statements:
                 continue
-                
+
             for target_role in roles:
                 if source_role.id == target_role.id:
                     continue
-                    
+
                 target_arn = target_role.arn or target_role.aws_resource_id
                 if not target_arn:
                     continue
-                
+
                 # Check if source can pass target and find the granting statement
                 for statement, policy_arn, policy in passrole_statements:
                     resources = self._normalize_resources(statement.get("Resource"))
@@ -1084,7 +1084,7 @@ class RelationshipBuilder:
                         if res == "*" or fnmatch.fnmatchcase(target_arn, res):
                             can_pass = True
                             break
-                    
+
                     if can_pass:
                         # Create evidence for provenance tracking
                         evidence = EdgeEvidence(
@@ -1095,7 +1095,7 @@ class RelationshipBuilder:
                             permission="iam:PassRole",
                             raw_statement=statement,
                         )
-                        
+
                         relationships.append(
                             Relationship(
                                 snapshot_id=self._snapshot_id,
@@ -1125,29 +1125,29 @@ class RelationshipBuilder:
         """
         relationships = []
         action_parser = ActionParser()
-        
+
         # Lambda creation actions that grant MAY_CREATE_LAMBDA capability
         lambda_creation_actions = ["lambda:CreateFunction", "lambda:UpdateFunctionConfiguration"]
-        
+
         roles = [a for a in assets if a.asset_type == "iam:role"]
-        
+
         # Find or create a synthetic Lambda service asset for targeting
         # We'll use a well-known UUID for the Lambda service
         lambda_service_id = uuid.UUID("00000000-0000-0000-0000-00000000000a")
-        
+
         for role in roles:
             policy_docs = role.properties.get("policy_documents", [])
-            
+
             for policy in policy_docs:
                 policy_arn = policy.get("PolicyArn") or policy.get("Arn")
-                
+
                 for statement in self._iter_policy_statements(policy):
                     if statement.get("Effect") != "Allow":
                         continue
-                    
+
                     # Get matched capabilities from this statement
                     matched_capabilities = action_parser.get_matched_capabilities(statement)
-                    
+
                     # Check if any lambda creation action is matched
                     for capability_action in matched_capabilities:
                         if capability_action in lambda_creation_actions:
@@ -1160,7 +1160,7 @@ class RelationshipBuilder:
                                 permission=capability_action,
                                 raw_statement=statement,
                             )
-                            
+
                             relationships.append(
                                 Relationship(
                                     snapshot_id=self._snapshot_id,

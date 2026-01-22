@@ -455,7 +455,11 @@ def _register_graph_tools(mcp, session):
                     "id": str(p.id),
                     "attack_vector": p.attack_vector,
                     "risk_score": float(p.risk_score),
-                    "confidence_level": p.confidence_level.value if hasattr(p.confidence_level, 'value') else p.confidence_level,
+                    "confidence_level": (
+                        p.confidence_level.value
+                        if hasattr(p.confidence_level, "value")
+                        else p.confidence_level
+                    ),
                     "source_name": get_asset_name(p.source_asset_id),
                     "target_name": get_asset_name(p.target_asset_id),
                     "path_length": len(p.path_asset_ids) if p.path_asset_ids else 0,
@@ -530,7 +534,11 @@ def _register_graph_tools(mcp, session):
             "path_id": path_id,
             "attack_vector": target_path.attack_vector,
             "risk_score": float(target_path.risk_score),
-            "confidence_level": target_path.confidence_level.value if hasattr(target_path.confidence_level, 'value') else target_path.confidence_level,
+            "confidence_level": (
+                target_path.confidence_level.value
+                if hasattr(target_path.confidence_level, "value")
+                else target_path.confidence_level
+            ),
             "summary": f"Attack path from {hops[0]['asset_name'] if hops else 'unknown'} to {hops[-1]['asset_name'] if hops else 'unknown'} via {len(hops)} hops",
             "hops": hops,
         }

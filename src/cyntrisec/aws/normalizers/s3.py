@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
 import json
+import uuid
 from typing import Any
 
 from cyntrisec.core.schema import Asset, Finding, FindingSeverity, Relationship

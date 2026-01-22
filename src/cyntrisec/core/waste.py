@@ -120,7 +120,7 @@ class WasteAnalyzer:
         """Check if role is AWS-managed and should be excluded from waste analysis."""
         name = role.name or ""
         arn = role.arn or role.aws_resource_id or ""
-        
+
         # AWS service-linked roles
         if name.startswith("AWSServiceRole"):
             return True
@@ -128,7 +128,7 @@ class WasteAnalyzer:
             return True
         if "/aws-service-role/" in arn:
             return True
-        
+
         return False
 
     def analyze_from_usage_reports(
@@ -242,7 +242,7 @@ class WasteAnalyzer:
 
         # Find IAM roles, excluding AWS-managed service roles
         roles = [
-            a for a in assets 
+            a for a in assets
             if a.asset_type == "iam:role" and not self._is_aws_managed_role(a)
         ]
 

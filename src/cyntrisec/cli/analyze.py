@@ -5,8 +5,8 @@ Analyze Commands - Analyze scan results.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import uuid
+from pathlib import Path
 
 import typer
 
@@ -103,34 +103,34 @@ def analyze_paths(
     # Verify paths if requested
     if verify:
         from cyntrisec.aws.credentials import CredentialProvider
-        from cyntrisec.core.simulator import PolicySimulator, SimulationDecision
+        from cyntrisec.core.simulator import PolicySimulator
 
         try:
             # Initialize simulator
             provider = CredentialProvider()
             session = provider.default_session()
             simulator = PolicySimulator(session)
-            
+
             # Hydrate assets for verification
             all_assets = {a.id: a for a in storage.get_assets(scan_id)}
-            
+
             typer.echo("Verifying paths with AWS Policy Simulator...", err=True)
-            
+
             for path in paths:
                 if not path.path_asset_ids or len(path.path_asset_ids) < 2:
                     continue
-                
+
                 # Verify last hop if it's a capability edge
                 # (Ideally we'd verify the whole chain, but let's start with the immediate impact)
                 target_id = path.path_asset_ids[-1]
                 source_id = path.path_asset_ids[-2]
-                
+
                 source_asset = all_assets.get(uuid.UUID(str(source_id)))
                 target_asset = all_assets.get(uuid.UUID(str(target_id)))
-                
+
                 if not source_asset or not target_asset:
                     continue
-                    
+
                 # Only check if source is an IAM principal
                 if source_asset.asset_type not in ("iam:role", "iam:user"):
                     continue
@@ -140,14 +140,14 @@ def analyze_paths(
                 # stored paths which usually have IDs. We don't have relationships loaded here easily.
                 # However, we can infer action from edge type if we loaded relationships, OR
                 # we can try common actions based on target type.
-                
+
                 # For now, let's use the simulator's inference
                 try:
                     result = simulator.can_access(
                         principal_arn=source_asset.arn or source_asset.aws_resource_id,
                         target_resource=target_asset.arn or target_asset.aws_resource_id
                     )
-                    
+
                     if result.can_access:
                          if path.confidence_level != "high":
                              path.confidence_level = "high"
@@ -155,9 +155,9 @@ def analyze_paths(
                     else:
                         path.confidence_level = "low"
                         path.confidence_reason = "Verification Failed: AWS Policy Simulator denied access"
-                        
+
                 except Exception as ex:
-                    log.debug("Path verification failed for %s: %s", path.id, ex) 
+                    log.debug("Path verification failed for %s: %s", path.id, ex)
 
         except Exception as e:
             typer.echo(f"Verification failed: {e}", err=True)
@@ -208,14 +208,14 @@ def analyze_paths(
         length = p.path_length
         entry = float(p.entry_confidence)
         impact = float(p.impact_score)
-        
+
         # Color coding
         color = None
         if risk >= 0.7:
             color = typer.colors.RED
         elif risk >= 0.4:
             color = typer.colors.YELLOW
-            
+
         line = f"{risk:<8.3f} {conf:<6} {vector:<25} {length:<8} {entry:<8.3f} {impact:<8.3f}"
         if color:
             typer.secho(line, fg=color)
