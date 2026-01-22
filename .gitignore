@@ -8,30 +8,53 @@ dist/
 build/
 *.egg-info/
 *.egg
+wheels/
+*.whl
 
 # Virtual environments
 .venv/
 venv/
 ENV/
+env/
 pip/
 .rustup/
+.python-version
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .hypothesis/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
 
 # Type checking
 .mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Linting
+.ruff_cache/
 
 # Agent artifacts
 .agent/
+.gemini/
 
 # Local data
 .cyntrisec/
@@ -47,18 +70,30 @@ cyntrisec-remediation-tf/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-.kiro
-.claude
+# AI assistants
+.kiro/
+.claude/
+.cursor/
+.continue/
+
+# Debug/temp files
 cyntrisec_v0.1.3_issue_reports
 audit_debug.txt
 scan_output.txt
 test_output.log
 *.log
-
-# Debug
 debug_*.py
+*.tmp
+*.temp
+*.bak
 
 # Generated Reports & Output
 report.html
@@ -68,4 +103,20 @@ role.tf
 # Terraform
 .terraform/
 *.tfstate
-*.tfstate.backup
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Secrets (safety net)
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+secrets.yaml
+secrets.json
