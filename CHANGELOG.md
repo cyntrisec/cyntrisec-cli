@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.6] - 2026-01-22
+### Fixed
+- **MCP Server Data Model Bugs**: Fixed 3 critical bugs preventing MCP tools from working in Claude Desktop:
+  - `get_assets`: Changed `a.region` to `a.aws_region` to match Asset model field name
+  - `get_assets`: Changed `is_entry_point` to `is_internet_facing` to match Asset model field name
+  - `get_relationships`: Fixed `edge_kind.value` error - now handles both string and enum values (due to `use_enum_values=True` in Pydantic)
+  - `get_findings`: Fixed `resource_type`/`recommendation` to use correct field names `finding_type`/`remediation`
+  - `explain_finding`: Same field name fixes as `get_findings`
+- **FileSystemStorage Type Handling**: Now accepts `Path | str | None` for `base_dir` parameter, automatically converting strings to Path objects
+
+### Changed
+- **MCP Server Code Quality**: Refactored redundant `asset_map` access pattern in `get_relationships()` with `get_asset_name()` helper function for cleaner, more readable code
+
 ## [0.1.5] - 2026-01-21
 ### Added
 - **Capability Graph Algorithm Upgrade**:
