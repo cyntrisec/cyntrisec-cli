@@ -38,9 +38,12 @@ class FileSystemStorage(StorageBackend):
     A 'latest' symlink points to the most recent scan.
     """
 
-    def __init__(self, base_dir: Path | None = None):
+    def __init__(self, base_dir: Path | str | None = None):
         home_dir = Path(os.environ.get("HOME") or os.environ.get("USERPROFILE") or Path.home())
-        self._base = base_dir or home_dir / ".cyntrisec" / "scans"
+        if base_dir is None:
+            self._base = home_dir / ".cyntrisec" / "scans"
+        else:
+            self._base = Path(base_dir)  # Convert string to Path if needed
         self._base.mkdir(parents=True, exist_ok=True)
         self._current_dir: Path | None = None
         self._current_id: str | None = None

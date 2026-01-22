@@ -183,10 +183,9 @@ def _register_session_tools(mcp, session):
                     "id": str(f.id),
                     "title": f.title,
                     "severity": f.severity,
-                    "resource_type": f.resource_type,
-                    "resource_name": f.resource_name,
+                    "finding_type": f.finding_type,
                     "description": f.description,
-                    "recommendation": f.recommendation,
+                    "remediation": f.remediation,
                 }
                 for f in findings[:max_findings]
             ],
@@ -241,8 +240,8 @@ def _register_session_tools(mcp, session):
                     "type": a.asset_type,
                     "name": a.name,
                     "arn": a.arn,
-                    "region": a.region,
-                    "is_entry_point": a.is_entry_point,
+                    "region": a.aws_region,
+                    "is_internet_facing": a.is_internet_facing,
                     "is_sensitive_target": a.is_sensitive_target,
                 }
                 for a in assets[:max_assets]
@@ -308,6 +307,10 @@ def _register_session_tools(mcp, session):
                                     asset_map[str(r.target_asset_id)].name or "").lower()
             ]
 
+        def get_asset_name(asset_id):
+            asset = asset_map.get(str(asset_id))
+            return asset.name if asset else None
+
         return {
             "total": len(relationships),
             "relationships": [
@@ -315,12 +318,10 @@ def _register_session_tools(mcp, session):
                     "id": str(r.id),
                     "type": r.relationship_type,
                     "source_id": str(r.source_asset_id),
-                    "source_name": asset_map.get(str(r.source_asset_id), None) and
-                                   asset_map[str(r.source_asset_id)].name,
+                    "source_name": get_asset_name(r.source_asset_id),
                     "target_id": str(r.target_asset_id),
-                    "target_name": asset_map.get(str(r.target_asset_id), None) and
-                                   asset_map[str(r.target_asset_id)].name,
-                    "edge_kind": r.edge_kind.value if r.edge_kind else None,
+                    "target_name": get_asset_name(r.target_asset_id),
+                    "edge_kind": r.edge_kind.value if hasattr(r.edge_kind, 'value') else r.edge_kind,
                 }
                 for r in relationships[:max_relationships]
             ],
@@ -569,13 +570,12 @@ def _register_graph_tools(mcp, session):
             "finding_id": finding_id,
             "title": target_finding.title,
             "severity": target_finding.severity,
-            "resource_type": target_finding.resource_type,
-            "resource_name": target_finding.resource_name,
-            "resource_arn": target_finding.resource_arn,
+            "finding_type": target_finding.finding_type,
+            "asset_id": str(target_finding.asset_id),
             "description": target_finding.description,
-            "impact": f"This {target_finding.severity} severity finding affects {target_finding.resource_name}",
-            "recommendation": target_finding.recommendation,
-            "compliance_frameworks": target_finding.compliance_frameworks if hasattr(target_finding, 'compliance_frameworks') else [],
+            "impact": f"This {target_finding.severity} severity finding affects asset {target_finding.asset_id}",
+            "remediation": target_finding.remediation,
+            "evidence": target_finding.evidence if hasattr(target_finding, 'evidence') else {},
         }
 
     @mcp.tool()
