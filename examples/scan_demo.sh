@@ -29,7 +29,7 @@ SNAPSHOT_ID="2026-01-18_000000_123456789012"
 echo "--------------------------------------------------------"
 echo "1. Checking Tool Capabilities (Manifest)"
 echo "--------------------------------------------------------"
-python -m cyntrisec manifest --format text
+python -m cyntrisec manifest --format json
 echo ""
 
 # 3. Analyze Paths (Attack Path Discovery)
@@ -58,7 +58,7 @@ echo ""
 echo "--------------------------------------------------------"
 echo "5. Checking Compliance (CIS AWS)"
 echo "--------------------------------------------------------"
-python -m cyntrisec comply --dataset cis-aws --snapshot "$SNAPSHOT_ID" --format table || true
+python -m cyntrisec comply --framework cis-aws --snapshot "$SNAPSHOT_ID" --format table || true
 echo ""
 
 echo "Demo complete!"

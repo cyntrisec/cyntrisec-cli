@@ -23,7 +23,7 @@ $SnapshotId = "2026-01-18_000000_123456789012"
 Write-Host "--------------------------------------------------------"
 Write-Host "1. Checking Tool Capabilities (Manifest)"
 Write-Host "--------------------------------------------------------"
-python -m cyntrisec manifest --format text
+python -m cyntrisec manifest --format json
 Write-Host ""
 
 # 3. Analyze Paths (Attack Path Discovery)
@@ -51,7 +51,7 @@ Write-Host ""
 Write-Host "--------------------------------------------------------"
 Write-Host "5. Checking Compliance (CIS AWS)"
 Write-Host "--------------------------------------------------------"
-python -m cyntrisec comply --dataset cis-aws --snapshot "$SnapshotId" --format table
+python -m cyntrisec comply --framework cis-aws --snapshot "$SnapshotId" --format table
 Write-Host ""
 
 Write-Host "Demo complete!"

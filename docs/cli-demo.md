@@ -1,6 +1,6 @@
 # Cyntrisec CLI - Demo Outputs
 
-Generated: 2026-01-20 15:33:08.554963 UTC
+Generated: 2026-01-22 15:47:18.537479 UTC
 
 This file is generated from synthetic demo data only.
 
@@ -16,7 +16,7 @@ cyntrisec manifest --format agent
   "status": "success",
   "data": {
     "name": "cyntrisec",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "description": "AWS capability graph analysis and attack path discovery",
     "capabilities": [
       {
@@ -1262,6 +1262,60 @@ cyntrisec manifest --format agent
                 "risk_score": {
                   "title": "Risk Score",
                   "type": "number"
+                },
+                "confidence_level": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Confidence Level"
+                },
+                "confidence_reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Confidence Reason"
+                },
+                "attack_chain_relationship_ids": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Attack Chain Relationship Ids"
+                },
+                "context_relationship_ids": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Context Relationship Ids"
                 },
                 "proof": {
                   "additionalProperties": true,
@@ -3179,16 +3233,16 @@ cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
       {
         "id": "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-        "source_asset_id": "22222222-2222-2222-2222-222222222222",
+        "source_asset_id": "00000000-0000-0000-0000-000000000000",
         "target_asset_id": "44444444-4444-4444-4444-444444444444",
         "path_asset_ids": [
-          "22222222-2222-2222-2222-222222222222",
+          "00000000-0000-0000-0000-000000000000",
           "11111111-1111-1111-1111-111111111111",
           "33333333-3333-3333-3333-333333333333",
           "44444444-4444-4444-4444-444444444444"
         ],
         "path_relationship_ids": [
-          "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
           "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
           "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         ],
@@ -3198,19 +3252,33 @@ cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
         "exploitability_score": 0.8,
         "impact_score": 0.9,
         "risk_score": 0.65,
+        "confidence_level": "high",
+        "confidence_reason": "All preconditions verified: CAN_REACH from Internet, CAN_ASSUME via instance profile, MAY_READ_SECRET with valid policy",
+        "attack_chain_relationship_ids": [
+          "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ],
+        "context_relationship_ids": [
+          "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ],
         "proof": {
           "steps": [
             {
-              "name": "sg-web"
+              "name": "Internet",
+              "asset_type": "pseudo:internet"
             },
             {
-              "name": "entry-instance"
+              "name": "entry-instance",
+              "asset_type": "ec2:instance"
             },
             {
-              "name": "AdminRole"
+              "name": "AdminRole",
+              "asset_type": "iam:role"
             },
             {
-              "name": "prod-database"
+              "name": "prod-database-creds",
+              "asset_type": "secretsmanager:secret"
             }
           ]
         }
@@ -3218,16 +3286,16 @@ cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
       {
         "id": "bbbbbbb2-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         "snapshot_id": "00000000-0000-0000-0000-0000000000b2",
-        "source_asset_id": "22222222-2222-2222-2222-222222222222",
+        "source_asset_id": "00000000-0000-0000-0000-000000000000",
         "target_asset_id": "55555555-5555-5555-5555-555555555555",
         "path_asset_ids": [
-          "22222222-2222-2222-2222-222222222222",
+          "00000000-0000-0000-0000-000000000000",
           "11111111-1111-1111-1111-111111111111",
           "33333333-3333-3333-3333-333333333333",
           "55555555-5555-5555-5555-555555555555"
         ],
         "path_relationship_ids": [
-          "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
           "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
           "aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         ],
@@ -3237,19 +3305,33 @@ cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
         "exploitability_score": 0.7,
         "impact_score": 0.8,
         "risk_score": 0.5,
+        "confidence_level": "high",
+        "confidence_reason": "All preconditions verified: CAN_REACH from Internet, CAN_ASSUME via instance profile, MAY_READ_S3_OBJECT with valid policy",
+        "attack_chain_relationship_ids": [
+          "aaaaaaa6-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ],
+        "context_relationship_ids": [
+          "aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ],
         "proof": {
           "steps": [
             {
-              "name": "sg-web"
+              "name": "Internet",
+              "asset_type": "pseudo:internet"
             },
             {
-              "name": "entry-instance"
+              "name": "entry-instance",
+              "asset_type": "ec2:instance"
             },
             {
-              "name": "AdminRole"
+              "name": "AdminRole",
+              "asset_type": "iam:role"
             },
             {
-              "name": "public-bucket"
+              "name": "public-bucket",
+              "asset_type": "s3:bucket"
             }
           ]
         }
@@ -3286,22 +3368,7 @@ cyntrisec analyze paths --scan 2026-01-18_000000_123456789012 --format agent
 cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format table
 ```
 ```
-+------------------------------ cyntrisec cuts -------------------------------+
-| Minimal Cut Analysis                                                        |
-| Account: 123456789012                                                       |
-| Attack Paths: 2 -> 2 blocked (100% coverage)                                |
-+-----------------------------------------------------------------------------+
-
-                              Top 2 Remediations                               
-+-----------------------------------------------------------------------------+
-| #   |   Blocks | Action          | Remediation                              |
-|-----+----------+-----------------+------------------------------------------|
-| 1   |  1 paths | restrict_policy | Restrict AdminRole access to             |
-|     |          |                 | prod-database                            |
-| 2   |  1 paths | restrict        | Remove 0.0.0.0/0 ingress from sg-web     |
-+-----------------------------------------------------------------------------+
-
-All 2 attack paths can be blocked with 2 changes.
+Error:
 ```
 
 ### cyntrisec cuts (JSON with Cost)
@@ -3321,31 +3388,14 @@ cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format json
     "remediations": [
       {
         "priority": 1,
-        "action": "restrict_policy",
-        "description": "Restrict AdminRole access to prod-database",
-        "relationship_type": "MAY_ACCESS",
-        "source": "AdminRole",
-        "target": "prod-database",
-        "paths_blocked": 1,
-        "path_ids": [
-          "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-        ],
-        "estimated_monthly_savings": 49.64,
-        "cost_source": "estimate",
-        "cost_confidence": "unknown",
-        "cost_assumptions": [
-          "Unknown RDS class - estimate uses median of known classes"
-        ]
-      },
-      {
-        "priority": 2,
-        "action": "restrict",
-        "description": "Remove 0.0.0.0/0 ingress from sg-web",
-        "relationship_type": "ALLOWS_TRAFFIC_TO",
-        "source": "sg-web",
+        "action": "review",
+        "description": "Review CAN_REACH: Internet \u2192 entry-instance",
+        "relationship_type": "CAN_REACH",
+        "source": "Internet",
         "target": "entry-instance",
-        "paths_blocked": 1,
+        "paths_blocked": 2,
         "path_ids": [
+          "bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
           "bbbbbbb2-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
         ],
         "estimated_monthly_savings": null,
@@ -3367,7 +3417,7 @@ cyntrisec cuts --snapshot 2026-01-18_000000_123456789012 --format json
   },
   "suggested_actions": [
     {
-      "command": "cyntrisec can AdminRole access prod-database",
+      "command": "cyntrisec can Internet access entry-instance",
       "reason": "Verify the highest-priority remediation closes access"
     },
     {
