@@ -294,8 +294,8 @@ def _register_session_tools(mcp, session):
             source_lower = source_name.lower()
             relationships = [
                 r for r in relationships
-                if source_lower in (asset_map.get(str(r.source_asset_id), None) and
-                                    asset_map[str(r.source_asset_id)].name or "").lower()
+                if (asset := asset_map.get(str(r.source_asset_id))) and
+                   asset.name and source_lower in asset.name.lower()
             ]
 
         # Filter by target name
@@ -303,8 +303,8 @@ def _register_session_tools(mcp, session):
             target_lower = target_name.lower()
             relationships = [
                 r for r in relationships
-                if target_lower in (asset_map.get(str(r.target_asset_id), None) and
-                                    asset_map[str(r.target_asset_id)].name or "").lower()
+                if (asset := asset_map.get(str(r.target_asset_id))) and
+                   asset.name and target_lower in asset.name.lower()
             ]
 
         def get_asset_name(asset_id):
@@ -813,6 +813,11 @@ def _register_insight_tools(mcp, session):
 
         new_id, old_id = scan_ids[0], scan_ids[1]
 
+        old_snapshot = session.storage.get_snapshot(old_id)
+        new_snapshot = session.storage.get_snapshot(new_id)
+        if not old_snapshot or not new_snapshot:
+            return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "Could not load snapshots for comparison.")
+
         differ = SnapshotDiff()
         result = differ.diff(
             old_assets=session.storage.get_assets(old_id),
@@ -823,8 +828,8 @@ def _register_insight_tools(mcp, session):
             new_relationships=session.storage.get_relationships(new_id),
             new_paths=session.storage.get_attack_paths(new_id),
             new_findings=session.storage.get_findings(new_id),
-            old_snapshot_id=session.storage.get_snapshot(old_id).id,
-            new_snapshot_id=session.storage.get_snapshot(new_id).id,
+            old_snapshot_id=old_snapshot.id,
+            new_snapshot_id=new_snapshot.id,
         )
 
         return {

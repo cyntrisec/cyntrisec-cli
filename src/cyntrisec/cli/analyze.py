@@ -4,10 +4,13 @@ Analyze Commands - Analyze scan results.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import uuid
 
 import typer
+
+log = logging.getLogger(__name__)
 
 from cyntrisec.cli.errors import EXIT_CODE_MAP, CyntriError, ErrorCode, handle_errors
 from cyntrisec.cli.output import (
@@ -146,16 +149,15 @@ def analyze_paths(
                     )
                     
                     if result.can_access:
-                         if path.confidence_level != "HIGH":
-                             path.confidence_level = "HIGH"
+                         if path.confidence_level != "high":
+                             path.confidence_level = "high"
                              path.confidence_reason = f"Verified via AWS Policy Simulator (Action: {result.action})"
                     else:
-                        path.confidence_level = "LOW"
+                        path.confidence_level = "low"
                         path.confidence_reason = "Verification Failed: AWS Policy Simulator denied access"
                         
                 except Exception as ex:
-                    # Log but continue
-                    pass 
+                    log.debug("Path verification failed for %s: %s", path.id, ex) 
 
         except Exception as e:
             typer.echo(f"Verification failed: {e}", err=True)
