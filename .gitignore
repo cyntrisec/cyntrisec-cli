@@ -13,6 +13,8 @@ build/
 .venv/
 venv/
 ENV/
+pip/
+.rustup/
 
 # IDE
 .vscode/
