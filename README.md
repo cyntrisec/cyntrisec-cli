@@ -22,7 +22,11 @@ A read-only CLI tool that:
 - Prioritizes fixes by ROI (security impact + cost savings)
 - Identifies unused capabilities (blast radius reduction)
 - Outputs deterministic JSON with proof chains
+## Demo
 
+[![Cyntrisec Demo](https://img.youtube.com/vi/-g3PjWyK3mo/0.jpg)](https://www.youtube.com/watch?v=-g3PjWyK3mo)
+
+> *Watch how to discover attack paths and generate fixes using natural language with Claude MCP.*
 ## Architecture
 
 ```text
