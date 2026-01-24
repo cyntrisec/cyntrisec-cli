@@ -1,0 +1,297 @@
+{
+  "serverInfo": {
+    "name": "cyntrisec",
+    "version": "0.1.7"
+  },
+  "authentication": {
+    "required": false
+  },
+  "tools": [
+    {
+      "name": "list_tools",
+      "description": "List all available Cyntrisec tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "set_session_snapshot",
+      "description": "Set or retrieve the active snapshot id used for subsequent calls",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional scan id/directory name. If omitted, returns current/latest"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_scan_summary",
+      "description": "Get summary of the latest AWS scan. Returns asset counts, finding counts, and attack path counts",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_assets",
+      "description": "Get assets from the scan with optional filtering by type or name",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "asset_type": {
+            "type": "string",
+            "description": "Filter by type (e.g., 'iam:role', 'ec2:instance', 's3:bucket')"
+          },
+          "search": {
+            "type": "string",
+            "description": "Search by name or ARN (case-insensitive)"
+          },
+          "max_assets": {
+            "type": "integer",
+            "description": "Maximum number of assets to return (default: 50)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_relationships",
+      "description": "Get relationships between assets with optional filtering",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "relationship_type": {
+            "type": "string",
+            "description": "Filter by type (e.g., 'CAN_ASSUME', 'CAN_REACH', 'MAY_ACCESS')"
+          },
+          "source_name": {
+            "type": "string",
+            "description": "Filter by source asset name"
+          },
+          "target_name": {
+            "type": "string",
+            "description": "Filter by target asset name"
+          },
+          "max_relationships": {
+            "type": "integer",
+            "description": "Maximum number to return (default: 50)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_findings",
+      "description": "Get security findings from the scan with optional severity filtering",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "description": "Filter by severity (CRITICAL, HIGH, MEDIUM, LOW)"
+          },
+          "max_findings": {
+            "type": "integer",
+            "description": "Maximum number of findings to return (default: 20)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_attack_paths",
+      "description": "Get discovered attack paths from the latest scan with risk scores",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "max_paths": {
+            "type": "integer",
+            "description": "Maximum number of paths to return (default: 10)"
+          },
+          "min_risk": {
+            "type": "number",
+            "description": "Minimum risk score filter (0.0-1.0, default: 0.0)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "explain_path",
+      "description": "Get detailed explanation of an attack path with each hop explained",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path_id": {
+            "type": "string",
+            "description": "The attack path ID to explain"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": ["path_id"]
+      }
+    },
+    {
+      "name": "explain_finding",
+      "description": "Get detailed explanation of a security finding with context, impact, and remediation steps",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "description": "The finding ID to explain"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": ["finding_id"]
+      }
+    },
+    {
+      "name": "get_remediations",
+      "description": "Find optimal remediations that block attack paths using min-cut algorithm",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "max_cuts": {
+            "type": "integer",
+            "description": "Maximum number of remediations (default: 5)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "get_terraform_snippet",
+      "description": "Get Terraform code snippet for a specific remediation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_name": {
+            "type": "string",
+            "description": "Name of the source asset"
+          },
+          "target_name": {
+            "type": "string",
+            "description": "Name of the target asset"
+          },
+          "relationship_type": {
+            "type": "string",
+            "description": "Type of relationship (e.g., 'CAN_ASSUME', 'ALLOWS_TRAFFIC_TO')"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": ["source_name", "target_name", "relationship_type"]
+      }
+    },
+    {
+      "name": "check_access",
+      "description": "Test if a principal can access a resource",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "principal": {
+            "type": "string",
+            "description": "IAM role or user name (e.g., 'ECforS')"
+          },
+          "resource": {
+            "type": "string",
+            "description": "Target resource (e.g., 's3://prod-bucket')"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": ["principal", "resource"]
+      }
+    },
+    {
+      "name": "get_unused_permissions",
+      "description": "Find unused IAM permissions (blast radius reduction opportunities)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days_threshold": {
+            "type": "integer",
+            "description": "Days of inactivity to consider unused (default: 90)"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "check_compliance",
+      "description": "Check compliance against CIS AWS or SOC 2 framework",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "framework": {
+            "type": "string",
+            "description": "Compliance framework: 'cis-aws' or 'soc2' (default: 'cis-aws')"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "description": "Optional snapshot ID (default: latest)"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "compare_scans",
+      "description": "Compare latest scan to previous scan. Returns changes in assets, relationships, and attack paths",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  ],
+  "resources": [],
+  "prompts": []
+}
