@@ -11,7 +11,12 @@ license = { file = "LICENSE" }
 license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
 authors = [{ name = "CyntriSec" }]
-keywords = ["aws", "security", "attack-path", "cli", "cost-optimization"]
+keywords = ["aws", "security", "attack-path", "cli", "cost-optimization", "mcp", "mcp-server"]
+
+[project.urls]
+Homepage = "https://github.com/cyntrisec/cyntrisec-cli"
+Repository = "https://github.com/cyntrisec/cyntrisec-cli"
+"MCP Registry" = "https://registry.modelcontextprotocol.io"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -77,3 +82,7 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --tb=short"
+
+[tool.mcp]
+# MCP Registry name - must match server.json "name" field
+name = "io.github.cyntrisec/cyntrisec"

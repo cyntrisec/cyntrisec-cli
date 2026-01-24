@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
+
+## [0.1.8] - 2026-01-25
+
+### Added
+- **Official MCP Registry Support**: Added `server.json` for publishing to the official MCP Registry at registry.modelcontextprotocol.io
+- **CI/CD Pipeline**: Added GitHub Actions workflow (`.github/workflows/ci.yml`) with:
+  - Automated tests on Python 3.11 and 3.12
+  - Ruff linting and formatting checks
+  - Mypy type checking
+  - Package build validation
+  - MCP server functionality tests
+- **MCP Metadata**: Added `[tool.mcp]` section to pyproject.toml with registry name linkage
+
+### Changed
+- **MCP Dependency**: Moved `mcp>=1.0.0` from optional to main dependencies - users no longer need `pip install cyntrisec[mcp]`, just `pip install cyntrisec`
+- **Dockerfile.mcp**: Simplified entrypoint to use standard `python -m cyntrisec serve` command
+- **Project Metadata**: Added MCP-related keywords and project URLs to pyproject.toml
+
 ## [0.1.7] - 2026-01-22
 ### Fixed
 - **MCP Server Crash**: Fixed `AttributeError: 'str' object has no attribute 'value'` when serializing `confidence_level` (and previously `edge_kind`) enums. Added graceful fallback to handle both Enum objects and raw strings.
