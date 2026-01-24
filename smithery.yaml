@@ -1,0 +1,42 @@
+# Smithery configuration for cyntrisec MCP server
+# https://smithery.ai/docs/config
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      awsProfile:
+        type: string
+        description: AWS profile name to use for authentication (optional)
+      awsRegion:
+        type: string
+        description: AWS region to use (optional, defaults to profile/env settings)
+      awsAccessKeyId:
+        type: string
+        description: AWS access key ID (optional, use profile instead if possible)
+      awsSecretAccessKey:
+        type: string
+        description: AWS secret access key (optional, use profile instead if possible)
+    required: []
+  commandFunction: |
+    (config) => {
+      const env = {};
+      if (config.awsProfile) {
+        env.AWS_PROFILE = config.awsProfile;
+      }
+      if (config.awsRegion) {
+        env.AWS_DEFAULT_REGION = config.awsRegion;
+      }
+      if (config.awsAccessKeyId) {
+        env.AWS_ACCESS_KEY_ID = config.awsAccessKeyId;
+      }
+      if (config.awsSecretAccessKey) {
+        env.AWS_SECRET_ACCESS_KEY = config.awsSecretAccessKey;
+      }
+      return {
+        command: "uvx",
+        args: ["--from", "cyntrisec[mcp]", "cyntrisec", "serve"],
+        env: env
+      };
+    }
