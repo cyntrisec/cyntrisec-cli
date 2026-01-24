@@ -18,6 +18,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from cyntrisec.core.schema import (
     Asset,
@@ -139,12 +140,12 @@ class FileSystemStorage(StorageBackend):
 
         raise ValueError("No scan specified and no latest scan found")
 
-    def _write_json(self, path: Path, data: any) -> None:
+    def _write_json(self, path: Path, data: Any) -> None:
         """Write data to JSON file."""
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
-    def _read_json(self, path: Path) -> any:
+    def _read_json(self, path: Path) -> Any:
         """Read data from JSON file."""
         if not path.exists():
             return None

@@ -21,7 +21,7 @@ try:
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False
-    FastMCP = None
+    FastMCP = None  # type: ignore[misc,assignment]
 
 from cyntrisec.cli.remediate import _terraform_snippet
 from cyntrisec.core.compliance import ComplianceChecker, Framework

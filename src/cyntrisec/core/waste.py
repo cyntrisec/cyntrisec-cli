@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 from cyntrisec.core.schema import Asset
 
@@ -133,7 +134,7 @@ class WasteAnalyzer:
 
     def analyze_from_usage_reports(
         self,
-        usage_reports: list[any],  # List[RoleUsageReport]
+        usage_reports: list[Any],  # List[RoleUsageReport]
     ) -> WasteReport:
         """
         Analyze usage reports to find waste.
@@ -218,7 +219,7 @@ class WasteAnalyzer:
     def analyze_from_assets(
         self,
         assets: list[Asset],
-        usage_reports: list[any] | None = None,
+        usage_reports: list[Any] | None = None,
     ) -> WasteReport:
         """
         Analyze assets for potential waste.

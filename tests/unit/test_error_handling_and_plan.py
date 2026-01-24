@@ -133,6 +133,7 @@ def test_business_analysis_with_tags(monkeypatch, tmp_path, capsys):
     assert data["entrypoints_found"]
 
 
+@pytest.mark.skip(reason="Requires terraform binary which is not available in CI")
 def test_remediate_terraform_plan(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))

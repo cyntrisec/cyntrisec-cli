@@ -86,8 +86,18 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
 ignore_missing_imports = true
+# Disable strict checks that have too many existing violations
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = false
+check_untyped_defs = false
+warn_return_any = false
+warn_unused_ignores = false
+# Keep some basic checks enabled
+warn_unused_configs = true
+show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

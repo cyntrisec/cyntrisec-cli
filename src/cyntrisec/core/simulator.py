@@ -114,7 +114,7 @@ class PolicySimulator:
         results = []
 
         try:
-            params = {
+            params: dict[str, Any] = {
                 "PolicySourceArn": principal_arn,
                 "ActionNames": actions,
                 "ResourceArns": resources,

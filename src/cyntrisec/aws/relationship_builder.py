@@ -629,7 +629,7 @@ class RelationshipBuilder:
                                 subnet_cidr = subnet.properties.get("cidr_block")
                                 if subnet_cidr:
                                     subnet_net = ipaddress.ip_network(subnet_cidr)
-                                    if rule_net.supernet_of(subnet_net):
+                                    if rule_net.supernet_of(subnet_net):  # type: ignore[arg-type]
                                         for target in targets:
                                             relationships.append(
                                                 self._create_can_reach_edge(

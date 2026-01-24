@@ -77,6 +77,7 @@ class BusinessLogicEngine:
 
     def _is_entrypoint(self, asset: Asset) -> bool:
         """Check if asset matches entrypoint criteria."""
+        assert self.config is not None
         criteria = self.config.entrypoints
 
         # By ID
@@ -97,6 +98,7 @@ class BusinessLogicEngine:
 
     def _matches_allowlist(self, asset: Asset) -> bool:
         """Check if asset matches global allowlist tags."""
+        assert self.config is not None
         for tag_key, tag_pattern in self.config.global_allowlist.items():
             val = asset.tags.get(tag_key)
             if val and fnmatch.fnmatch(val, tag_pattern):

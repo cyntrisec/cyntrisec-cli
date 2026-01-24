@@ -25,6 +25,7 @@ from cyntrisec.cli.schemas import (
     BusinessAnalysisResponse,
 )
 from cyntrisec.core.cost_estimator import CostEstimator
+from cyntrisec.core.schema import ConfidenceLevel
 
 analyze_app = typer.Typer(help="Analyze scan results")
 
@@ -149,13 +150,13 @@ def analyze_paths(
                     )
 
                     if result.can_access:
-                        if path.confidence_level != "high":
-                            path.confidence_level = "high"
+                        if path.confidence_level != ConfidenceLevel.HIGH:
+                            path.confidence_level = ConfidenceLevel.HIGH
                             path.confidence_reason = (
                                 f"Verified via AWS Policy Simulator (Action: {result.action})"
                             )
                     else:
-                        path.confidence_level = "low"
+                        path.confidence_level = ConfidenceLevel.LOW
                         path.confidence_reason = (
                             "Verification Failed: AWS Policy Simulator denied access"
                         )
