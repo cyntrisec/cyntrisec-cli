@@ -26,7 +26,7 @@ class InMemoryStorage(StorageBackend):
     Useful for testing and ephemeral analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._scans: dict[str, dict] = {}
         self._current_id: str | None = None
 

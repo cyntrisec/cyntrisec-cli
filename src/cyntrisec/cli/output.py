@@ -60,7 +60,7 @@ def suggested_actions(actions: Iterable[tuple[str, str]]) -> list[Action]:
 
 def emit_agent_or_json(
     format: str,
-    data: dict[str, object],
+    data: dict[str, Any],
     *,
     suggested: Sequence[Action] | None = None,
     status: str = "success",

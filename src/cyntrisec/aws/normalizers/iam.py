@@ -168,7 +168,7 @@ class IamNormalizer:
         return Asset(
             snapshot_id=self._snapshot_id,
             asset_type="iam:instance-profile",
-            aws_resource_id=profile_arn or profile_name,
+            aws_resource_id=str(profile_arn or profile_name),
             arn=profile_arn,
             name=profile_name or profile_arn or "instance-profile",
             properties={

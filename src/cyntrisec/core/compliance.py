@@ -338,8 +338,10 @@ class ComplianceChecker:
                 violations[ctrl_id].append(finding)
 
         asset_types = {a.asset_type for a in assets}
-        error_services = {
-            err.get("service") for err in (collection_errors or []) if err.get("service")
+        error_services: set[str] = {
+            str(err.get("service"))
+            for err in (collection_errors or [])
+            if err.get("service")
         }
 
         # Build results

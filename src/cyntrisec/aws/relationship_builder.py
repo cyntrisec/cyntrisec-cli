@@ -781,7 +781,7 @@ class RelationshipBuilder:
 
     def _instance_to_role_rels(self, instance: Asset, props: dict) -> list[Relationship]:
         """Create Instance → IAM Role relationships via instance profile."""
-        relationships = []
+        relationships: list[Relationship] = []
         profile_arn = props.get("iam_instance_profile")
         if not profile_arn:
             return relationships

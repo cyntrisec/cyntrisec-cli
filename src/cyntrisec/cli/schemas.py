@@ -364,7 +364,7 @@ class ServeToolsResponse(BaseSchema):
     tools: list[dict[str, Any]]
 
 
-SCHEMA_REGISTRY = {
+SCHEMA_REGISTRY: dict[str, type[BaseSchema]] = {
     "scan": ScanResponse,
     "analyze_paths": AnalyzePathsResponse,
     "analyze_findings": AnalyzeFindingsResponse,

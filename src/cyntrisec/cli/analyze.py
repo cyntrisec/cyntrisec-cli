@@ -277,7 +277,7 @@ def analyze_findings(
 
     # Sort by severity
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-    findings.sort(key=lambda f: severity_order.get(f.severity, 5))
+    findings.sort(key=lambda f: severity_order.get(str(f.severity), 5))
 
     if output_format in {"json", "agent"}:
         artifact_paths = build_artifact_paths(storage, scan_id)
@@ -382,9 +382,7 @@ def analyze_stats(
             "finding_count": len(findings),
             "path_count": len(paths),
             "regions": snapshot.regions,
-            "status": snapshot.status.value
-            if hasattr(snapshot.status, "value")
-            else str(snapshot.status),
+            "status": getattr(snapshot.status, "value", str(snapshot.status)),
         }
         actions = suggested_actions(
             [
@@ -423,7 +421,7 @@ def analyze_stats(
     typer.echo("")
 
     # Asset types
-    asset_types = {}
+    asset_types: dict[str, int] = {}
     for a in assets:
         asset_types[a.asset_type] = asset_types.get(a.asset_type, 0) + 1
 
@@ -432,7 +430,7 @@ def analyze_stats(
         typer.echo(f"  {t}: {count}")
 
     # Finding severities
-    severities = {}
+    severities: dict[str, int] = {}
     for f in findings:
         severities[f.severity] = severities.get(f.severity, 0) + 1
 

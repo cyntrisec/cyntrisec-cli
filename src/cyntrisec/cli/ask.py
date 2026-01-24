@@ -134,7 +134,7 @@ def _classify_query(query: str) -> dict:
         scores[intent] = score
 
     # choose highest scoring intent or default general
-    intent = max(scores, key=scores.get)
+    intent = max(scores, key=lambda k: scores[k])
     if scores[intent] == 0:
         intent = "general"
 
