@@ -60,7 +60,7 @@ class BusinessLogicEngine:
     def compute_delta(self, attack_paths: list[AttackPath]) -> list[AttackPath]:
         """
         Compute the 'Delta' (Unnecessary Exposure).
-        
+
         Returns only the AttackPaths that are NOT fully legitimate.
         A path is legitimate if EVERY step is labeled 'business_required' or 'authorized'.
         """
@@ -106,9 +106,9 @@ class BusinessLogicEngine:
     def _is_path_legitimate(self, path: AttackPath) -> bool:
         """
         Check if an attack path is fully justified by business rules.
-        
+
         Strict mode: All assets and relationships must be labeled.
-        Relaxed mode: Just check if source and target are authorized? 
+        Relaxed mode: Just check if source and target are authorized?
         For now, we implement a check: access must be authorized.
         """
         # Optimized: Check if the *target* is authorized (e.g. "It's okay to access this DB")
@@ -119,13 +119,14 @@ class BusinessLogicEngine:
 
         for asset_id in path.path_asset_ids:
             asset = self.graph.asset(asset_id)
-            if not asset: continue
+            if not asset:
+                continue
 
             # If any node in the chain is NOT business-required, the path is suspect.
             # Exception: Maybe we allow traversal through unmarked nodes if the flow itself is marked?
             # That requires Critical Flow labeling (Edge labeling).
 
             if self.LABEL_BUSINESS not in asset.labels:
-                 return False
+                return False
 
         return True

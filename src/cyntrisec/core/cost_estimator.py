@@ -199,7 +199,9 @@ class CostEstimator:
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
+                    assumptions=self._assumptions_with_region(
+                        pricing["assumptions"], region_fallback
+                    ),
                 )
             return None  # Attached EIPs are free
 
@@ -213,7 +215,9 @@ class CostEstimator:
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
+                    assumptions=self._assumptions_with_region(
+                        pricing["assumptions"], region_fallback
+                    ),
                 )
 
         # EBS Volumes
@@ -245,7 +249,9 @@ class CostEstimator:
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
                     confidence=pricing["confidence"],
-                    assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
+                    assumptions=self._assumptions_with_region(
+                        pricing["assumptions"], region_fallback
+                    ),
                 )
             # Unknown class - return None with low confidence indicator
             fallback_estimate = self._unknown_rds_estimate(pricing_table)

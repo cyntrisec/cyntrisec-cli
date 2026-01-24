@@ -178,7 +178,8 @@ def remediate_cmd(
         elif apply_output:
             results = apply_output.get("results") or []
             failed = any(
-                item.get("status") in {"terraform_failed", "terraform_plan_failed"} for item in results
+                item.get("status") in {"terraform_failed", "terraform_plan_failed"}
+                for item in results
             )
             applied = any(item.get("status") == "terraform_invoked" for item in results)
             if failed:
@@ -309,9 +310,7 @@ def _terraform_snippet(
         )
     if relationship_type == "CAN_ASSUME":
         identifiers_line = (
-            f'      identifiers = ["{source_arn}"]\n'
-            if source_arn
-            else "      identifiers = []\n"
+            f'      identifiers = ["{source_arn}"]\n' if source_arn else "      identifiers = []\n"
         )
         return (
             "# Restrict role trust policy\n"
@@ -501,7 +500,9 @@ def _apply_plan(
     plan_result = None
 
     if terraform_plan:
-        plan_result = _run_terraform_plan(terraform_cmd, tf_dir, include_output=terraform_include_output)
+        plan_result = _run_terraform_plan(
+            terraform_cmd, tf_dir, include_output=terraform_include_output
+        )
         status = "terraform_plan_ok" if plan_result.get("ok") else "terraform_plan_failed"
     elif execute_terraform and not dry_run:
         tf_result = _run_terraform(terraform_cmd, tf_dir, include_output=terraform_include_output)
@@ -550,14 +551,14 @@ def _safe_output(text: str, limit: int = 4096) -> str:
 
     text = re.sub(r"(?i)\b(AKIA|ASIA)[0-9A-Z]{16}\b", "[REDACTED_AWS_ACCESS_KEY_ID]", text)
     text = re.sub(
-        r'(?i)(\"?(?:aws_secret_access_key|aws_session_token|secret_access_key|password|secret|token)\"?\s*[:=]\s*)\"?[^\s\",]+\"?',
+        r"(?i)(\"?(?:aws_secret_access_key|aws_session_token|secret_access_key|password|secret|token)\"?\s*[:=]\s*)\"?[^\s\",]+\"?",
         r"\1[REDACTED]",
         text,
     )
 
     # Truncate if too long
     if len(text) > limit:
-        text = text[:limit] + f"\n...[truncated {len(text)-limit} chars]..."
+        text = text[:limit] + f"\n...[truncated {len(text) - limit} chars]..."
 
     return text
 
@@ -590,7 +591,9 @@ def _run_terraform(terraform_cmd: str, tf_dir: str, *, include_output: bool = Fa
             "stdout": _safe_output(_decode_bytes(apply_result.stdout)) if include_output else "",
             "stderr": _safe_output(_decode_bytes(apply_result.stderr)) if include_output else "",
             "exit_code": apply_result.returncode,
-            "init_stdout": _safe_output(_decode_bytes(init_result.stdout)) if include_output else "",
+            "init_stdout": _safe_output(_decode_bytes(init_result.stdout))
+            if include_output
+            else "",
         }
     except subprocess.CalledProcessError as e:
         return {
@@ -598,8 +601,12 @@ def _run_terraform(terraform_cmd: str, tf_dir: str, *, include_output: bool = Fa
             "error": str(e),
             "command": " ".join(apply_cmd),
             "exit_code": e.returncode,
-            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b""))) if include_output else "",
-            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b""))) if include_output else "",
+            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b"")))
+            if include_output
+            else "",
+            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b"")))
+            if include_output
+            else "",
         }
 
 
@@ -631,13 +638,19 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str, *, include_output: bool
             "stdout": _safe_output(stdout_text) if include_output else "",
             "stderr": _safe_output(_decode_bytes(plan_result.stderr)) if include_output else "",
             "summary": summary,
-            "init_stdout": _safe_output(_decode_bytes(init_result.stdout)) if include_output else "",
+            "init_stdout": _safe_output(_decode_bytes(init_result.stdout))
+            if include_output
+            else "",
         }
     except subprocess.CalledProcessError as e:
         return {
             "ok": False,
             "exit_code": e.returncode,
             "error": str(e),
-            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b""))) if include_output else "",
-            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b""))) if include_output else "",
+            "stdout": _safe_output(_decode_bytes(getattr(e, "stdout", b"")))
+            if include_output
+            else "",
+            "stderr": _safe_output(_decode_bytes(getattr(e, "stderr", b"")))
+            if include_output
+            else "",
         }

@@ -33,7 +33,7 @@ from cyntrisec.core.schema import (
 @dataclass
 class EvaluationContext:
     """Context for evaluating IAM policy conditions.
-    
+
     Contains information about the source principal and network context
     that can be used to evaluate IAM conditions.
     """
@@ -57,16 +57,16 @@ class EvaluationContext:
 class ConditionEvaluator:
     """
     Evaluates IAM policy conditions with tri-state results.
-    
+
     This class evaluates IAM policy Condition clauses and returns a tri-state result:
     - TRUE: Condition is satisfied
     - FALSE: Condition is not satisfied
     - UNKNOWN: Cannot evaluate locally (unsupported condition or missing context)
-    
+
     Supported conditions:
     - aws:SourceVpce: Checks if request comes from specified VPC endpoint
     - aws:PrincipalTag: Checks if principal has matching tag
-    
+
     All other conditions return UNKNOWN.
     """
 
@@ -85,11 +85,11 @@ class ConditionEvaluator:
     ) -> ConditionResult:
         """
         Evaluate IAM policy conditions against the provided context.
-        
+
         Args:
             conditions: The Condition block from an IAM policy statement
             context: The evaluation context with source information
-            
+
         Returns:
             ConditionResult.TRUE if all conditions are satisfied
             ConditionResult.FALSE if any condition is not satisfied
@@ -148,14 +148,14 @@ class ConditionEvaluator:
     ) -> ConditionResult:
         """
         Evaluate aws:SourceVpce condition.
-        
+
         Checks if the source VPC endpoint matches the expected value(s).
-        
+
         Args:
             operator: The condition operator (StringEquals, StringLike, etc.)
             condition_value: The expected VPC endpoint ID(s)
             context: The evaluation context
-            
+
         Returns:
             ConditionResult indicating if the condition is satisfied
         """
@@ -206,15 +206,15 @@ class ConditionEvaluator:
     ) -> ConditionResult:
         """
         Evaluate aws:PrincipalTag condition.
-        
+
         Checks if the principal has a tag with the specified key and value.
-        
+
         Args:
             operator: The condition operator (StringEquals, StringLike, etc.)
             tag_key: The tag key to check
             condition_value: The expected tag value(s)
             context: The evaluation context
-            
+
         Returns:
             ConditionResult indicating if the condition is satisfied
         """
@@ -278,21 +278,21 @@ class ConditionEvaluator:
     ) -> tuple[bool, str]:
         """
         Check if explicit deny might apply to this access.
-        
+
         Detects the presence of:
         - Identity policy Deny statements
         - Permission boundaries
         - SCP presence (if org data available)
         - Resource policy Deny statements
-        
+
         When explicit deny is detected but cannot be fully evaluated,
         confidence should be lowered to MED or LOW.
-        
+
         Args:
             role: The IAM role asset to check
             target_arn: The target resource ARN
             action: The IAM action being checked
-            
+
         Returns:
             Tuple of (has_potential_deny, reason) where:
             - has_potential_deny: True if explicit deny might apply
@@ -343,12 +343,12 @@ class ConditionEvaluator:
     ) -> bool:
         """
         Check if a policy document contains a Deny statement that might apply.
-        
+
         Args:
             policy: The policy document
             target_arn: The target resource ARN
             action: The IAM action being checked
-            
+
         Returns:
             True if a potentially applicable Deny statement exists
         """
@@ -393,11 +393,11 @@ class ConditionEvaluator:
 class ActionParser:
     """
     Parses IAM actions using fnmatch against known capability set.
-    
+
     This class matches IAM policy Action/NotAction patterns against a predefined
     set of capability-granting actions. It does NOT enumerate or expand wildcards
     to a full action list; instead it matches patterns directly using fnmatch.
-    
+
     The matching logic:
     - For Action: a capability is matched if any Action pattern matches it
     - For NotAction: a capability is allowed unless it matches a NotAction pattern
@@ -420,13 +420,13 @@ class ActionParser:
     def get_matched_capabilities(self, statement: dict[str, Any]) -> set[str]:
         """
         Get capability actions matched by this IAM policy statement.
-        
+
         Uses fnmatch to check if statement's Action patterns match
         any capability action. Does NOT enumerate all AWS actions.
-        
+
         Args:
             statement: An IAM policy statement dict with Action/NotAction fields
-            
+
         Returns:
             Set of matched capability action strings (e.g., "secretsmanager:GetSecretValue")
         """
@@ -441,7 +441,9 @@ class ActionParser:
                 # Check if any Action pattern matches this capability
                 if self._any_pattern_matches(actions, capability_action):
                     # Check it's not excluded by NotAction (if both are present)
-                    if not not_actions or not self._any_pattern_matches(not_actions, capability_action):
+                    if not not_actions or not self._any_pattern_matches(
+                        not_actions, capability_action
+                    ):
                         matched.add(capability_action)
 
         # Case 2: Statement has only NotAction field (no Action)
@@ -456,10 +458,10 @@ class ActionParser:
     def get_edge_type_for_action(self, action: str) -> str | None:
         """
         Get the edge type for a specific capability action.
-        
+
         Args:
             action: The IAM action string (e.g., "secretsmanager:GetSecretValue")
-            
+
         Returns:
             The edge type string (e.g., "MAY_READ_SECRET") or None if not a capability action
         """
@@ -468,16 +470,16 @@ class ActionParser:
     def _any_pattern_matches(self, patterns: list[str], action: str) -> bool:
         """
         Check if any pattern matches the action using fnmatch.
-        
+
         This supports wildcards in patterns:
         - "s3:*" matches "s3:GetObject"
         - "s3:Get*" matches "s3:GetObject" and "s3:GetBucketPolicy"
         - "*" matches any action
-        
+
         Args:
             patterns: List of IAM action patterns (may contain wildcards)
             action: The specific action to check
-            
+
         Returns:
             True if any pattern matches the action
         """
@@ -494,12 +496,12 @@ class ActionParser:
     def _normalize_actions(self, actions: Any) -> list[str]:
         """
         Normalize Action/NotAction field to list of strings.
-        
+
         IAM policies can have Action/NotAction as either a string or list.
-        
+
         Args:
             actions: The Action or NotAction field value
-            
+
         Returns:
             List of action strings
         """
@@ -591,7 +593,7 @@ class RelationshipBuilder:
             aws_resource_id="internet",
             name="Internet",
             is_internet_facing=True,
-            properties={"description": "The Internet (0.0.0.0/0)"}
+            properties={"description": "The Internet (0.0.0.0/0)"},
         )
         assets.append(internet)
 
@@ -615,10 +617,7 @@ class RelationshipBuilder:
                         for target in targets:
                             relationships.append(
                                 self._create_can_reach_edge(
-                                    INTERNET_ASSET_ID,
-                                    target.id,
-                                    rule,
-                                    source_label="world"
+                                    INTERNET_ASSET_ID, target.id, rule, source_label="world"
                                 )
                             )
                     # 6.3 CIDR Containment
@@ -638,7 +637,7 @@ class RelationshipBuilder:
                                                     target.id,
                                                     rule,
                                                     source_label=subnet.name,
-                                                    confidence=0.5
+                                                    confidence=0.5,
                                                 )
                                             )
                         except ValueError:
@@ -650,10 +649,7 @@ class RelationshipBuilder:
                         for target in targets:
                             relationships.append(
                                 self._create_can_reach_edge(
-                                    INTERNET_ASSET_ID,
-                                    target.id,
-                                    rule,
-                                    source_label="world"
+                                    INTERNET_ASSET_ID, target.id, rule, source_label="world"
                                 )
                             )
 
@@ -665,10 +661,7 @@ class RelationshipBuilder:
                         for target in targets:
                             relationships.append(
                                 self._create_can_reach_edge(
-                                    source_sg.id,
-                                    target.id,
-                                    rule,
-                                    source_label=source_sg.name
+                                    source_sg.id, target.id, rule, source_label=source_sg.name
                                 )
                             )
 
@@ -730,7 +723,7 @@ class RelationshipBuilder:
                         target_asset_id=sg_asset.id,
                         relationship_type="USE_IDENTITY",
                         edge_kind=EdgeKind.CAPABILITY,
-                        properties={}
+                        properties={},
                     )
                 )
         return relationships
@@ -855,13 +848,13 @@ class RelationshipBuilder:
 
     def _build_iam_access_relationships(self, assets: list[Asset]) -> list[Relationship]:
         """Build IAM Role → Sensitive Target access relationships with action-specific edges.
-        
+
         Creates action-specific capability edges instead of generic MAY_ACCESS:
         - MAY_READ_SECRET for secretsmanager:GetSecretValue
         - MAY_READ_PARAMETER for ssm:GetParameter*
         - MAY_DECRYPT for kms:Decrypt
         - MAY_READ_S3_OBJECT for s3:GetObject
-        
+
         Each capability edge includes evidence with policy_sid, target_arn, permission,
         and raw_statement for provenance tracking.
         """
@@ -919,7 +912,9 @@ class RelationshipBuilder:
                         # Create edges for relevant matched capabilities
                         for capability_action in matched_capabilities:
                             if capability_action in relevant_actions:
-                                edge_type = action_parser.get_edge_type_for_action(capability_action)
+                                edge_type = action_parser.get_edge_type_for_action(
+                                    capability_action
+                                )
                                 if edge_type:
                                     # Create evidence for provenance tracking
                                     evidence = EdgeEvidence(
@@ -1040,7 +1035,7 @@ class RelationshipBuilder:
 
     def _build_pass_role_relationships(self, assets: list[Asset]) -> list[Relationship]:
         """Build IAM Role -> Role relationships via PassRole (Privilege Escalation).
-        
+
         Each CAN_PASS_TO edge includes evidence with policy_sid, target_arn, permission,
         and raw_statement for provenance tracking.
         """
@@ -1051,7 +1046,9 @@ class RelationshipBuilder:
             policy_docs = source_role.properties.get("policy_documents", [])
 
             # Collect statements that grant PassRole
-            passrole_statements: list[tuple[dict, str | None, dict]] = []  # (statement, policy_arn, policy)
+            passrole_statements: list[
+                tuple[dict, str | None, dict]
+            ] = []  # (statement, policy_arn, policy)
             for policy in policy_docs:
                 policy_arn = policy.get("PolicyArn") or policy.get("Arn")
                 for statement in self._iter_policy_statements(policy):
@@ -1112,14 +1109,14 @@ class RelationshipBuilder:
 
     def _build_lambda_creation_relationships(self, assets: list[Asset]) -> list[Relationship]:
         """Build IAM Role -> Lambda Service relationships for lambda creation capabilities.
-        
+
         Creates MAY_CREATE_LAMBDA edges when a role has:
         - lambda:CreateFunction permission
         - lambda:UpdateFunctionConfiguration permission
-        
+
         These edges are used to validate the PassRole motif for privilege escalation.
         The target is a synthetic "lambda-service" asset representing the Lambda service.
-        
+
         Each MAY_CREATE_LAMBDA edge includes evidence with policy_sid, permission,
         and raw_statement for provenance tracking.
         """
@@ -1222,9 +1219,9 @@ class RelationshipBuilder:
 
                     # Check for sts:AssumeRole permission (case-insensitive, wildcard support)
                     has_assume = any(
-                        fnmatch.fnmatch("sts:assumerole", a.lower()) or
-                        fnmatch.fnmatch("sts:*", a.lower()) or
-                        a == "*"
+                        fnmatch.fnmatch("sts:assumerole", a.lower())
+                        or fnmatch.fnmatch("sts:*", a.lower())
+                        or a == "*"
                         for a in actions
                     )
                     if has_assume:
@@ -1317,10 +1314,7 @@ class RelationshipBuilder:
             if isinstance(actions, str):
                 actions = [actions]
 
-            allows_assume = any(
-                a == "sts:AssumeRole" or a == "sts:*" or a == "*"
-                for a in actions
-            )
+            allows_assume = any(a == "sts:AssumeRole" or a == "sts:*" or a == "*" for a in actions)
             if not allows_assume:
                 continue
 

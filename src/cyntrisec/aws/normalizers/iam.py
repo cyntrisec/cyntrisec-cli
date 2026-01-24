@@ -101,9 +101,7 @@ class IamNormalizer:
 
         attached_policies = role.get("AttachedPolicies", []) or []
         inline_policies = role.get("InlinePolicies", []) or []
-        policy_documents = [
-            p.get("Document") for p in attached_policies if p.get("Document")
-        ] + [
+        policy_documents = [p.get("Document") for p in attached_policies if p.get("Document")] + [
             p.get("Document") for p in inline_policies if p.get("Document")
         ]
 

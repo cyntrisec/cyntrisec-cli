@@ -186,7 +186,11 @@ class GraphBuilder:
                 if rtype in ["CONTAINS", "USES", "ALLOWS_TRAFFIC_TO", "ATTACHED_TO", "TRUSTS"]:
                     inferred_kind = EdgeKind.STRUCTURAL
                 # Capability Edges
-                elif rtype.startswith("CAN_") or rtype.startswith("MAY_") or rtype in ["ROUTES_TO", "EXPOSES", "INVOKES", "CONNECTS_TO"]:
+                elif (
+                    rtype.startswith("CAN_")
+                    or rtype.startswith("MAY_")
+                    or rtype in ["ROUTES_TO", "EXPOSES", "INVOKES", "CONNECTS_TO"]
+                ):
                     inferred_kind = EdgeKind.CAPABILITY
 
                 if inferred_kind != EdgeKind.UNKNOWN:

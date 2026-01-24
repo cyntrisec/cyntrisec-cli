@@ -119,7 +119,11 @@ def _classify_query(query: str) -> dict:
         if intent == "public_s3" and "public" in q and ("bucket" in q or "s3" in q):
             score += 3
         # Boost EC2 intent if "public" AND EC2-related keywords are present
-        if intent == "public_ec2" and "public" in q and any(kw in q for kw in ["ec2", "instance", "server"]):
+        if (
+            intent == "public_ec2"
+            and "public" in q
+            and any(kw in q for kw in ["ec2", "instance", "server"])
+        ):
             score += 3
         if intent == "admin_roles" and entities.get("roles"):
             score += 2
@@ -201,7 +205,11 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
     if intent == "public_ec2":
         assets = storage.get_assets(snapshot_id)
         public_instances = [
-            {"name": a.name, "arn": a.arn or a.aws_resource_id, "public_ip": a.properties.get("public_ip")}
+            {
+                "name": a.name,
+                "arn": a.arn or a.aws_resource_id,
+                "public_ip": a.properties.get("public_ip"),
+            }
             for a in assets
             if a.asset_type == "ec2:instance"
             and (a.properties.get("public_ip") or a.properties.get("public_dns_name"))
@@ -210,8 +218,14 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
             "results": {"public_ec2_instances": public_instances, "count": len(public_instances)},
             "resolved_query": "list_public_ec2_instances",
             "suggested_actions": [
-                ("cyntrisec explain finding ec2-public-ip", "See why public EC2 instances are risky"),
-                ("cyntrisec analyze paths --format agent", "Review attack paths involving these instances"),
+                (
+                    "cyntrisec explain finding ec2-public-ip",
+                    "See why public EC2 instances are risky",
+                ),
+                (
+                    "cyntrisec analyze paths --format agent",
+                    "Review attack paths involving these instances",
+                ),
             ],
         }
 
@@ -268,19 +282,15 @@ def _execute_intent(classification: dict, query: str, storage, snapshot_id: str 
                 source_asset = asset_lookup.get(str(p.source_asset_id))
 
                 # Check if target matches the path's target or source
-                target_matches = (
-                    target_asset and (
-                        target_lower in (target_asset.arn or "").lower() or
-                        target_lower in (target_asset.name or "").lower() or
-                        target_lower in (target_asset.aws_resource_id or "").lower()
-                    )
+                target_matches = target_asset and (
+                    target_lower in (target_asset.arn or "").lower()
+                    or target_lower in (target_asset.name or "").lower()
+                    or target_lower in (target_asset.aws_resource_id or "").lower()
                 )
-                source_matches = (
-                    source_asset and (
-                        target_lower in (source_asset.arn or "").lower() or
-                        target_lower in (source_asset.name or "").lower() or
-                        target_lower in (source_asset.aws_resource_id or "").lower()
-                    )
+                source_matches = source_asset and (
+                    target_lower in (source_asset.arn or "").lower()
+                    or target_lower in (source_asset.name or "").lower()
+                    or target_lower in (source_asset.aws_resource_id or "").lower()
                 )
 
                 if target_matches or source_matches:

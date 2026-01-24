@@ -227,9 +227,9 @@ def _register_session_tools(mcp, session):
         if search:
             search_lower = search.lower()
             assets = [
-                a for a in assets
-                if search_lower in (a.name or "").lower()
-                or search_lower in (a.arn or "").lower()
+                a
+                for a in assets
+                if search_lower in (a.name or "").lower() or search_lower in (a.arn or "").lower()
             ]
 
         return {
@@ -285,26 +285,29 @@ def _register_session_tools(mcp, session):
         # Filter by relationship type
         if relationship_type:
             relationships = [
-                r for r in relationships
-                if r.relationship_type.upper() == relationship_type.upper()
+                r for r in relationships if r.relationship_type.upper() == relationship_type.upper()
             ]
 
         # Filter by source name
         if source_name:
             source_lower = source_name.lower()
             relationships = [
-                r for r in relationships
-                if (asset := asset_map.get(str(r.source_asset_id))) and
-                   asset.name and source_lower in asset.name.lower()
+                r
+                for r in relationships
+                if (asset := asset_map.get(str(r.source_asset_id)))
+                and asset.name
+                and source_lower in asset.name.lower()
             ]
 
         # Filter by target name
         if target_name:
             target_lower = target_name.lower()
             relationships = [
-                r for r in relationships
-                if (asset := asset_map.get(str(r.target_asset_id))) and
-                   asset.name and target_lower in asset.name.lower()
+                r
+                for r in relationships
+                if (asset := asset_map.get(str(r.target_asset_id)))
+                and asset.name
+                and target_lower in asset.name.lower()
             ]
 
         def get_asset_name(asset_id):
@@ -321,7 +324,9 @@ def _register_session_tools(mcp, session):
                     "source_name": get_asset_name(r.source_asset_id),
                     "target_id": str(r.target_asset_id),
                     "target_name": get_asset_name(r.target_asset_id),
-                    "edge_kind": r.edge_kind.value if hasattr(r.edge_kind, 'value') else r.edge_kind,
+                    "edge_kind": r.edge_kind.value
+                    if hasattr(r.edge_kind, "value")
+                    else r.edge_kind,
                 }
                 for r in relationships[:max_relationships]
             ],
@@ -385,16 +390,31 @@ def _register_session_tools(mcp, session):
                 {"name": "set_session_snapshot", "description": "Set active snapshot for session"},
                 {"name": "get_scan_summary", "description": "Get summary of latest AWS scan"},
                 # Assets & Relationships
-                {"name": "get_assets", "description": "Get assets with optional type/name filtering"},
+                {
+                    "name": "get_assets",
+                    "description": "Get assets with optional type/name filtering",
+                },
                 {"name": "get_relationships", "description": "Get relationships between assets"},
-                {"name": "get_findings", "description": "Get security findings with severity filtering"},
+                {
+                    "name": "get_findings",
+                    "description": "Get security findings with severity filtering",
+                },
                 # Attack Paths
-                {"name": "get_attack_paths", "description": "Get discovered attack paths with risk scores"},
+                {
+                    "name": "get_attack_paths",
+                    "description": "Get discovered attack paths with risk scores",
+                },
                 {"name": "explain_path", "description": "Get detailed breakdown of an attack path"},
-                {"name": "explain_finding", "description": "Get detailed explanation of a security finding"},
+                {
+                    "name": "explain_finding",
+                    "description": "Get detailed explanation of a security finding",
+                },
                 # Remediation
                 {"name": "get_remediations", "description": "Find optimal fixes for attack paths"},
-                {"name": "get_terraform_snippet", "description": "Get Terraform code for a remediation"},
+                {
+                    "name": "get_terraform_snippet",
+                    "description": "Get Terraform code for a remediation",
+                },
                 # Access & Permissions
                 {"name": "check_access", "description": "Test if principal can access resource"},
                 {"name": "get_unused_permissions", "description": "Find unused IAM permissions"},
@@ -583,7 +603,7 @@ def _register_graph_tools(mcp, session):
             "description": target_finding.description,
             "impact": f"This {target_finding.severity} severity finding affects asset {target_finding.asset_id}",
             "remediation": target_finding.remediation,
-            "evidence": target_finding.evidence if hasattr(target_finding, 'evidence') else {},
+            "evidence": target_finding.evidence if hasattr(target_finding, "evidence") else {},
         }
 
     @mcp.tool()
@@ -824,7 +844,9 @@ def _register_insight_tools(mcp, session):
         old_snapshot = session.storage.get_snapshot(old_id)
         new_snapshot = session.storage.get_snapshot(new_id)
         if not old_snapshot or not new_snapshot:
-            return mcp_error(MCP_ERROR_SNAPSHOT_NOT_FOUND, "Could not load snapshots for comparison.")
+            return mcp_error(
+                MCP_ERROR_SNAPSHOT_NOT_FOUND, "Could not load snapshots for comparison."
+            )
 
         differ = SnapshotDiff()
         result = differ.diff(

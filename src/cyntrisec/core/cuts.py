@@ -83,7 +83,7 @@ class MinCutFinder:
     2. Select edge that appears on most paths
     3. Remove those paths from consideration
     4. Repeat until all paths covered or budget exhausted
-    
+
     ROI Ranking:
     After identifying minimal cuts, we sort them by a combined score:
     ROI = (Paths_Blocked * 1.0) + (Monthly_Savings * 0.1)
@@ -148,7 +148,7 @@ class MinCutFinder:
                 relationship_lookup,
                 used_edges,
                 remaining_paths,
-                relationship_types
+                relationship_types,
             )
 
             if not best_edge_id or not best_coverage:
@@ -159,9 +159,7 @@ class MinCutFinder:
             remaining_paths -= best_coverage
 
             rel = relationship_lookup[best_edge_id]
-            remediation = self._create_remediation(
-                graph, rel, best_coverage
-            )
+            remediation = self._create_remediation(graph, rel, best_coverage)
             remediations.append(remediation)
 
         total_paths = len(paths)
@@ -206,7 +204,7 @@ class MinCutFinder:
 
         best_edge_id: uuid.UUID | None = None
         best_coverage: set[uuid.UUID] = set()
-        best_score: float = -1.0 # ROI score
+        best_score: float = -1.0  # ROI score
 
         for edge_id, covered_paths in edge_to_paths.items():
             if edge_id in used_edges or edge_id not in relationship_lookup:
@@ -352,7 +350,7 @@ class MinCutFinder:
                     "source": rem.source_name,
                     "target": rem.target_name,
                     "paths_blocked": [str(p) for p in rem.paths_blocked],
-                    "roi_score": rem.roi_score
+                    "roi_score": rem.roi_score,
                 },
             )
             candidates.append(candidate)

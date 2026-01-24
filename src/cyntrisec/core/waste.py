@@ -242,8 +242,7 @@ class WasteAnalyzer:
 
         # Find IAM roles, excluding AWS-managed service roles
         roles = [
-            a for a in assets
-            if a.asset_type == "iam:role" and not self._is_aws_managed_role(a)
+            a for a in assets if a.asset_type == "iam:role" and not self._is_aws_managed_role(a)
         ]
 
         for role in roles:

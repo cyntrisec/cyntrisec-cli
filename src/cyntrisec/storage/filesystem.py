@@ -305,8 +305,8 @@ class FileSystemStorage(StorageBackend):
             if scan_dir.exists() and scan_dir.is_dir():
                 return identifier
         except (ValueError, OSError):
-              # Not a simple scan dir, proceed to check if it's a UUID
-              pass
+            # Not a simple scan dir, proceed to check if it's a UUID
+            pass
 
         # Try to find by UUID - iterate through scans and check snapshot.id
         for scan_id in self.list_scans():
@@ -341,4 +341,3 @@ class FileSystemStorage(StorageBackend):
         if resolved_id is None:
             raise ValueError("No scan specified and no latest scan found")
         return self._get_scan_dir(resolved_id)
-

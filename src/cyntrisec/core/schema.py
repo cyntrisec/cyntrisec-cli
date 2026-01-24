@@ -42,7 +42,7 @@ class FindingSeverity(str, Enum):
 
 class EdgeKind(str, Enum):
     """Classification of relationship edges.
-    
+
     - STRUCTURAL: Context only (CONTAINS, USES) - not traversed during attack path discovery
     - CAPABILITY: Attacker movement (CAN_ASSUME, MAY_*) - traversed during attack path discovery
     - UNKNOWN: Unclassified - not traversed by default
@@ -55,7 +55,7 @@ class EdgeKind(str, Enum):
 
 class ConditionResult(str, Enum):
     """Tri-state result for IAM condition evaluation.
-    
+
     - TRUE: Condition satisfied
     - FALSE: Condition not satisfied
     - UNKNOWN: Cannot evaluate locally
@@ -68,7 +68,7 @@ class ConditionResult(str, Enum):
 
 class ConfidenceLevel(str, Enum):
     """Confidence that an attack path is exploitable.
-    
+
     - HIGH: All preconditions verified
     - MED: Some conditions unknown or explicit deny detected
     - LOW: Missing motif components or many unknowns
@@ -91,7 +91,7 @@ class BaseSchema(BaseModel):
 
 class EdgeEvidence(BaseSchema):
     """Provenance data explaining why an edge exists.
-    
+
     Every capability edge should include evidence explaining why it exists,
     so that security analysts can verify and understand attack paths.
     """
@@ -174,7 +174,7 @@ class Relationship(BaseSchema):
     - ROUTES_TO: Route table entries, LB targets
     - ATTACHED_TO: ENIs, EBS volumes, instance profiles
     - CONTAINS: VPC → Subnet, Subnet → Instance
-    
+
     Edge kinds:
     - STRUCTURAL: Context only (CONTAINS, USES) - not traversed during attack path discovery
     - CAPABILITY: Attacker movement (CAN_ASSUME, MAY_*) - traversed during attack path discovery
@@ -245,7 +245,7 @@ class AttackPath(BaseSchema):
     - exploitability: Difficulty of traversing the path (higher = easier)
     - impact: Value of the target (higher = more valuable)
     - risk_score: Combined score (entry * exploit * impact)
-    
+
     Path structure:
     - attack_chain_relationship_ids: Capability edges only (attack steps)
     - context_relationship_ids: Structural edges for explanation

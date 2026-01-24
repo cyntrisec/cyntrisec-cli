@@ -173,9 +173,7 @@ def _gen_terraform(account_id: str, role_name: str, external_id: str | None, pol
         "Action": "sts:AssumeRole",
     }
     if external_id:
-        assume_statement["Condition"] = {
-            "StringEquals": {"sts:ExternalId": external_id}
-        }
+        assume_statement["Condition"] = {"StringEquals": {"sts:ExternalId": external_id}}
 
     assume_policy = {
         "Version": "2012-10-17",

@@ -158,7 +158,7 @@ def scan_cmd(
     if snapshot.errors:
         warnings = [
             f"Failed to collect {err.get('service', 'unknown')}"
-            + (f" in {err['region']}" if 'region' in err else "")
+            + (f" in {err['region']}" if "region" in err else "")
             + f": {err.get('error', 'unknown error')}"
             for err in snapshot.errors
         ]

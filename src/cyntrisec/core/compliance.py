@@ -339,9 +339,7 @@ class ComplianceChecker:
 
         asset_types = {a.asset_type for a in assets}
         error_services = {
-            err.get("service")
-            for err in (collection_errors or [])
-            if err.get("service")
+            err.get("service") for err in (collection_errors or []) if err.get("service")
         }
 
         # Build results

@@ -294,7 +294,7 @@ class PolicySimulator:
         if not resource_arn.startswith(prefix):
             return resource_arn, resource_arn
 
-        suffix = resource_arn[len(prefix):]
+        suffix = resource_arn[len(prefix) :]
         if "/" in suffix:
             bucket = suffix.split("/", 1)[0]
             bucket_arn = f"{prefix}{bucket}"

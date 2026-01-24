@@ -127,7 +127,6 @@ def report_cmd(
         typer.echo(f"HTML report written to {output}")
 
 
-
 def _generate_html(data: dict, title: str) -> str:
     """Generate standalone HTML report with CLI/Terminal aesthetic."""
     import html
@@ -180,7 +179,9 @@ def _generate_html(data: dict, title: str) -> str:
 
     # Build Attack Paths Table
     if not paths:
-        paths_section = '<div class="empty-state">> No attack paths discovered. System secure.</div>'
+        paths_section = (
+            '<div class="empty-state">> No attack paths discovered. System secure.</div>'
+        )
     else:
         rows = []
         for p in paths[:25]:
@@ -192,16 +193,22 @@ def _generate_html(data: dict, title: str) -> str:
 
             # Colorize Risk
             risk_class = "risk-low"
-            if risk >= 0.7: risk_class = "risk-critical"
-            elif risk >= 0.4: risk_class = "risk-high"
+            if risk >= 0.7:
+                risk_class = "risk-critical"
+            elif risk >= 0.4:
+                risk_class = "risk-high"
 
-            rows.append(render_row([
-                SafeHtml(f'<span class="{risk_class}">{risk:.3f}</span>'),
-                vector,
-                length,
-                f"{entry:.2f}",
-                f"{impact:.2f}"
-            ]))
+            rows.append(
+                render_row(
+                    [
+                        SafeHtml(f'<span class="{risk_class}">{risk:.3f}</span>'),
+                        vector,
+                        length,
+                        f"{entry:.2f}",
+                        f"{impact:.2f}",
+                    ]
+                )
+            )
 
         paths_section = f"""
         <table class="cli-table">
@@ -219,11 +226,15 @@ def _generate_html(data: dict, title: str) -> str:
             sev = normalize_severity(f.get("severity"))
             ftype = f.get("finding_type", "")
             ftitle = f.get("title", "")
-            rows.append(render_row([
-                SafeHtml(f'<span class="badge badge-{sev}">{sev.upper()}</span>'),
-                ftype,
-                ftitle
-            ]))
+            rows.append(
+                render_row(
+                    [
+                        SafeHtml(f'<span class="badge badge-{sev}">{sev.upper()}</span>'),
+                        ftype,
+                        ftitle,
+                    ]
+                )
+            )
 
         findings_section = f"""
         <table class="cli-table">

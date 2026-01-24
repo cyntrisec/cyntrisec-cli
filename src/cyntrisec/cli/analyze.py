@@ -145,16 +145,20 @@ def analyze_paths(
                 try:
                     result = simulator.can_access(
                         principal_arn=source_asset.arn or source_asset.aws_resource_id,
-                        target_resource=target_asset.arn or target_asset.aws_resource_id
+                        target_resource=target_asset.arn or target_asset.aws_resource_id,
                     )
 
                     if result.can_access:
-                         if path.confidence_level != "high":
-                             path.confidence_level = "high"
-                             path.confidence_reason = f"Verified via AWS Policy Simulator (Action: {result.action})"
+                        if path.confidence_level != "high":
+                            path.confidence_level = "high"
+                            path.confidence_reason = (
+                                f"Verified via AWS Policy Simulator (Action: {result.action})"
+                            )
                     else:
                         path.confidence_level = "low"
-                        path.confidence_reason = "Verification Failed: AWS Policy Simulator denied access"
+                        path.confidence_reason = (
+                            "Verification Failed: AWS Policy Simulator denied access"
+                        )
 
                 except Exception as ex:
                     log.debug("Path verification failed for %s: %s", path.id, ex)
@@ -162,7 +166,6 @@ def analyze_paths(
         except Exception as e:
             typer.echo(f"Verification failed: {e}", err=True)
             # Don't fail the command, just warn
-
 
     if output_format in {"json", "agent"}:
         artifact_paths = build_artifact_paths(storage, scan_id)
@@ -349,6 +352,7 @@ def analyze_stats(
     if not snapshot:
         if output_format in {"json", "agent"}:
             from cyntrisec.cli.errors import ErrorCode
+
             emit_agent_or_json(
                 output_format,
                 {},
@@ -367,6 +371,7 @@ def analyze_stats(
 
     if output_format in {"json", "agent"}:
         from cyntrisec.cli.schemas import AnalyzeStatsResponse
+
         payload = {
             "snapshot_id": str(snapshot.id),
             "scan_id": resolved_scan_id,
@@ -376,12 +381,20 @@ def analyze_stats(
             "finding_count": len(findings),
             "path_count": len(paths),
             "regions": snapshot.regions,
-            "status": snapshot.status.value if hasattr(snapshot.status, 'value') else str(snapshot.status),
+            "status": snapshot.status.value
+            if hasattr(snapshot.status, "value")
+            else str(snapshot.status),
         }
         actions = suggested_actions(
             [
-                (f"cyntrisec analyze paths --scan {resolved_scan_id or 'latest'}", "View attack paths"),
-                (f"cyntrisec analyze findings --scan {resolved_scan_id or 'latest'}", "View security findings"),
+                (
+                    f"cyntrisec analyze paths --scan {resolved_scan_id or 'latest'}",
+                    "View attack paths",
+                ),
+                (
+                    f"cyntrisec analyze findings --scan {resolved_scan_id or 'latest'}",
+                    "View security findings",
+                ),
             ]
         )
         emit_agent_or_json(

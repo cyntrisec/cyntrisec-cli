@@ -33,13 +33,14 @@ class PathFinderConfig:
     max_depth: int = 8
     max_paths: int = 200
     min_risk_score: float = 0.0
-    include_unknown: bool = False # Task 11.2: Check UNKNOWN edges
+    include_unknown: bool = False  # Task 11.2: Check UNKNOWN edges
 
 
 @dataclass(frozen=True)
 class NetworkIdentity:
     """Represents the attacker's network vantage point."""
-    security_group_ids:  tuple[str, ...] = field(default_factory=tuple)
+
+    security_group_ids: tuple[str, ...] = field(default_factory=tuple)
     vpc_id: str | None = None
     subnet_id: str | None = None
 
@@ -51,13 +52,14 @@ class NetworkIdentity:
 class AttackerState:
     """
     Represents the attacker's state during graph traversal.
-    
+
     Includes:
     - Current origin (where they are)
     - Compromised assets (what they own)
     - Active principals (what roles they can assume)
     - Network identity (security groups, VPC context)
     """
+
     origin: str  # "internet" or asset ID
     compromised_assets: frozenset[str] = field(default_factory=frozenset)
     active_principals: frozenset[str] = field(default_factory=frozenset)
@@ -69,11 +71,13 @@ class AttackerState:
         # State key includes principally the identity and capabilities
         return hash((self.active_principals, self.network_identity))
 
+
 @dataclass
 class CandidatePath:
     """
     A raw discovered path from Phase A (Discovery).
     """
+
     snapshot_id: uuid.UUID
     path_asset_ids: list[uuid.UUID]
     path_relationship_ids: list[uuid.UUID]
@@ -81,12 +85,15 @@ class CandidatePath:
     heuristic_score: float
     context_relationship_ids: list[uuid.UUID] = field(default_factory=list)
 
+
 class PathValidator:
     """
     Phase B: Validates candidate paths and assigns confidence.
     """
 
-    def validate_path_metadata(self, graph: AwsGraph, candidate: CandidatePath) -> tuple[ConfidenceLevel, str]:
+    def validate_path_metadata(
+        self, graph: AwsGraph, candidate: CandidatePath
+    ) -> tuple[ConfidenceLevel, str]:
         """Return confidence level and reason."""
         # 1. Network
         net_conf, net_reason = self._check_network_preconditions(graph, candidate)
@@ -102,13 +109,17 @@ class PathValidator:
             level = ConfidenceLevel.MED
 
         reasons = []
-        if net_reason: reasons.append(net_reason)
-        if pass_reason: reasons.append(pass_reason)
+        if net_reason:
+            reasons.append(net_reason)
+        if pass_reason:
+            reasons.append(pass_reason)
         reason_str = "; ".join(reasons)
 
         return level, reason_str
 
-    def _check_network_preconditions(self, graph: AwsGraph, candidate: CandidatePath) -> tuple[ConfidenceLevel, str]:
+    def _check_network_preconditions(
+        self, graph: AwsGraph, candidate: CandidatePath
+    ) -> tuple[ConfidenceLevel, str]:
         """
         Verify CAN_REACH edges in the path.
         """
@@ -121,7 +132,7 @@ class PathValidator:
             # We need to find the edge object.
             # Helper: we know source/target from path_asset_ids[i], [i+1]
             src_id = candidate.path_asset_ids[i]
-            tgt_id = candidate.path_asset_ids[i+1]
+            tgt_id = candidate.path_asset_ids[i + 1]
 
             # Find the relationship
             rel = None
@@ -142,22 +153,30 @@ class PathValidator:
 
                 # Check 1: DB Exposure on Web Ports
                 # If target is RDS/DB and port is strictly Web (80/443), unlikely to work directly
-                is_db = target_asset.asset_type in ["rds:db-instance", "dynamodb:table", "redshift:cluster"]
+                is_db = target_asset.asset_type in [
+                    "rds:db-instance",
+                    "dynamodb:table",
+                    "redshift:cluster",
+                ]
                 is_web_port = port_range in ["80-80", "443-443"]
 
                 if is_db and is_web_port:
                     confidence = ConfidenceLevel.LOW
-                    reasons.append(f"Unlikely database access via web ports ({port_range}) to {target_asset.name}")
+                    reasons.append(
+                        f"Unlikely database access via web ports ({port_range}) to {target_asset.name}"
+                    )
 
         reason_str = "; ".join(reasons)
         return confidence, reason_str
 
-    def _check_passrole_motif(self, graph: AwsGraph, candidate: CandidatePath) -> tuple[ConfidenceLevel, str]:
+    def _check_passrole_motif(
+        self, graph: AwsGraph, candidate: CandidatePath
+    ) -> tuple[ConfidenceLevel, str]:
         """
         Verify iam:PassRole usage.
         """
         reasons = []
-        confidence = ConfidenceLevel.HIGH # Start high, downgrade if PassRole found without trigger
+        confidence = ConfidenceLevel.HIGH  # Start high, downgrade if PassRole found without trigger
 
         for i, rel_id in enumerate(candidate.path_relationship_ids):
             src_id = candidate.path_asset_ids[i]
@@ -191,7 +210,9 @@ class PathValidator:
                     # We don't have edges for it, and properties parsing is complex here.
                     if confidence == ConfidenceLevel.HIGH:
                         confidence = ConfidenceLevel.MED
-                    reasons.append(f"PassRole found at {source_asset.name}, but execution permission (e.g. CreateFunction) unverified")
+                    reasons.append(
+                        f"PassRole found at {source_asset.name}, but execution permission (e.g. CreateFunction) unverified"
+                    )
 
         reason_str = "; ".join(reasons)
         return confidence, reason_str
@@ -200,9 +221,9 @@ class PathValidator:
 class PathScorer:
     """
     Scores attack paths based on edge weights and confidence modifiers.
-    
+
     Risk Score = Entry Confidence * Exploitability * Impact
-    
+
     Where:
     - Entry Confidence: Likelihood of attacker reaching start (0-1)
     - Exploitability: Difficulty of traversing path (0-1)
@@ -215,24 +236,21 @@ class PathScorer:
     EDGE_WEIGHTS = {
         # IAM Privilege Escalation (Very Easy)
         "CAN_ASSUME": 0.1,
-        "CAN_PASS_TO": 0.2, # Requires trigger
-
+        "CAN_PASS_TO": 0.2,  # Requires trigger
         # IAM Data Access (Easy)
         "MAY_READ": 0.3,
         "MAY_WRITE": 0.3,
         "MAY_READ_S3_OBJECT": 0.3,
-
         # Network Reachability (Medium - requires exploit/creds)
         "CAN_REACH": 0.5,
-
         # Default
-        "default": 1.0
+        "default": 1.0,
     }
 
     CONFIDENCE_MULTIPLIERS = {
         ConfidenceLevel.HIGH: 1.0,
         ConfidenceLevel.MED: 0.6,
-        ConfidenceLevel.LOW: 0.2
+        ConfidenceLevel.LOW: 0.2,
     }
 
     def score_path(
@@ -242,7 +260,7 @@ class PathScorer:
         path_rels: list[uuid.UUID],
         entry_confidence: float,
         target_impact: float,
-        confidence_level: ConfidenceLevel = ConfidenceLevel.HIGH
+        confidence_level: ConfidenceLevel = ConfidenceLevel.HIGH,
     ) -> tuple[float, float]:
         """
         Calculate (risk_score, exploitability_score).
@@ -284,13 +302,12 @@ class PathScorer:
         return self.EDGE_WEIGHTS.get(relationship_type, self.EDGE_WEIGHTS["default"])
 
 
-
 class PathFinder:
     """
     Discovers attack paths through the capability graph.
 
     Uses Best-First Search (Priority Queue) to find highest-risk paths first.
-    
+
     Risk Heuristic:
     - Prioritizes paths starting from high-confidence entry points.
     - Penalizes length (shorter paths = higher exploitability).
@@ -327,7 +344,7 @@ class PathFinder:
                 path_rels=candidate.path_relationship_ids,
                 context_rels=candidate.context_relationship_ids,
                 confidence_level=confidence,
-                confidence_reason=reason
+                confidence_reason=reason,
             )
 
             # Filter low risk (already done in discovery mostly, but good to re-check if scoring changes)
@@ -390,7 +407,7 @@ class PathFinder:
             # Count visits (soft limit to prevent infinite variations)
             node_visits[current_id] = node_visits.get(current_id, 0) + 1
             if node_visits[current_id] > MAX_VISITS_PER_NODE:
-                 continue
+                continue
 
             # Check if we reached a target
             if current_id in targets:
@@ -405,7 +422,7 @@ class PathFinder:
                     path_relationship_ids=path_rels,
                     attacker_state=state,
                     heuristic_score=-neg_score,
-                    context_relationship_ids=context_rels
+                    context_relationship_ids=context_rels,
                 )
                 found_candidates.append(candidate)
 
@@ -442,7 +459,9 @@ class PathFinder:
                 entry_asset = graph.asset(path_assets[0])
                 new_score = self._calculate_heuristic(graph, entry_asset, new_len)
 
-                heapq.heappush(queue, (-new_score, new_len, next_id, new_assets, new_rels, next_state))
+                heapq.heappush(
+                    queue, (-new_score, new_len, next_id, new_assets, new_rels, next_state)
+                )
 
         return found_candidates
 
@@ -454,7 +473,7 @@ class PathFinder:
         return AttackerState(
             origin="internet",
             compromised_assets=frozenset([str(entry.id)]),
-            network_identity=identity
+            network_identity=identity,
         )
 
     def _get_network_identity(self, asset: Asset) -> NetworkIdentity:
@@ -462,22 +481,14 @@ class PathFinder:
         sg_ids = tuple(sorted(asset.properties.get("security_groups", [])))
         vpc_id = asset.properties.get("vpc_id")
         subnet_id = asset.properties.get("subnet_id")
-        return NetworkIdentity(
-            security_group_ids=sg_ids,
-            vpc_id=vpc_id,
-            subnet_id=subnet_id
-        )
+        return NetworkIdentity(security_group_ids=sg_ids, vpc_id=vpc_id, subnet_id=subnet_id)
 
     def _update_attacker_state(
-        self,
-        graph: AwsGraph,
-        rel: Relationship,
-        next_id: uuid.UUID,
-        current_state: AttackerState
+        self, graph: AwsGraph, rel: Relationship, next_id: uuid.UUID, current_state: AttackerState
     ) -> AttackerState:
         """
         Update attacker state after traversing an edge.
-        
+
         Updates:
         - Compromised assets (adds new asset)
         - Active principals (if assuming role)
@@ -493,30 +504,27 @@ class PathFinder:
         new_principals = set(current_state.active_principals)
         # If we assumed a role, add it to active principals
         if rel.relationship_type == "CAN_ASSUME":
-             new_principals.add(str(next_id))
+            new_principals.add(str(next_id))
 
         # If we moved to a compute resource, update network identity
         # (e.g. pivoting to an EC2 instance or Lambda)
         new_identity = current_state.network_identity
         if next_asset.asset_type in ["ec2:instance", "lambda:function"]:
-             new_identity = self._get_network_identity(next_asset)
+            new_identity = self._get_network_identity(next_asset)
 
         return AttackerState(
             origin=current_state.origin,
             compromised_assets=frozenset(new_compromised),
             active_principals=frozenset(new_principals),
-            network_identity=new_identity
+            network_identity=new_identity,
         )
 
     def _check_preconditions(
-        self,
-        graph: AwsGraph,
-        rel: Relationship,
-        state: AttackerState
+        self, graph: AwsGraph, rel: Relationship, state: AttackerState
     ) -> bool:
         """
         Check if edge can be traversed given current state.
-        
+
         Enforces:
         - Network reachability (CAN_REACH source must match current identity)
         """
@@ -539,11 +547,13 @@ class PathFinder:
             elif source_asset.asset_type == "ec2:subnet":
                 # Only traverse if we are in this subnet
                 if state.network_identity.subnet_id != source_asset.aws_resource_id:
-                     return False
+                    return False
 
         return True
 
-    def _collect_context_edges(self, graph: AwsGraph, path_assets: list[uuid.UUID]) -> list[uuid.UUID]:
+    def _collect_context_edges(
+        self, graph: AwsGraph, path_assets: list[uuid.UUID]
+    ) -> list[uuid.UUID]:
         """Collect structural edges relevant to the path."""
         context_ids = []
         for asset_id in path_assets:
@@ -573,25 +583,27 @@ class PathFinder:
         visited_hashes = set()
 
         while queue and len(paths) < 10:
-             curr, path = queue.popleft()
-             if curr == target_id:
-                 paths.append(path)
-                 continue
+            curr, path = queue.popleft()
+            if curr == target_id:
+                paths.append(path)
+                continue
 
-             if len(path) >= max_depth:
-                 continue
+            if len(path) >= max_depth:
+                continue
 
-             for rel in graph.edges_from(curr):
-                 nxt = rel.target_asset_id
-                 if nxt not in path:
-                     new_path = path + [nxt]
-                     ph = self._hash_path(new_path)
-                     if ph not in visited_hashes:
-                         visited_hashes.add(ph)
-                         queue.append((nxt, new_path))
+            for rel in graph.edges_from(curr):
+                nxt = rel.target_asset_id
+                if nxt not in path:
+                    new_path = path + [nxt]
+                    ph = self._hash_path(new_path)
+                    if ph not in visited_hashes:
+                        visited_hashes.add(ph)
+                        queue.append((nxt, new_path))
         return paths
 
-    def _calculate_heuristic(self, graph: AwsGraph, entry_asset: Asset | None, length: int) -> float:
+    def _calculate_heuristic(
+        self, graph: AwsGraph, entry_asset: Asset | None, length: int
+    ) -> float:
         """
         Calculate heuristic score for best-first search.
         Higher is better (higher risk).
@@ -631,7 +643,7 @@ class PathFinder:
             path_rels=path_rels,
             entry_confidence=entry_confidence,
             target_impact=impact,
-            confidence_level=confidence_level
+            confidence_level=confidence_level,
         )
 
         # Determine attack vector
@@ -669,9 +681,9 @@ class PathFinder:
         # Check CAN_REACH edges from Internet
         internet_edges = []
         if INTERNET_ASSET_ID in graph.outgoing:
-             for rel in graph.outgoing[INTERNET_ASSET_ID]:
-                 if rel.target_asset_id == asset.id and rel.relationship_type == "CAN_REACH":
-                     internet_edges.append(rel)
+            for rel in graph.outgoing[INTERNET_ASSET_ID]:
+                if rel.target_asset_id == asset.id and rel.relationship_type == "CAN_REACH":
+                    internet_edges.append(rel)
 
         if internet_edges:
             # Task 6.4: Set entry_confidence based on port category
@@ -692,7 +704,7 @@ class PathFinder:
 
                 # Adjust by asset type
                 if asset.asset_type in ["elbv2:load-balancer", "elb:load-balancer"]:
-                     score += 0.05
+                    score += 0.05
 
                 # Adjust by rule specificity
                 # If explicit CIDR was used but it's 0.0.0.0/0 (implied by being internet edge here), +0.0

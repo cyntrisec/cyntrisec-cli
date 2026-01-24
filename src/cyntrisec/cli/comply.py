@@ -218,9 +218,7 @@ def _build_payload(results, framework: Framework, snapshot, show_passing: bool):
             for r in results.results
             if show_passing or r.status != "pass"
         ],
-        "data_gaps": [
-            {"control_id": ctrl_id, **gap} for ctrl_id, gap in results.data_gaps.items()
-        ]
+        "data_gaps": [{"control_id": ctrl_id, **gap} for ctrl_id, gap in results.data_gaps.items()]
         if results.data_gaps
         else [],
     }

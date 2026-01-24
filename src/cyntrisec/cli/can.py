@@ -300,7 +300,9 @@ def _build_payload(result, snapshot):
     # Add mode and disclaimer for offline simulation
     if not result.simulations:
         payload["mode"] = "offline"
-        payload["disclaimer"] = "Offline results are based on graph relationships only. Use --live for authoritative policy simulation."
+        payload["disclaimer"] = (
+            "Offline results are based on graph relationships only. Use --live for authoritative policy simulation."
+        )
     else:
         payload["mode"] = "live"
 
