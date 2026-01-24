@@ -32,7 +32,7 @@ class LambdaCollector:
         paginator = self._lambda.get_paginator("list_functions")
         for page in paginator.paginate():
             functions.extend(page.get("Functions", []))
-        return functions
+        return [dict(f) for f in functions]
 
     def _get_function_policy(self, function_name: str) -> dict | None:
         """Get function resource policy."""

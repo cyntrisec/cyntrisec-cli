@@ -371,7 +371,9 @@ class PathFinder:
             return []
 
         # Priority Queue: (-heuristic_score, path_len, current_id, path_assets, path_rels, attacker_state)
-        queue: list[tuple[float, int, uuid.UUID, list[uuid.UUID], list[uuid.UUID], AttackerState]] = []
+        queue: list[
+            tuple[float, int, uuid.UUID, list[uuid.UUID], list[uuid.UUID], AttackerState]
+        ] = []
         for entry in entry_points:
             # Initial state
             # If entering via 0.0.0.0/0, origin is internet

@@ -28,18 +28,19 @@ class IamCollector:
         paginator = self._iam.get_paginator("list_users")
         for page in paginator.paginate():
             users.extend(page.get("Users", []))
-        return users
+        return [dict(u) for u in users]
 
     def _collect_roles(self) -> list[dict]:
         """Collect IAM roles with trust policies."""
         roles = []
         paginator = self._iam.get_paginator("list_roles")
         for page in paginator.paginate():
-            for role in page.get("Roles", []):
+            for role_data in page.get("Roles", []):
+                role = dict(role_data)
                 role_name = role.get("RoleName")
                 if role_name:
-                    role["InlinePolicies"] = self._collect_inline_role_policies(role_name)
-                    role["AttachedPolicies"] = self._collect_attached_role_policies(role_name)
+                    role["InlinePolicies"] = self._collect_inline_role_policies(str(role_name))
+                    role["AttachedPolicies"] = self._collect_attached_role_policies(str(role_name))
                 # Trust policy is included in list_roles
                 roles.append(role)
         return roles
@@ -50,7 +51,7 @@ class IamCollector:
         paginator = self._iam.get_paginator("list_policies")
         for page in paginator.paginate(Scope="Local"):
             policies.extend(page.get("Policies", []))
-        return policies
+        return [dict(p) for p in policies]
 
     def _collect_inline_role_policies(self, role_name: str) -> list[dict]:
         """Collect inline policy documents for a role."""
@@ -103,7 +104,10 @@ class IamCollector:
                 PolicyArn=policy_arn,
                 VersionId=version_id,
             )
-            return version.get("PolicyVersion", {}).get("Document")
+            doc = version.get("PolicyVersion", {}).get("Document")
+            if isinstance(doc, dict):
+                return dict(doc)
+            return {}
         except Exception:
             return None
 
@@ -113,4 +117,4 @@ class IamCollector:
         paginator = self._iam.get_paginator("list_instance_profiles")
         for page in paginator.paginate():
             profiles.extend(page.get("InstanceProfiles", []))
-        return profiles
+        return [dict(p) for p in profiles]

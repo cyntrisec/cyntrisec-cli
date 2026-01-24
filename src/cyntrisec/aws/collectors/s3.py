@@ -31,13 +31,13 @@ class S3Collector:
     def _collect_buckets(self) -> list[dict]:
         """List all buckets."""
         response = self._s3.list_buckets()
-        return response.get("Buckets", [])
+        return [dict(b) for b in response.get("Buckets", [])]
 
     def _get_bucket_policy(self, bucket_name: str) -> dict | None:
         """Get bucket policy."""
         try:
             response = self._s3.get_bucket_policy(Bucket=bucket_name)
-            return {"Policy": response.get("Policy")}
+            return {"Policy": str(response.get("Policy"))}
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchBucketPolicy":
                 return None
@@ -46,7 +46,7 @@ class S3Collector:
     def _get_bucket_acl(self, bucket_name: str) -> dict | None:
         """Get bucket ACL."""
         try:
-            return self._s3.get_bucket_acl(Bucket=bucket_name)
+            return dict(self._s3.get_bucket_acl(Bucket=bucket_name))
         except ClientError:
             return None
 
@@ -54,7 +54,7 @@ class S3Collector:
         """Get public access block configuration."""
         try:
             response = self._s3.get_public_access_block(Bucket=bucket_name)
-            return response.get("PublicAccessBlockConfiguration")
+            return dict(response.get("PublicAccessBlockConfiguration", {}))
         except ClientError:
             return None
 

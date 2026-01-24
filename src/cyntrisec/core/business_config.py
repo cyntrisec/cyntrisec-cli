@@ -81,7 +81,7 @@ class BusinessConfig(BaseConfig):
         suffix = path_obj.suffix.lower()
 
         def parse_yaml() -> object | None:
-            import yaml
+            import yaml  # type: ignore[import-untyped]
 
             return yaml.safe_load(text)
 

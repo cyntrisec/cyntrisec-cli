@@ -92,18 +92,17 @@ class CredentialProvider:
         base = self._get_base_session()
         sts = base.client("sts")
 
-        assume_kwargs = {
-            "RoleArn": role_arn,
-            "RoleSessionName": session_name,
-            "DurationSeconds": duration_seconds,
-        }
-        if external_id:
-            assume_kwargs["ExternalId"] = external_id
+
 
         log.info("Assuming role: %s", role_arn)
 
         try:
-            response = sts.assume_role(**assume_kwargs)
+            response = sts.assume_role(
+                RoleArn=role_arn,
+                RoleSessionName=session_name,
+                DurationSeconds=duration_seconds,
+                ExternalId=external_id or "",
+            )
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code == "AccessDenied":
@@ -126,7 +125,7 @@ class CredentialProvider:
         """Get the identity of the current credentials."""
         session = self._get_base_session()
         sts = session.client("sts")
-        return sts.get_caller_identity()
+        return dict(sts.get_caller_identity())
 
     def validate_role(
         self,
