@@ -358,7 +358,9 @@ def analyze_stats(
                 output_format,
                 {},
                 status="error",
-                error_code=getattr(ErrorCode.SNAPSHOT_NOT_FOUND, "value", str(ErrorCode.SNAPSHOT_NOT_FOUND)),
+                error_code=getattr(
+                    ErrorCode.SNAPSHOT_NOT_FOUND, "value", str(ErrorCode.SNAPSHOT_NOT_FOUND)
+                ),
                 message="No scan found.",
             )
             raise typer.Exit(2)

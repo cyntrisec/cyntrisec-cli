@@ -92,8 +92,6 @@ class CredentialProvider:
         base = self._get_base_session()
         sts = base.client("sts")
 
-
-
         log.info("Assuming role: %s", role_arn)
 
         try:
