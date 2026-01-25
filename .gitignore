@@ -120,3 +120,14 @@ terraform.rc
 !.env.example
 secrets.yaml
 secrets.json
+
+# MCP Publisher
+mcp-publisher.exe
+mcp-publisher
+mcp-publisher.tar.gz
+mcp-publisher.zip
+.mcpregistry_*
+
+# Test artifacts
+mypy_errors*.txt
+test_report.html

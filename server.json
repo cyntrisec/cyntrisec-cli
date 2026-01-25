@@ -1,17 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyntrisec/cyntrisec",
-  "description": "AWS capability graph analysis and attack path discovery MCP server. Provides tools for security posture analysis, attack path discovery, compliance checking, and remediation recommendations.",
+  "title": "Cyntrisec AWS Security",
+  "description": "AWS security analysis: attack paths, compliance checking, and remediation planning.",
   "repository": {
     "url": "https://github.com/cyntrisec/cyntrisec-cli",
     "source": "github"
   },
-  "version": "0.1.8",
+  "version": "0.1.9",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cyntrisec",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "transport": {
         "type": "stdio"
       },
@@ -20,28 +21,24 @@
           "name": "AWS_PROFILE",
           "description": "AWS profile name to use for authentication",
           "isRequired": false,
-          "format": "string",
           "isSecret": false
         },
         {
           "name": "AWS_DEFAULT_REGION",
           "description": "AWS region to use (defaults to profile/env settings)",
           "isRequired": false,
-          "format": "string",
           "isSecret": false
         },
         {
           "name": "AWS_ACCESS_KEY_ID",
           "description": "AWS access key ID (use AWS_PROFILE instead if possible)",
           "isRequired": false,
-          "format": "string",
           "isSecret": true
         },
         {
           "name": "AWS_SECRET_ACCESS_KEY",
           "description": "AWS secret access key (use AWS_PROFILE instead if possible)",
           "isRequired": false,
-          "format": "string",
           "isSecret": true
         }
       ],

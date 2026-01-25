@@ -5,6 +5,9 @@
 [![X](https://img.shields.io/badge/-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-beta-orange?style=flat-square)](https://pypi.org/project/cyntrisec/)
+[![MCP](https://img.shields.io/badge/MCP-Registry-green?style=flat-square)](https://registry.modelcontextprotocol.io)
+
+<!-- mcp-name: io.github.cyntrisec/cyntrisec -->
 
 ![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)
 

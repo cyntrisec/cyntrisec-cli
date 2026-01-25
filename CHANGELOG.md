@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.9] - 2026-01-25
+
+### Added
+- **MCP Registry Publishing**: Server now published to official MCP Registry at registry.modelcontextprotocol.io
+- **Automated MCP Publishing**: GitHub Actions workflow now publishes to MCP Registry after PyPI release
+
+### Changed
+- **server.json**: Updated to schema version 2025-12-11 for MCP Registry compatibility
+- **README.md**: Added MCP Registry badge and verification metadata
+
 ## [0.1.8] - 2026-01-25
 
 ### Added
