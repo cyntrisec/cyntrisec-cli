@@ -260,7 +260,7 @@ class SnapshotDiff:
             new_rels = new_by_key.get(key, [])
 
             # Report added relationships (new has more than old)
-            for rel in new_rels[len(old_rels):]:
+            for rel in new_rels[len(old_rels) :]:
                 changes.append(
                     RelationshipChange(
                         change_type=ChangeType.added,
@@ -271,7 +271,7 @@ class SnapshotDiff:
                 )
 
             # Report removed relationships (old has more than new)
-            for rel in old_rels[len(new_rels):]:
+            for rel in old_rels[len(new_rels) :]:
                 changes.append(
                     RelationshipChange(
                         change_type=ChangeType.removed,

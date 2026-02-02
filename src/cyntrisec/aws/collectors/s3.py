@@ -45,7 +45,7 @@ class S3Collector:
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
                 if error_code in ("Throttling", "SlowDown") and attempt < _MAX_RETRIES - 1:
-                    wait = (2 ** attempt) * 0.5
+                    wait = (2**attempt) * 0.5
                     log.debug("Throttled on %s, retrying in %.1fs", func.__name__, wait)
                     time.sleep(wait)
                 else:
@@ -59,9 +59,7 @@ class S3Collector:
     def _get_bucket_policy(self, bucket_name: str) -> dict | None:
         """Get bucket policy."""
         try:
-            response = self._call_with_backoff(
-                self._s3.get_bucket_policy, Bucket=bucket_name
-            )
+            response = self._call_with_backoff(self._s3.get_bucket_policy, Bucket=bucket_name)
             return {"Policy": str(response.get("Policy"))}
         except ClientError as e:
             if e.response["Error"]["Code"] == "NoSuchBucketPolicy":
@@ -71,18 +69,14 @@ class S3Collector:
     def _get_bucket_acl(self, bucket_name: str) -> dict | None:
         """Get bucket ACL."""
         try:
-            return dict(
-                self._call_with_backoff(self._s3.get_bucket_acl, Bucket=bucket_name)
-            )
+            return dict(self._call_with_backoff(self._s3.get_bucket_acl, Bucket=bucket_name))
         except ClientError:
             return None
 
     def _get_public_access_block(self, bucket_name: str) -> dict | None:
         """Get public access block configuration."""
         try:
-            response = self._call_with_backoff(
-                self._s3.get_public_access_block, Bucket=bucket_name
-            )
+            response = self._call_with_backoff(self._s3.get_public_access_block, Bucket=bucket_name)
             return dict(response.get("PublicAccessBlockConfiguration", {}))
         except ClientError:
             return None
@@ -90,9 +84,7 @@ class S3Collector:
     def _get_bucket_location(self, bucket_name: str) -> str:
         """Get bucket region."""
         try:
-            response = self._call_with_backoff(
-                self._s3.get_bucket_location, Bucket=bucket_name
-            )
+            response = self._call_with_backoff(self._s3.get_bucket_location, Bucket=bucket_name)
             # None means us-east-1
             return response.get("LocationConstraint") or "us-east-1"
         except ClientError:

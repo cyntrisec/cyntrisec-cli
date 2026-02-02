@@ -352,9 +352,10 @@ class OfflineSimulator:
         if principal and target:
             # Check for direct relationship using source index
             for rel in self._rels_by_source.get(principal.id, []):
-                if (
-                    rel.target_asset_id == target.id
-                    and rel.relationship_type in ("MAY_ACCESS", "CAN_ASSUME", "ALLOWS")
+                if rel.target_asset_id == target.id and rel.relationship_type in (
+                    "MAY_ACCESS",
+                    "CAN_ASSUME",
+                    "ALLOWS",
                 ):
                     can_access = True
                     proof = {
