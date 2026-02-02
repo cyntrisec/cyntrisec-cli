@@ -6,7 +6,7 @@ Useful for testing and single-run analysis without persistence.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from cyntrisec.core.schema import (
     Asset,
@@ -31,7 +31,7 @@ class InMemoryStorage(StorageBackend):
         self._current_id: str | None = None
 
     def new_scan(self, account_id: str) -> str:
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H%M%S")
         scan_id = f"{timestamp}_{account_id}"
         self._current_id = scan_id
         self._scans[scan_id] = {
@@ -104,7 +104,7 @@ class InMemoryStorage(StorageBackend):
             "findings": [f.model_dump(mode="json") for f in scan["findings"]],
             "attack_paths": [p.model_dump(mode="json") for p in scan["attack_paths"]],
             "metadata": {
-                "exported_at": datetime.utcnow().isoformat() + "Z",
+                "exported_at": datetime.now(UTC).isoformat() + "Z",
                 "scan_id": scan_id or self._current_id,
             },
         }

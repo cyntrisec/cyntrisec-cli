@@ -323,7 +323,10 @@ class OfflineSimulator:
         """
         self._assets = {a.arn: a for a in assets if a.arn}
         self._assets_by_name = {a.name: a for a in assets}
-        self._relationships = relationships
+        # Index relationships by source asset ID for O(1) lookup
+        self._rels_by_source: dict[Any, list[Any]] = {}
+        for rel in relationships:
+            self._rels_by_source.setdefault(rel.source_asset_id, []).append(rel)
 
     def can_access(
         self,
@@ -347,11 +350,10 @@ class OfflineSimulator:
         proof = {}
 
         if principal and target:
-            # Check for direct relationship
-            for rel in self._relationships:
+            # Check for direct relationship using source index
+            for rel in self._rels_by_source.get(principal.id, []):
                 if (
-                    rel.source_asset_id == principal.id
-                    and rel.target_asset_id == target.id
+                    rel.target_asset_id == target.id
                     and rel.relationship_type in ("MAY_ACCESS", "CAN_ASSUME", "ALLOWS")
                 ):
                     can_access = True

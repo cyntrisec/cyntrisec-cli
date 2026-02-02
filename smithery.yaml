@@ -36,7 +36,7 @@ startCommand:
       }
       return {
         command: "uvx",
-        args: ["--from", "cyntrisec[mcp]", "cyntrisec", "serve"],
+        args: ["--from", "cyntrisec", "cyntrisec", "serve"],
         env: env
       };
     }

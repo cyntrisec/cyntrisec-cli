@@ -5,7 +5,7 @@ Report Command - Generate reports from scan results.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
@@ -246,7 +246,7 @@ def _generate_html(data: dict, title: str) -> str:
     regions_val = ", ".join(str(r) for r in (snapshot.get("regions") or []))
     regions = html.escape(regions_val, quote=True)
     account_id = html.escape(str(snapshot.get("aws_account_id", "N/A")), quote=True)
-    generated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     safe_title = html.escape(title, quote=True)
 
     return f"""<!DOCTYPE html>

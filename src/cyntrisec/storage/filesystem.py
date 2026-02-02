@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -51,7 +51,7 @@ class FileSystemStorage(StorageBackend):
 
     def new_scan(self, account_id: str) -> str:
         """Create a new scan directory."""
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H%M%S")
         scan_id = f"{timestamp}_{account_id}"
         self._validate_scan_id(scan_id)
         self._current_id = scan_id
@@ -249,7 +249,7 @@ class FileSystemStorage(StorageBackend):
             "findings": [f.model_dump(mode="json") for f in self.get_findings(scan_id)],
             "attack_paths": [p.model_dump(mode="json") for p in self.get_attack_paths(scan_id)],
             "metadata": {
-                "exported_at": datetime.utcnow().isoformat() + "Z",
+                "exported_at": datetime.now(UTC).isoformat() + "Z",
                 "scan_id": scan_id or self._current_id,
             },
         }

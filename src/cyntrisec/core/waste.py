@@ -8,7 +8,7 @@ to find waste that increases attack surface without providing value.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from cyntrisec.core.schema import Asset
@@ -115,7 +115,7 @@ class WasteAnalyzer:
             days_threshold: Consider unused if not accessed in this many days
         """
         self.days_threshold = days_threshold
-        self._cutoff = datetime.utcnow() - timedelta(days=days_threshold)
+        self._cutoff = datetime.now(UTC) - timedelta(days=days_threshold)
 
     def _is_aws_managed_role(self, role: Asset) -> bool:
         """Check if role is AWS-managed and should be excluded from waste analysis."""
@@ -179,7 +179,7 @@ class WasteAnalyzer:
 
                 if last_auth < self._cutoff:
                     is_unused = True
-                    days_unused = (datetime.utcnow() - last_auth).days
+                    days_unused = (datetime.now(UTC) - last_auth).days
 
             if is_unused:
                 role_waste.unused_services += 1

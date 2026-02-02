@@ -8,7 +8,6 @@ to prioritize highest-risk paths.
 
 from __future__ import annotations
 
-import hashlib
 import heapq
 import uuid
 from collections import deque
@@ -582,7 +581,7 @@ class PathFinder:
         # Simple BFS is usually fine for connectivity checks
         paths: list[list[uuid.UUID]] = []
         queue = deque([(source_id, [source_id])])
-        visited_hashes = set()
+        visited_paths: set[tuple[uuid.UUID, ...]] = set()
 
         while queue and len(paths) < 10:
             curr, path = queue.popleft()
@@ -597,9 +596,9 @@ class PathFinder:
                 nxt = rel.target_asset_id
                 if nxt not in path:
                     new_path = path + [nxt]
-                    ph = self._hash_path(new_path)
-                    if ph not in visited_hashes:
-                        visited_hashes.add(ph)
+                    path_key = tuple(new_path)
+                    if path_key not in visited_paths:
+                        visited_paths.add(path_key)
                         queue.append((nxt, new_path))
         return paths
 
@@ -614,11 +613,6 @@ class PathFinder:
         exploitability = self._exploitability(length)
         # We assume potential impact is 1.0 (unknown) during traversal
         return entry_conf * exploitability
-
-    def _hash_path(self, path_assets: list[uuid.UUID]) -> str:
-        """Create a unique hash for a path."""
-        path_str = "|".join(str(a) for a in path_assets)
-        return hashlib.sha256(path_str.encode()).hexdigest()
 
     def _create_path(
         self,

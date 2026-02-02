@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 
 from cyntrisec.aws.collectors import (
     Ec2Collector,
@@ -288,7 +288,7 @@ class AwsScanner:
             snapshot.errors = collector_errors
         else:
             snapshot.status = SnapshotStatus.completed
-        snapshot.completed_at = datetime.utcnow()
+        snapshot.completed_at = datetime.now(UTC)
         snapshot.asset_count = len(all_assets)
         snapshot.relationship_count = len(all_relationships)
         snapshot.finding_count = len(all_findings)
