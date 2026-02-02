@@ -74,7 +74,7 @@ def remediate_cmd(
     terraform_cmd: str = typer.Option(
         "terraform",
         "--terraform-cmd",
-        help="Terraform binary to invoke when using --execute-terraform",
+        help="Terraform binary name (terraform, tofu, terragrunt)",
     ),
     terraform_include_output: bool = typer.Option(
         False,
@@ -571,12 +571,37 @@ def _decode_bytes(value: object) -> str:
     return str(value)
 
 
+_ALLOWED_TERRAFORM_CMDS = {"terraform", "tofu", "terragrunt", "terraform.exe", "tofu.exe"}
+
+
+def _validate_terraform_cmd(terraform_cmd: str) -> str | None:
+    """Validate terraform_cmd is an allowed basename. Returns error message or None."""
+    import os
+
+    basename = os.path.basename(terraform_cmd)
+    if basename not in _ALLOWED_TERRAFORM_CMDS:
+        return (
+            f"terraform command '{terraform_cmd}' is not in the allowed list: "
+            f"{', '.join(sorted(_ALLOWED_TERRAFORM_CMDS))}. "
+            "Use a bare command name (e.g. 'terraform' or 'tofu')."
+        )
+    if terraform_cmd != basename:
+        return (
+            f"terraform command must be a bare name, not a path: '{terraform_cmd}'. "
+            "Use 'terraform' or 'tofu' instead."
+        )
+    return None
+
+
 def _run_terraform(terraform_cmd: str, tf_dir: str, *, include_output: bool = False) -> dict:
     """
     Run terraform apply -auto-approve against the generated hints.
 
     Returns a dict with command and status. If terraform is missing, returns error.
     """
+    validation_err = _validate_terraform_cmd(terraform_cmd)
+    if validation_err:
+        return {"ok": False, "error": validation_err}
     if not shutil.which(terraform_cmd):
         return {"ok": False, "error": f"terraform command '{terraform_cmd}' not found"}
 
@@ -614,6 +639,9 @@ def _run_terraform_plan(terraform_cmd: str, tf_dir: str, *, include_output: bool
     """
     Run terraform plan (no apply) to validate generated module.
     """
+    validation_err = _validate_terraform_cmd(terraform_cmd)
+    if validation_err:
+        return {"ok": False, "error": validation_err, "exit_code": None}
     if not shutil.which(terraform_cmd):
         return {
             "ok": False,

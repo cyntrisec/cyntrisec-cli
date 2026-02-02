@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+log = logging.getLogger(__name__)
 
 
 class IamCollector:
@@ -64,7 +68,13 @@ class IamCollector:
                         RoleName=role_name,
                         PolicyName=policy_name,
                     )
-                except Exception:
+                except (ClientError, BotoCoreError) as e:
+                    log.warning(
+                        "Failed to get inline policy '%s' for role '%s': %s",
+                        policy_name,
+                        role_name,
+                        e,
+                    )
                     continue
                 policies.append(
                     {
@@ -108,7 +118,8 @@ class IamCollector:
             if isinstance(doc, dict):
                 return dict(doc)
             return {}
-        except Exception:
+        except (ClientError, BotoCoreError) as e:
+            log.warning("Failed to get managed policy document for '%s': %s", policy_arn, e)
             return None
 
     def _collect_instance_profiles(self) -> list[dict]:

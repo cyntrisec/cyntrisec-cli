@@ -105,9 +105,11 @@ try:
     app.command("serve")(serve_cmd)
     app.command("remediate")(remediate_cmd)
     app.command("ask")(ask_cmd)
-except ImportError:
+except ImportError as _import_err:
     # Allow --version and --help to work even if deps missing
-    pass
+    logging.getLogger(__name__).warning(
+        "Failed to register CLI commands (missing dependency?): %s", _import_err
+    )
 
 
 if __name__ == "__main__":

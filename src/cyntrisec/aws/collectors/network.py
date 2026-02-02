@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+log = logging.getLogger(__name__)
 
 
 class NetworkCollector:
@@ -28,14 +32,20 @@ class NetworkCollector:
         }
 
     def _collect_vpcs(self) -> list[dict]:
-        """Collect VPCs."""
-        response = self._ec2.describe_vpcs()
-        return response.get("Vpcs", [])
+        """Collect VPCs with pagination."""
+        vpcs = []
+        paginator = self._ec2.get_paginator("describe_vpcs")
+        for page in paginator.paginate():
+            vpcs.extend(page.get("Vpcs", []))
+        return vpcs
 
     def _collect_subnets(self) -> list[dict]:
-        """Collect subnets."""
-        response = self._ec2.describe_subnets()
-        return response.get("Subnets", [])
+        """Collect subnets with pagination."""
+        subnets = []
+        paginator = self._ec2.get_paginator("describe_subnets")
+        for page in paginator.paginate():
+            subnets.extend(page.get("Subnets", []))
+        return subnets
 
     def _collect_security_groups(self) -> list[dict]:
         """Collect security groups."""
@@ -46,25 +56,38 @@ class NetworkCollector:
         return sgs
 
     def _collect_route_tables(self) -> list[dict]:
-        """Collect route tables."""
-        response = self._ec2.describe_route_tables()
-        return response.get("RouteTables", [])
+        """Collect route tables with pagination."""
+        tables = []
+        paginator = self._ec2.get_paginator("describe_route_tables")
+        for page in paginator.paginate():
+            tables.extend(page.get("RouteTables", []))
+        return tables
 
     def _collect_internet_gateways(self) -> list[dict]:
-        """Collect internet gateways."""
-        response = self._ec2.describe_internet_gateways()
-        return response.get("InternetGateways", [])
+        """Collect internet gateways with pagination."""
+        gateways = []
+        paginator = self._ec2.get_paginator("describe_internet_gateways")
+        for page in paginator.paginate():
+            gateways.extend(page.get("InternetGateways", []))
+        return gateways
 
     def _collect_nat_gateways(self) -> list[dict]:
-        """Collect NAT gateways."""
-        response = self._ec2.describe_nat_gateways()
-        return response.get("NatGateways", [])
+        """Collect NAT gateways with pagination."""
+        gateways = []
+        paginator = self._ec2.get_paginator("describe_nat_gateways")
+        for page in paginator.paginate():
+            gateways.extend(page.get("NatGateways", []))
+        return gateways
 
     def _collect_load_balancers(self) -> list[dict]:
-        """Collect ELBv2 load balancers."""
+        """Collect ELBv2 load balancers with pagination."""
         try:
             elb = self._session.client("elbv2", region_name=self._region)
-            response = elb.describe_load_balancers()
-            return response.get("LoadBalancers", [])
-        except Exception:
+            lbs = []
+            paginator = elb.get_paginator("describe_load_balancers")
+            for page in paginator.paginate():
+                lbs.extend(page.get("LoadBalancers", []))
+            return lbs
+        except (ClientError, BotoCoreError) as e:
+            log.warning("Failed to collect load balancers in %s: %s", self._region, e)
             return []

@@ -540,8 +540,9 @@ class RelationshipBuilder:
         Returns:
             List of new relationships to add
         """
-        # Ensure Internet asset exists
+        # Ensure pseudo-assets exist
         self._ensure_internet_asset(assets)
+        self._ensure_lambda_service_asset(assets)
 
         # Build indexes
         self._index_assets(assets)
@@ -596,6 +597,23 @@ class RelationshipBuilder:
             properties={"description": "The Internet (0.0.0.0/0)"},
         )
         assets.append(internet)
+
+    def _ensure_lambda_service_asset(self, assets: list[Asset]) -> None:
+        """Ensure the Lambda service pseudo-asset exists for MAY_CREATE_LAMBDA edges."""
+        lambda_service_id = uuid.UUID("00000000-0000-0000-0000-00000000000a")
+        for asset in assets:
+            if asset.id == lambda_service_id:
+                return
+
+        lambda_service = Asset(
+            id=lambda_service_id,
+            snapshot_id=self._snapshot_id,
+            asset_type="pseudo:lambda-service",
+            aws_resource_id="lambda-service",
+            name="Lambda Service",
+            properties={"description": "AWS Lambda service (target for MAY_CREATE_LAMBDA edges)"},
+        )
+        assets.append(lambda_service)
 
     def _build_network_reachability_relationships(self) -> list[Relationship]:
         """Build CAN_REACH edges based on network accessibility."""
@@ -882,6 +900,7 @@ class RelationshipBuilder:
                 continue
 
             policy_docs = role.properties.get("policy_documents", [])
+            _, denied_resources = self._collect_policy_resources(policy_docs)
 
             for target in sensitive_targets:
                 target_arn = target.arn or target.aws_resource_id
@@ -901,9 +920,11 @@ class RelationshipBuilder:
                         if statement.get("Effect") != "Allow":
                             continue
 
-                        # Check if statement resources match target
+                        # Check if statement resources match target (considering denies)
                         resources = self._normalize_resources(statement.get("Resource"))
-                        if not self._resources_match_target(resources, [], target_arn):
+                        if not self._resources_match_target(
+                            resources, denied_resources, target_arn
+                        ):
                             continue
 
                         # Get matched capabilities from this statement

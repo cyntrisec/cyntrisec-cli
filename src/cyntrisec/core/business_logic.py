@@ -77,7 +77,8 @@ class BusinessLogicEngine:
 
     def _is_entrypoint(self, asset: Asset) -> bool:
         """Check if asset matches entrypoint criteria."""
-        assert self.config is not None
+        if self.config is None:
+            return False
         criteria = self.config.entrypoints
 
         # By ID
@@ -98,7 +99,8 @@ class BusinessLogicEngine:
 
     def _matches_allowlist(self, asset: Asset) -> bool:
         """Check if asset matches global allowlist tags."""
-        assert self.config is not None
+        if self.config is None:
+            return False
         for tag_key, tag_pattern in self.config.global_allowlist.items():
             val = asset.tags.get(tag_key)
             if val and fnmatch.fnmatch(val, tag_pattern):
@@ -122,11 +124,8 @@ class BusinessLogicEngine:
         for asset_id in path.path_asset_ids:
             asset = self.graph.asset(asset_id)
             if not asset:
-                continue
-
-            # If any node in the chain is NOT business-required, the path is suspect.
-            # Exception: Maybe we allow traversal through unmarked nodes if the flow itself is marked?
-            # That requires Critical Flow labeling (Edge labeling).
+                # Missing/unresolvable nodes are suspicious, not legitimate
+                return False
 
             if self.LABEL_BUSINESS not in asset.labels:
                 return False

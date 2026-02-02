@@ -89,7 +89,6 @@ class AwsScanner:
         Returns:
             Snapshot with scan results
         """
-        datetime.utcnow()
         start_time = time.monotonic()
 
         try:
@@ -112,8 +111,7 @@ class AwsScanner:
             account_id = identity["Account"]
             log.info("Connected to AWS account: %s", account_id)
         except Exception as e:
-            # Catch-all for credential/connection errors during init
-            print(f"DEBUG: Caught exception in scanner: {type(e)} {e}")
+            log.debug("Caught exception in scanner: %s %s", type(e).__name__, e)
             raise ConnectionError(f"Failed to authenticate with AWS: {e}") from e
 
         # 2. Initialize storage

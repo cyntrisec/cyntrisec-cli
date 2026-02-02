@@ -5,4 +5,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /app
 RUN git clone https://github.com/cyntrisec/cyntrisec-cli . && git checkout dd7cce0f6296da1280eb3b4770f361f08d05e555
 RUN python -m pip install --break-system-packages .
+RUN useradd -m -s /bin/bash appuser
+USER appuser
 CMD ["mcp-proxy","python","-m","cyntrisec","serve"]
