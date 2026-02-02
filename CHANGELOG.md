@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.10] - 2026-02-02
+
+### Fixed
+- **Audit Findings**: Addressed high, medium, and low-priority findings from code audit across security, correctness, and reliability
+- **CI Formatting**: Fixed ruff format issues in `s3.py`, `diff.py`, and `simulator.py` that were failing CI checks
+
+### Added
+- **Test Coverage**: Added 99 new tests closing coverage gaps identified in audit:
+  - AWS collectors: EC2, RDS, Lambda, IAM, Network, S3 (62 tests)
+  - Credential provider: session caching, AssumeRole, validation (9 tests)
+  - MCP server tools: all 15 tool functions with error paths and data filtering (32 tests, including SessionState caching)
+
 ## [0.1.9] - 2026-01-25
 
 ### Added
