@@ -71,45 +71,49 @@ def version():
     typer.echo(f"cyntrisec {__version__}")
 
 
-# Register subcommands at module load time
-# Import inside try/except for graceful handling if deps missing
-try:
-    from cyntrisec.cli.analyze import analyze_app
-    from cyntrisec.cli.ask import ask_cmd
-    from cyntrisec.cli.can import can_cmd
-    from cyntrisec.cli.comply import comply_cmd
-    from cyntrisec.cli.cuts import cuts_cmd
-    from cyntrisec.cli.diff import diff_cmd
-    from cyntrisec.cli.explain import explain_cmd
-    from cyntrisec.cli.manifest import manifest_cmd
-    from cyntrisec.cli.remediate import remediate_cmd
-    from cyntrisec.cli.report import report_cmd
-    from cyntrisec.cli.scan import scan_cmd
-    from cyntrisec.cli.serve import serve_cmd
-    from cyntrisec.cli.setup import setup_app
-    from cyntrisec.cli.validate import validate_role_cmd
-    from cyntrisec.cli.waste import waste_cmd
+# Register subcommands at module load time.
+# Each command is imported individually so a single broken import
+# does not prevent all other commands from registering.
+_log = logging.getLogger(__name__)
 
-    app.command("scan")(scan_cmd)
-    app.add_typer(analyze_app, name="analyze", help="Analyze scan results")
-    app.command("report")(report_cmd)
-    app.add_typer(setup_app, name="setup", help="Setup commands")
-    app.command("validate-role")(validate_role_cmd)
-    app.command("cuts")(cuts_cmd)
-    app.command("waste")(waste_cmd)
-    app.command("can")(can_cmd)
-    app.command("diff")(diff_cmd)
-    app.command("comply")(comply_cmd)
-    app.command("manifest")(manifest_cmd)
-    app.command("explain")(explain_cmd)
-    app.command("serve")(serve_cmd)
-    app.command("remediate")(remediate_cmd)
-    app.command("ask")(ask_cmd)
-except ImportError as _import_err:
-    # Allow --version and --help to work even if deps missing
-    logging.getLogger(__name__).warning(
-        "Failed to register CLI commands (missing dependency?): %s", _import_err
-    )
+_COMMANDS: list[tuple[str, str, str | None]] = [
+    # (cli_name, import_path, typer_method)
+    # typer_method is None for app.command(), "add_typer" for sub-apps
+    ("scan", "cyntrisec.cli.scan:scan_cmd", None),
+    ("analyze", "cyntrisec.cli.analyze:analyze_app", "add_typer"),
+    ("report", "cyntrisec.cli.report:report_cmd", None),
+    ("setup", "cyntrisec.cli.setup:setup_app", "add_typer"),
+    ("validate-role", "cyntrisec.cli.validate:validate_role_cmd", None),
+    ("cuts", "cyntrisec.cli.cuts:cuts_cmd", None),
+    ("waste", "cyntrisec.cli.waste:waste_cmd", None),
+    ("can", "cyntrisec.cli.can:can_cmd", None),
+    ("diff", "cyntrisec.cli.diff:diff_cmd", None),
+    ("comply", "cyntrisec.cli.comply:comply_cmd", None),
+    ("manifest", "cyntrisec.cli.manifest:manifest_cmd", None),
+    ("explain", "cyntrisec.cli.explain:explain_cmd", None),
+    ("serve", "cyntrisec.cli.serve:serve_cmd", None),
+    ("remediate", "cyntrisec.cli.remediate:remediate_cmd", None),
+    ("ask", "cyntrisec.cli.ask:ask_cmd", None),
+]
+
+_TYPER_HELP = {
+    "analyze": "Analyze scan results",
+    "setup": "Setup commands",
+}
+
+for _name, _import_path, _method in _COMMANDS:
+    try:
+        _module_path, _attr = _import_path.rsplit(":", 1)
+        import importlib as _importlib
+
+        _mod = _importlib.import_module(_module_path)
+        _obj = getattr(_mod, _attr)
+        if _method == "add_typer":
+            app.add_typer(_obj, name=_name, help=_TYPER_HELP.get(_name, ""))
+        else:
+            app.command(_name)(_obj)
+    except (ImportError, AttributeError) as _err:
+        _log.warning("Failed to register command '%s': %s", _name, _err)
 
 
 if __name__ == "__main__":

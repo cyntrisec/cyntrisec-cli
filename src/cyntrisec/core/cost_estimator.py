@@ -176,25 +176,19 @@ class CostEstimator:
         """Generate estimate from static pricing rules."""
         asset_type = asset.asset_type
         props = asset.properties or {}
-        pricing_table = REGIONAL_PRICING.get(region, STATIC_PRICING)
-        region_fallback = region != "us-east-1" and region not in REGIONAL_PRICING
+        regional_table = REGIONAL_PRICING.get(region)
+        region_fallback = region != "us-east-1" and regional_table is None
+
+        def _get_pricing(key: str) -> dict[str, Any] | None:
+            """Look up pricing by key, falling back from regional to static table."""
+            if regional_table is not None and key in regional_table:
+                return regional_table[key]
+            return STATIC_PRICING.get(key)
 
         # NAT Gateway
         if asset_type == "ec2:nat-gateway":
-            pricing = pricing_table["ec2:nat-gateway"]
-            return CostEstimate(
-                monthly_cost_usd_estimate=pricing["monthly_base"],
-                cost_source="estimate",
-                confidence=pricing["confidence"],
-                assumptions=self._assumptions_with_region(pricing["assumptions"], region_fallback),
-            )
-
-        # Elastic IP (only if unattached)
-        if asset_type == "ec2:elastic-ip":
-            # Check if attached to an instance
-            instance_id = props.get("instance_id") or props.get("InstanceId")
-            if not instance_id:
-                pricing = pricing_table["ec2:elastic-ip"]
+            pricing = _get_pricing("ec2:nat-gateway")
+            if pricing:
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
@@ -203,14 +197,30 @@ class CostEstimator:
                         pricing["assumptions"], region_fallback
                     ),
                 )
+
+        # Elastic IP (only if unattached)
+        if asset_type == "ec2:elastic-ip":
+            # Check if attached to an instance
+            instance_id = props.get("instance_id") or props.get("InstanceId")
+            if not instance_id:
+                pricing = _get_pricing("ec2:elastic-ip")
+                if pricing:
+                    return CostEstimate(
+                        monthly_cost_usd_estimate=pricing["monthly_base"],
+                        cost_source="estimate",
+                        confidence=pricing["confidence"],
+                        assumptions=self._assumptions_with_region(
+                            pricing["assumptions"], region_fallback
+                        ),
+                    )
             return None  # Attached EIPs are free
 
         # Load Balancers
         if asset_type == "elbv2:load-balancer":
             lb_type = props.get("type", "application").lower()
             key = f"elbv2:load-balancer:{lb_type}"
-            if key in pricing_table:
-                pricing = pricing_table[key]
+            pricing = _get_pricing(key)
+            if pricing:
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
@@ -226,8 +236,8 @@ class CostEstimator:
             size_gb = props.get("size", props.get("Size", 0))
             key = f"ec2:ebs-volume:{volume_type}"
 
-            if key in pricing_table and size_gb:
-                pricing = pricing_table[key]
+            pricing = _get_pricing(key)
+            if pricing and size_gb:
                 monthly = pricing["per_gb_month"] * Decimal(str(size_gb))
                 return CostEstimate(
                     monthly_cost_usd_estimate=monthly,
@@ -243,8 +253,8 @@ class CostEstimator:
             db_class = props.get("db_instance_class", props.get("DBInstanceClass", ""))
             key = f"rds:db-instance:{db_class}"
 
-            if key in pricing_table:
-                pricing = pricing_table[key]
+            pricing = _get_pricing(key)
+            if pricing:
                 return CostEstimate(
                     monthly_cost_usd_estimate=pricing["monthly_base"],
                     cost_source="estimate",
@@ -253,8 +263,8 @@ class CostEstimator:
                         pricing["assumptions"], region_fallback
                     ),
                 )
-            # Unknown class - return None with low confidence indicator
-            fallback_estimate = self._unknown_rds_estimate(pricing_table)
+            # Unknown class - return with low confidence indicator
+            fallback_estimate = self._unknown_rds_estimate(STATIC_PRICING)
             return CostEstimate(
                 monthly_cost_usd_estimate=fallback_estimate,
                 cost_source="estimate",

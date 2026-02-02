@@ -1016,7 +1016,8 @@ class RelationshipBuilder:
         return False
 
     def _collect_compute_roles(self) -> set[uuid.UUID]:
-        """Collect IAM roles used by EC2 instances and Lambda functions."""
+        """Collect IAM roles used by EC2 instances, Lambda functions,
+        and roles reachable via role chaining (CAN_ASSUME targets)."""
         roles: set[uuid.UUID] = set()
 
         # EC2 instance roles
@@ -1040,6 +1041,12 @@ class RelationshipBuilder:
                 for role in self._by_type.get("iam:role", []):
                     if role.arn == role_arn:
                         roles.add(role.id)
+
+        # Include all IAM roles — standalone roles reachable via role chaining
+        # should also be checked for access to sensitive targets, otherwise
+        # multi-hop privilege escalation paths are missed.
+        for role in self._by_type.get("iam:role", []):
+            roles.add(role.id)
 
         return roles
 

@@ -95,12 +95,14 @@ class CredentialProvider:
         log.info("Assuming role: %s", role_arn)
 
         try:
-            response = sts.assume_role(
-                RoleArn=role_arn,
-                RoleSessionName=session_name,
-                DurationSeconds=duration_seconds,
-                ExternalId=external_id or "",
-            )
+            assume_kwargs: dict = {
+                "RoleArn": role_arn,
+                "RoleSessionName": session_name,
+                "DurationSeconds": duration_seconds,
+            }
+            if external_id:
+                assume_kwargs["ExternalId"] = external_id
+            response = sts.assume_role(**assume_kwargs)
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code == "AccessDenied":
