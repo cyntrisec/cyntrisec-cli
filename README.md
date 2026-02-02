@@ -9,10 +9,6 @@
 
 <!-- mcp-name: io.github.cyntrisec/cyntrisec -->
 
-<a href="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec/badge" />
-</a>
-
 ![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)
 
 > [!CAUTION]
@@ -21,6 +17,10 @@
 > **Always review** generated remediation plans and Terraform code before application.
 
 AWS capability graph analysis and attack path discovery.
+
+<a href="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec/badge" />
+</a>
 
 A read-only CLI tool that:
 - Scans AWS infrastructure via AssumeRole
