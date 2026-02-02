@@ -83,7 +83,13 @@ class ComplianceReport:
 
     @property
     def compliance_score(self) -> float:
-        """Percentage of controls passing."""
+        """Percentage of controls passing (out of all controls including unknown)."""
+        total = len(self.results)
+        return self.passing / total if total > 0 else 0.0
+
+    @property
+    def evaluated_score(self) -> float:
+        """Percentage of controls passing (out of evaluated controls only)."""
         total = self.passing + self.failing
         return self.passing / total if total > 0 else 0.0
 
@@ -429,7 +435,9 @@ class ComplianceChecker:
             "total_controls": len(report.results),
             "passing": report.passing,
             "failing": report.failing,
+            "unknown": report.unknown,
             "compliance_score": report.compliance_score,
+            "evaluated_score": report.evaluated_score,
             "by_severity": by_severity,
             "failing_by_severity": failing_by_severity,
         }

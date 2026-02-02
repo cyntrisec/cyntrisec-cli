@@ -9,8 +9,9 @@ The graph models AWS infrastructure as:
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from cyntrisec.core.schema import INTERNET_ASSET_ID, Asset, EdgeKind, Relationship
 
@@ -27,11 +28,12 @@ class AwsGraph:
     - Assets by type
 
     This is an immutable snapshot of the graph at scan time.
+    All internal collections are frozen at construction time via GraphBuilder.
     """
 
-    assets_by_id: dict[uuid.UUID, Asset]
-    outgoing: dict[uuid.UUID, list[Relationship]]
-    incoming: dict[uuid.UUID, list[Relationship]]
+    assets_by_id: Mapping[uuid.UUID, Asset]
+    outgoing: Mapping[uuid.UUID, tuple[Relationship, ...]]
+    incoming: Mapping[uuid.UUID, tuple[Relationship, ...]]
 
     def asset(self, asset_id: uuid.UUID) -> Asset | None:
         """Get an asset by ID."""
@@ -39,19 +41,19 @@ class AwsGraph:
 
     def neighbors(self, asset_id: uuid.UUID) -> list[uuid.UUID]:
         """Get IDs of all assets this asset can reach (outgoing edges)."""
-        return [rel.target_asset_id for rel in self.outgoing.get(asset_id, [])]
+        return [rel.target_asset_id for rel in self.outgoing.get(asset_id, ())]
 
     def predecessors(self, asset_id: uuid.UUID) -> list[uuid.UUID]:
         """Get IDs of all assets that can reach this asset (incoming edges)."""
-        return [rel.source_asset_id for rel in self.incoming.get(asset_id, [])]
+        return [rel.source_asset_id for rel in self.incoming.get(asset_id, ())]
 
     def edges_from(self, asset_id: uuid.UUID) -> list[Relationship]:
         """Get all outgoing relationships from an asset."""
-        return list(self.outgoing.get(asset_id, []))
+        return list(self.outgoing.get(asset_id, ()))
 
     def edges_to(self, asset_id: uuid.UUID) -> list[Relationship]:
         """Get all incoming relationships to an asset."""
-        return list(self.incoming.get(asset_id, []))
+        return list(self.incoming.get(asset_id, ()))
 
     def all_assets(self) -> list[Asset]:
         """Get all assets in the graph."""
@@ -59,7 +61,7 @@ class AwsGraph:
 
     def all_relationships(self) -> list[Relationship]:
         """Get all relationships in the graph."""
-        all_rels = []
+        all_rels: list[Relationship] = []
         for rels in self.outgoing.values():
             all_rels.extend(rels)
         return all_rels
@@ -166,8 +168,8 @@ class GraphBuilder:
         in the provided asset list.
         """
         assets_by_id: dict[uuid.UUID, Asset] = {asset.id: asset for asset in assets}
-        outgoing: dict[uuid.UUID, list[Relationship]] = {}
-        incoming: dict[uuid.UUID, list[Relationship]] = {}
+        outgoing_lists: dict[uuid.UUID, list[Relationship]] = {}
+        incoming_lists: dict[uuid.UUID, list[Relationship]] = {}
 
         for rel in relationships:
             # Skip relationships with missing endpoints
@@ -196,11 +198,15 @@ class GraphBuilder:
                 if inferred_kind != EdgeKind.UNKNOWN:
                     rel = rel.model_copy(update={"edge_kind": inferred_kind})
 
-            outgoing.setdefault(rel.source_asset_id, []).append(rel)
-            incoming.setdefault(rel.target_asset_id, []).append(rel)
+            outgoing_lists.setdefault(rel.source_asset_id, []).append(rel)
+            incoming_lists.setdefault(rel.target_asset_id, []).append(rel)
+
+        # Freeze internal collections: convert lists to tuples
+        outgoing = {k: tuple(v) for k, v in outgoing_lists.items()}
+        incoming = {k: tuple(v) for k, v in incoming_lists.items()}
 
         return AwsGraph(
-            assets_by_id=assets_by_id,
-            outgoing=outgoing,
-            incoming=incoming,
+            assets_by_id=MappingProxyType(assets_by_id),
+            outgoing=MappingProxyType(outgoing),
+            incoming=MappingProxyType(incoming),
         )

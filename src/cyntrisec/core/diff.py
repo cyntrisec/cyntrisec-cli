@@ -234,45 +234,52 @@ class SnapshotDiff:
         asset_names: dict[uuid.UUID, str],
     ) -> list[RelationshipChange]:
         """Diff relationships between snapshots."""
-        changes = []
+        changes: list[RelationshipChange] = []
 
-        # Key by source ARN + target ARN + type (since IDs change between snapshots)
-        def rel_key(r: Relationship) -> tuple[str, str, str]:
+        def rel_key(r: Relationship) -> tuple[str, str, str, str]:
+            """Key by source name + target name + type + sorted properties."""
+            props_str = str(sorted(r.properties.items())) if r.properties else ""
             return (
                 asset_names.get(r.source_asset_id, str(r.source_asset_id)),
                 asset_names.get(r.target_asset_id, str(r.target_asset_id)),
                 r.relationship_type,
+                props_str,
             )
 
-        old_by_key = {rel_key(r): r for r in old}
-        new_by_key = {rel_key(r): r for r in new}
+        old_by_key: dict[tuple, list[Relationship]] = {}
+        for r in old:
+            old_by_key.setdefault(rel_key(r), []).append(r)
+        new_by_key: dict[tuple, list[Relationship]] = {}
+        for r in new:
+            new_by_key.setdefault(rel_key(r), []).append(r)
 
-        old_keys = set(old_by_key.keys())
-        new_keys = set(new_by_key.keys())
+        all_keys = set(old_by_key) | set(new_by_key)
 
-        # Added relationships
-        for key in new_keys - old_keys:
-            rel = new_by_key[key]
-            changes.append(
-                RelationshipChange(
-                    change_type=ChangeType.added,
-                    relationship=rel,
-                    source_name=key[0],
-                    target_name=key[1],
+        for key in all_keys:
+            old_rels = old_by_key.get(key, [])
+            new_rels = new_by_key.get(key, [])
+
+            # Report added relationships (new has more than old)
+            for rel in new_rels[len(old_rels):]:
+                changes.append(
+                    RelationshipChange(
+                        change_type=ChangeType.added,
+                        relationship=rel,
+                        source_name=key[0],
+                        target_name=key[1],
+                    )
                 )
-            )
 
-        # Removed relationships
-        for key in old_keys - new_keys:
-            rel = old_by_key[key]
-            changes.append(
-                RelationshipChange(
-                    change_type=ChangeType.removed,
-                    relationship=rel,
-                    source_name=key[0],
-                    target_name=key[1],
+            # Report removed relationships (old has more than new)
+            for rel in old_rels[len(new_rels):]:
+                changes.append(
+                    RelationshipChange(
+                        change_type=ChangeType.removed,
+                        relationship=rel,
+                        source_name=key[0],
+                        target_name=key[1],
+                    )
                 )
-            )
 
         return changes
 

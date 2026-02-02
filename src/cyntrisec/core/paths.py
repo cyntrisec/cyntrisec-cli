@@ -827,14 +827,26 @@ class PathFinder:
 
             # Add relationship info for non-first steps
             if i > 0 and i - 1 < len(path_rels):
-                rels = graph.edges_from(path_assets[i - 1])
-                for rel in rels:
-                    if rel.target_asset_id == asset_id:
+                rel_id = path_rels[i - 1]
+                # Find the specific relationship by ID
+                matched = False
+                for rel in graph.edges_from(path_assets[i - 1]):
+                    if rel.id == rel_id:
                         step["via_relationship"] = {
                             "type": rel.relationship_type,
                             "properties": rel.properties,
                         }
+                        matched = True
                         break
+                # Fallback: match by target if relationship ID not found
+                if not matched:
+                    for rel in graph.edges_from(path_assets[i - 1]):
+                        if rel.target_asset_id == asset_id:
+                            step["via_relationship"] = {
+                                "type": rel.relationship_type,
+                                "properties": rel.properties,
+                            }
+                            break
 
             steps.append(step)
 
