@@ -9,6 +9,8 @@
 
 <!-- mcp-name: io.github.cyntrisec/cyntrisec -->
 
+> **Cyntrisec Labs project.** Cyntrisec's main product is [EphemeralML](https://github.com/cyntrisec/EphemeralML) — confidential AI inference with cryptographic receipts ([AIR v1](https://datatracker.ietf.org/doc/draft-tsyrulnikov-rats-attested-inference-receipt/)). This CLI is a standalone Labs tool. The PyPI package name `cyntrisec` and MCP server ID `io.github.cyntrisec/cyntrisec` are stable and will not change.
+
 ![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)
 
 > [!CAUTION]
