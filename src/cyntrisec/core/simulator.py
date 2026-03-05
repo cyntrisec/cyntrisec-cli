@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 log = logging.getLogger(__name__)
 
 
-class SimulationDecision(str, Enum):
+class SimulationDecision(StrEnum):
     """Result of a policy simulation."""
 
     allowed = "allowed"

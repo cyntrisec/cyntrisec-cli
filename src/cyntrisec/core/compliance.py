@@ -12,12 +12,12 @@ allowing users to understand their compliance posture.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 from cyntrisec.core.schema import Asset, Finding
 
 
-class Framework(str, Enum):
+class Framework(StrEnum):
     """Supported compliance frameworks."""
 
     CIS_AWS = "CIS-AWS"

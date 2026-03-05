@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 from cyntrisec.core.schema import Asset, AttackPath, Finding, Relationship
 
 
-class ChangeType(str, Enum):
+class ChangeType(StrEnum):
     """Type of change detected."""
 
     added = "added"

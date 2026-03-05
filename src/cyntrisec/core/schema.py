@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 INTERNET_ASSET_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
-class SnapshotStatus(str, Enum):
+class SnapshotStatus(StrEnum):
     """Status of a scan snapshot."""
 
     running = "running"
@@ -30,7 +30,7 @@ class SnapshotStatus(str, Enum):
     failed = "failed"
 
 
-class FindingSeverity(str, Enum):
+class FindingSeverity(StrEnum):
     """Severity level for security findings."""
 
     critical = "critical"
@@ -40,7 +40,7 @@ class FindingSeverity(str, Enum):
     info = "info"
 
 
-class EdgeKind(str, Enum):
+class EdgeKind(StrEnum):
     """Classification of relationship edges.
 
     - STRUCTURAL: Context only (CONTAINS, USES) - not traversed during attack path discovery
@@ -53,7 +53,7 @@ class EdgeKind(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ConditionResult(str, Enum):
+class ConditionResult(StrEnum):
     """Tri-state result for IAM condition evaluation.
 
     - TRUE: Condition satisfied
@@ -66,7 +66,7 @@ class ConditionResult(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ConfidenceLevel(str, Enum):
+class ConfidenceLevel(StrEnum):
     """Confidence that an attack path is exploitable.
 
     - HIGH: All preconditions verified
