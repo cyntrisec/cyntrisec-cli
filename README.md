@@ -182,6 +182,10 @@ python -m cyntrisec --help
 $env:PATH += ";$env:APPDATA\Python\Python311\Scripts"
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/cyntrisec-cyntrisec-cli).
+
 ## Quick Start
 
 > **Prerequisite**: Ensure you have [AWS CLI](https://aws.amazon.com/cli/) installed and configured with credentials (e.g., `aws configure`) or environment variables set. `terraform` is required for the setup step.
