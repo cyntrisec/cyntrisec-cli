@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+`cyntrisec-cli` is a historical pre-company project. New feature work and routine support are not active. File only critical security, packaging, or compatibility issues.
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 

@@ -1,5 +1,7 @@
 ## Description
 
+`cyntrisec-cli` is a historical pre-company project. Pull requests should be limited to critical security, packaging, or compatibility fixes before archive.
+
 Please include a summary of the change and which issue is fixed.
 
 Fixes # (issue)

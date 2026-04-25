@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.11] - 2026-04-25
+
+### Changed
+- Marked `cyntrisec-cli` as a historical pre-company project, not a current Cyntrisec product, support surface, or commercial offering.
+- Updated README, package metadata, and MCP metadata so PyPI / MCP users see the historical status directly.
+- Kept the `cyntrisec` package name, `cyntrisec` CLI command, and `io.github.cyntrisec/cyntrisec` MCP ID only for compatibility with historical installs.
+
 ## [0.1.10] - 2026-02-02
 
 ### Fixed

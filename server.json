@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyntrisec/cyntrisec",
-  "title": "Cyntrisec AWS Security",
-  "description": "AWS security analysis: attack paths, compliance checking, and remediation planning.",
+  "title": "Cyntrisec CLI (Historical)",
+  "description": "Historical pre-company AWS analysis CLI. Not a current Cyntrisec product, support surface, or commercial offering.",
   "repository": {
-    "url": "https://github.com/cyntrisec/cyntrisec-cli",
+    "url": "https://github.com/tsyrulb/cyntrisec-cli",
     "source": "github"
   },
-  "version": "0.1.10",
+  "version": "0.1.11",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cyntrisec",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "transport": {
         "type": "stdio"
       },

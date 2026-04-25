@@ -2,7 +2,9 @@
 
 ## Supported Versions
 
-We support security fixes for the latest released version and the current `main` branch.
+`cyntrisec-cli` is a historical pre-company project, not a current Cyntrisec product or support surface.
+
+Before archive, critical security reports affecting the final historical package may be reviewed. New features and non-critical maintenance are out of scope.
 
 ## Reporting a Vulnerability
 
@@ -13,13 +15,13 @@ Please report security issues privately.
 - Include clear reproduction steps, impact, affected versions, and any safe proof of concept.
 - Do not include secrets, access keys, or sensitive customer data in reports.
 
-We will acknowledge receipt and coordinate a fix and disclosure timeline.
+If the report affects the final historical package and is exploitable in realistic use, we will coordinate a fix or publish a clear advisory. Otherwise, the repository should be treated as archived historical software.
 
 ## Scope
 
 In scope:
-- The Cyntrisec CLI source code and released packages.
-- CLI commands, output formats, and storage behavior in this repo.
+- Critical vulnerabilities in the final historical `cyntrisec` package.
+- Issues that could expose local scan data, AWS credentials, or generated artifacts.
 
 Out of scope:
 - Third-party dependencies (please report those to the upstream project).

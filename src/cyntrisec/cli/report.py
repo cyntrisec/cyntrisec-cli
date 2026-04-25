@@ -465,8 +465,8 @@ def _generate_html(data: dict, title: str) -> str:
         {findings_section}
 
         <div class="footer">
-            [ CYNTRISEC SECURITY CLI v0.1 ] <br>
-            <a href="https://cyntrisec.com">DOCUMENTATION</a> | <a href="https://github.com/cyntrisec/cyntrisec-cli">SOURCE</a>
+            [ CYNTRISEC SECURITY CLI v0.1 - HISTORICAL ] <br>
+            Historical pre-company project. Archived source: <a href="https://github.com/tsyrulb/cyntrisec-cli">tsyrulb/cyntrisec-cli</a>
         </div>
     </div>
 </body>

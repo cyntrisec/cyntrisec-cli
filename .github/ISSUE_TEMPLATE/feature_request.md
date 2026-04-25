@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+`cyntrisec-cli` is a historical pre-company project. New feature work is not active; this template remains only for historical context before the repository is archived.
+
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 

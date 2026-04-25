@@ -1,6 +1,8 @@
 # Contributing to Cyntrisec
 
-Thank you for your interest in contributing to Cyntrisec! We welcome contributions from the community to help make cloud security more accessible and effective.
+`cyntrisec-cli` is a historical pre-company project. It is not a current Cyntrisec product, support surface, or commercial offering.
+
+This repository is being retained for historical installs and auditability. New feature work is not accepted. Before archive, only critical security or packaging fixes may be considered.
 
 ## Development Philosophy
 
@@ -75,13 +77,10 @@ pytest tests/unit/test_graph_builder.py
 
 ## Submitting Changes
 
-1.  **Fork the repository** and create a feature branch.
-2.  **Write code** adhering to the style guides.
-3.  **Add tests** for your new functionality.
-4.  **Run checks**: Ensure `ruff`, `mypy`, and `pytest` all pass.
-5.  **Update Documentation**: If you changed CLI commands or logic, update `README.md`.
-6.  **Changelog**: Add a note to `CHANGELOG.md` under the `[Unreleased]` section if the change is user-facing.
-7.  **Submit a Pull Request**: Describe your changes and the problem they solve.
+1.  Open a pull request only for critical security or packaging fixes.
+2.  Keep compatibility with the historical `cyntrisec` package and command.
+3.  Run checks: ensure `ruff`, `mypy`, and `pytest` all pass.
+4.  Update `CHANGELOG.md` for any user-visible fix.
 
 ## Adding New Graph Edges
 

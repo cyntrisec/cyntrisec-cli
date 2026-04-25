@@ -1,30 +1,21 @@
 # Cyntrisec CLI
 
 [![PyPI](https://img.shields.io/pypi/v/cyntrisec?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/cyntrisec/)
-[![Website](https://img.shields.io/badge/website-cyntrisec.com-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://cyntrisec.com/)
-[![X](https://img.shields.io/badge/-%40cyntrisec-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/cyntrisec)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/status-beta-orange?style=flat-square)](https://pypi.org/project/cyntrisec/)
-[![MCP](https://img.shields.io/badge/MCP-Registry-green?style=flat-square)](https://registry.modelcontextprotocol.io)
+[![Status](https://img.shields.io/badge/status-historical-lightgrey?style=flat-square)](https://pypi.org/project/cyntrisec/)
 
-<!-- mcp-name: io.github.cyntrisec/cyntrisec -->
-
-> **Cyntrisec Labs project.** Cyntrisec's main product is [EphemeralML](https://github.com/cyntrisec/EphemeralML) — confidential AI inference with cryptographic receipts ([AIR v1](https://datatracker.ietf.org/doc/draft-tsyrulnikov-rats-attested-inference-receipt/)). This CLI is a standalone Labs tool. The PyPI package name `cyntrisec` and MCP server ID `io.github.cyntrisec/cyntrisec` are stable and will not change.
+> **Historical pre-company project.** `cyntrisec-cli` was created before Cyntrisec narrowed its company focus to EphemeralML and AIR v1. It is not a current Cyntrisec product, support surface, or commercial offering. The PyPI package name `cyntrisec`, CLI command `cyntrisec`, and MCP server ID `io.github.cyntrisec/cyntrisec` are retained only to avoid breaking historical installs.
 
 ![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)
 
 > [!CAUTION]
-> **Beta Software Disclaimer**: This tool is currently in **BETA**. It is provided "as is", without warranty of any kind.
-> While Cyntrisec is a read-only analysis tool by default, the user assumes all responsibility for any actions taken based on its findings.
+> **Historical Software Disclaimer**: This tool is no longer an active Cyntrisec product. It is provided "as is", without warranty of any kind.
+> While the CLI is a read-only analysis tool by default, the user assumes all responsibility for any actions taken based on its findings.
 > **Always review** generated remediation plans and Terraform code before application.
 
-AWS capability graph analysis and attack path discovery.
+Historical AWS capability graph analysis and attack path discovery CLI.
 
-<a href="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@tsyrulb/cyntrisec/badge" />
-</a>
-
-A read-only CLI tool that:
+A read-only CLI tool that historically:
 - Scans AWS infrastructure via AssumeRole
 - Builds a capability graph (IAM, network, dependencies)
 - Discovers attack paths from internet to sensitive targets
@@ -253,7 +244,7 @@ cyntrisec report --output report.html
 
 ## MCP Server Mode
 
-Run Cyntrisec as an MCP server for AI agent integration:
+The historical CLI can still run as an MCP server for compatibility with existing local setups:
 
 ```bash
 # Install with MCP support (now included by default)
@@ -456,5 +447,4 @@ Apache-2.0
 ## Links
 
 - [PyPI Package](https://pypi.org/project/cyntrisec/)
-- [Website](https://cyntrisec.com/)
-- [Twitter/X](https://x.com/cyntrisec)
+- [Historical Source](https://github.com/tsyrulb/cyntrisec-cli)

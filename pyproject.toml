@@ -5,15 +5,15 @@ build-backend = "hatchling.build"
 [project]
 name = "cyntrisec"
 dynamic = ["version"]
-description = "AWS capability graph analysis and attack path discovery CLI"
+description = "Historical AWS analysis CLI; not a current Cyntrisec product"
 readme = "README.md"
 license = { file = "LICENSE" }
 license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
-authors = [{ name = "CyntriSec" }]
+authors = [{ name = "Borys Tsyrulnikov" }]
 keywords = ["aws", "security", "attack-path", "cli", "cost-optimization", "mcp", "mcp-server"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 7 - Inactive",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
@@ -35,8 +35,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cyntrisec/cyntrisec-cli"
-Repository = "https://github.com/cyntrisec/cyntrisec-cli"
+Homepage = "https://github.com/tsyrulb/cyntrisec-cli"
+Repository = "https://github.com/tsyrulb/cyntrisec-cli"
 "MCP Registry" = "https://registry.modelcontextprotocol.io"
 
 [project.optional-dependencies]
