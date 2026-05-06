@@ -4,15 +4,15 @@
   "title": "Cyntrisec CLI (Historical)",
   "description": "Historical pre-company AWS analysis CLI. Not a current Cyntrisec product, support surface, or commercial offering.",
   "repository": {
-    "url": "https://github.com/tsyrulb/cyntrisec-cli",
+    "url": "https://github.com/cyntrisec/cyntrisec-cli",
     "source": "github"
   },
-  "version": "0.1.11",
+  "version": "0.1.12",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cyntrisec",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "transport": {
         "type": "stdio"
       },

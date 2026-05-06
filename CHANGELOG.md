@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.12] - 2026-05-06
+
+### Changed
+- Corrected package and MCP metadata to point to the real historical source repository at `cyntrisec/cyntrisec-cli`.
+- Kept the package explicitly marked as historical / inactive so PyPI users do not mistake it for the current Cyntrisec product.
+
 ## [0.1.11] - 2026-04-25
 
 ### Changed

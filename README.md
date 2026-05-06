@@ -447,4 +447,4 @@ Apache-2.0
 ## Links
 
 - [PyPI Package](https://pypi.org/project/cyntrisec/)
-- [Historical Source](https://github.com/tsyrulb/cyntrisec-cli)
+- [Historical Source](https://github.com/cyntrisec/cyntrisec-cli)

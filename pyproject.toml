@@ -35,8 +35,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/tsyrulb/cyntrisec-cli"
-Repository = "https://github.com/tsyrulb/cyntrisec-cli"
+Homepage = "https://github.com/cyntrisec/cyntrisec-cli"
+Repository = "https://github.com/cyntrisec/cyntrisec-cli"
 "MCP Registry" = "https://registry.modelcontextprotocol.io"
 
 [project.optional-dependencies]
