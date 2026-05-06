@@ -7,12 +7,12 @@
     "url": "https://github.com/cyntrisec/cyntrisec-cli",
     "source": "github"
   },
-  "version": "0.1.13",
+  "version": "0.1.14",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cyntrisec",
-      "version": "0.1.13",
+      "version": "0.1.14",
       "transport": {
         "type": "stdio"
       },

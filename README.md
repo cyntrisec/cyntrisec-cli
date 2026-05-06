@@ -4,6 +4,8 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-historical-lightgrey?style=flat-square)](https://pypi.org/project/cyntrisec/)
 
+<!-- mcp-name: io.github.cyntrisec/cyntrisec -->
+
 > **Historical pre-company project.** `cyntrisec-cli` was created before Cyntrisec narrowed its company focus to EphemeralML and AIR v1. It is not a current Cyntrisec product, support surface, or commercial offering. The PyPI package name `cyntrisec`, CLI command `cyntrisec`, and MCP server ID `io.github.cyntrisec/cyntrisec` are retained only to avoid breaking historical installs.
 
 ![image-download](https://github.com/user-attachments/assets/83a8b7d2-23c8-4e6e-a471-2e6a0a6f93e7)

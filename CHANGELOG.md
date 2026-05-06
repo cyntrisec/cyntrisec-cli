@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [0.1.14] - 2026-05-06
+
+### Changed
+- Restored the MCP Registry ownership marker in the package README while keeping the historical status banner.
+
 ## [0.1.13] - 2026-05-06
 
 ### Changed
