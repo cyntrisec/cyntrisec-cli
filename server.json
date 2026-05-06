@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyntrisec/cyntrisec",
   "title": "Cyntrisec CLI (Historical)",
-  "description": "Historical pre-company AWS analysis CLI. Not a current Cyntrisec product, support surface, or commercial offering.",
+  "description": "Historical AWS analysis CLI; not a current Cyntrisec product.",
   "repository": {
     "url": "https://github.com/cyntrisec/cyntrisec-cli",
     "source": "github"
   },
-  "version": "0.1.12",
+  "version": "0.1.13",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cyntrisec",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "transport": {
         "type": "stdio"
       },
